@@ -110,15 +110,6 @@ export function Hero() {
           transition={{ duration: 0.8 }}
           className="max-w-4xl mx-auto text-center"
         >
-          <motion.span
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/20 backdrop-blur-sm text-card text-sm font-medium mb-6"
-          >
-            {heroContent.badge}
-          </motion.span>
-
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-card mb-6 leading-tight">
             {heroContent.title}
             <span className="block" style={{ color: "hsl(16 85% 55% / 0.95)" }}>{heroContent.titleHighlight}</span>
