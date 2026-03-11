@@ -133,14 +133,14 @@ export function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-10"
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
           >
-            <Button asChild size="lg" className="group animate-pulse-glow shadow-glow border-0 text-white hover:scale-[1.02] transition-transform duration-300">
+            <Button asChild size="lg" className="rounded-full px-8 bg-[#f97316] hover:bg-[#ea580c] text-white font-semibold border-0 transition-transform hover:scale-105 h-12">
               <Link to={heroContent.ctaPrimaryLink}>
                 {heroContent.ctaPrimary}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="secondary" className="group glass border border-white/20 hover:bg-white/30 text-card hover:text-white transition-all duration-300">
+            <Button asChild size="lg" variant="outline" className="rounded-full px-8 bg-white/20 hover:bg-white/30 border-white/30 text-white font-semibold backdrop-blur-md transition-all hover:scale-105 h-12">
               <Link to={heroContent.ctaSecondaryLink}>
                 {heroContent.ctaSecondary}
               </Link>
@@ -152,20 +152,18 @@ export function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, type: "spring", stiffness: 100 }}
-            className="glass-panel rounded-3xl p-4 shadow-xl max-w-3xl mx-auto"
+            className="bg-white rounded-2xl md:rounded-[2rem] p-2 shadow-2xl max-w-3xl mx-auto"
           >
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-3">
               {/* Category Dropdown */}
               <div className="relative flex-1">
                 <button
                   ref={buttonRef}
                   onClick={handleToggleDropdown}
-                  className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-muted rounded-xl text-left hover:bg-muted/80 transition-colors"
+                  className="w-full flex items-center justify-between gap-2 px-6 py-3 bg-slate-100 rounded-xl md:rounded-full text-left hover:bg-slate-200 transition-colors h-12"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-foreground font-medium">{t(selectedCategory)}</span>
-                  </div>
-                  <span className={`text-muted-foreground transition-transform ${isCategoryOpen ? "rotate-180" : ""}`}>▾</span>
+                  <span className="text-slate-700 font-medium">{t(selectedCategory)}</span>
+                  <span className={`text-slate-400 text-[10px] transition-transform ${isCategoryOpen ? "rotate-180" : ""}`}>▼</span>
                 </button>
                 {isCategoryOpen && createPortal(
                   <>
@@ -174,7 +172,7 @@ export function Hero() {
                       onClick={() => setIsCategoryOpen(false)} 
                     />
                     <div 
-                      className="fixed bg-card rounded-xl shadow-2xl border border-border max-h-80 overflow-auto z-[99999] animate-fade-in"
+                      className="fixed bg-white rounded-xl shadow-2xl border border-slate-100 max-h-80 overflow-auto z-[99999] animate-fade-in"
                       style={{
                         top: dropdownPosition.top,
                         left: dropdownPosition.left,
@@ -188,7 +186,7 @@ export function Hero() {
                             setSelectedCategory(category);
                             setIsCategoryOpen(false);
                           }}
-                          className="w-full px-4 py-3 text-left hover:bg-muted transition-colors first:rounded-t-xl last:rounded-b-xl text-foreground"
+                          className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl text-slate-700"
                         >
                           {t(category)}
                         </button>
@@ -200,15 +198,14 @@ export function Hero() {
               </div>
 
               {/* Search Button */}
-              <Button size="lg" className="md:w-auto" onClick={handleSearch}>
+              <Button size="lg" className="md:w-auto rounded-xl md:rounded-full px-8 bg-[#f97316] hover:bg-[#ea580c] text-white font-semibold h-12" onClick={handleSearch}>
                 {t('hero.search')}
               </Button>
 
               {/* Show on Map Button */}
               <Button 
                 size="lg" 
-                variant="secondary" 
-                className="md:w-auto"
+                className="md:w-auto rounded-xl md:rounded-full px-8 bg-[#252f3f] hover:bg-[#1a212d] text-white font-semibold h-12"
                 asChild
               >
                 <Link to="/map">
