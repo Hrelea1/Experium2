@@ -53,9 +53,6 @@ export function FeaturedExperiences() {
           .order('created_at', { ascending: false })
           .limit(6);
 
-        console.log("Featured Experiences Query Data:", data);
-        console.log("Featured Experiences Query Error:", error);
-
         if (error) throw error;
 
         const formattedExperiences = data?.map((exp: any) => {
