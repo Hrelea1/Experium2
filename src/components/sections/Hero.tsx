@@ -41,8 +41,8 @@ export function Hero() {
   const { data: content } = useHomepageContent("hero");
   
   const heroContent = content?.content || {
-    title: t('hero.title'),
-    titleHighlight: "",
+    title: "Oferă Momente",
+    titleHighlight: "Memorabile",
     subtitle: t('hero.subtitle'),
     badge: t('hero.badge'),
     ctaPrimary: t('hero.discover'),
@@ -121,7 +121,7 @@ export function Hero() {
 
           <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-card mb-6 leading-tight">
             {heroContent.title}
-            <span className="block text-primary">{heroContent.titleHighlight}</span>
+            <span className="block" style={{ color: "hsl(16 85% 55% / 0.95)" }}>{heroContent.titleHighlight}</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-card/90 mb-10 max-w-2xl mx-auto">
@@ -135,7 +135,7 @@ export function Hero() {
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
           >
-            <Button asChild size="lg" className="rounded-full px-8 bg-[#f97316] hover:bg-[#ea580c] text-white font-semibold border-0 transition-transform hover:scale-105 h-12">
+            <Button asChild size="lg" className="rounded-full px-8 text-white font-semibold border-0 transition-transform hover:scale-105 h-12 hover:brightness-110" style={{ backgroundColor: "hsl(16 85% 55% / 0.95)" }}>
               <Link to={heroContent.ctaPrimaryLink}>
                 {heroContent.ctaPrimary}
               </Link>
@@ -198,7 +198,7 @@ export function Hero() {
               </div>
 
               {/* Search Button */}
-              <Button size="lg" className="md:w-auto rounded-xl md:rounded-full px-8 bg-[#f97316] hover:bg-[#ea580c] text-white font-semibold h-12" onClick={handleSearch}>
+              <Button size="lg" className="md:w-auto rounded-xl md:rounded-full px-8 text-white font-semibold h-12 hover:brightness-110" style={{ backgroundColor: "hsl(16 85% 55% / 0.95)" }} onClick={handleSearch}>
                 {t('hero.search')}
               </Button>
 
