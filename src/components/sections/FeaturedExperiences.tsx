@@ -45,13 +45,16 @@ export function FeaturedExperiences() {
           .from('experiences')
           .select(`
             *,
-            categories(name),
+            categories!inner(name),
              experience_images(image_url, is_primary, focal_x, focal_y)
           `)
           .eq('is_active', true)
           .eq('is_featured', true)
           .order('created_at', { ascending: false })
           .limit(6);
+
+        console.log("Featured Experiences Query Data:", data);
+        console.log("Featured Experiences Query Error:", error);
 
         if (error) throw error;
 
