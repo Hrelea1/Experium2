@@ -42,10 +42,10 @@ const Auth = () => {
   const mode = searchParams.get('mode');
 
   useEffect(() => {
-    if (user) {
+    if (user && !requires2FA) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, requires2FA, navigate]);
 
   useEffect(() => {
     if (mode === 'reset') {
