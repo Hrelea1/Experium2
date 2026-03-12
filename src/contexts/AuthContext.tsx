@@ -86,11 +86,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (error) {
+      const message = error.message === 'Failed to fetch'
+        ? 'Nu s-a putut conecta la server. Verificați conexiunea la internet.'
+        : error.message === 'Invalid login credentials'
+        ? 'Email sau parolă incorectă'
+        : error.message;
       toast({
         title: "Eroare autentificare",
-        description: error.message === "Invalid login credentials" 
-          ? "Email sau parolă incorectă" 
-          : error.message,
+        description: message,
         variant: "destructive",
       });
     }
