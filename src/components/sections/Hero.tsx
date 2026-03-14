@@ -9,25 +9,19 @@ import { useHomepageContent } from "@/hooks/useHomepageContent";
 
 const categories = [
   "hero.allCategories",
-  "categories.adventure",
   "categories.spa",
   "categories.gastronomy",
-  "categories.culture",
-  "categories.sports",
   "categories.nature",
-  "categories.romantic",
+  "categories.adventure",
 ];
 
 // Map translation keys to URL slugs
 const categorySlugMap: Record<string, string> = {
   "hero.allCategories": "toate-categoriile",
-  "categories.adventure": "aventura",
   "categories.spa": "spa-relaxare",
   "categories.gastronomy": "gastronomie",
-  "categories.culture": "arta-cultura",
-  "categories.sports": "sport",
   "categories.nature": "natura",
-  "categories.romantic": "romantic",
+  "categories.adventure": "aventura",
 };
 
 export function Hero() {
