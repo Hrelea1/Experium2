@@ -54,7 +54,7 @@ export function BookingForm({ experience }: BookingFormProps) {
     setAddedToCart(false);
   }, []);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!user) {
       toast({ title: "Autentificare necesară", description: "Trebuie să fii autentificat.", variant: "destructive" });
       navigate("/auth");
@@ -88,12 +88,14 @@ export function BookingForm({ experience }: BookingFormProps) {
       addedAt: Date.now(),
     };
 
-    addItem(cartItem);
-    setAddedToCart(true);
-    toast({
-      title: "Adăugat în coș! 🛒",
-      description: `${experience.title} a fost adăugat în coșul tău.`,
-    });
+    const success = await addItem(cartItem);
+    if (success) {
+      setAddedToCart(true);
+      toast({
+        title: "Adăugat în coș! 🛒",
+        description: `${experience.title} a fost adăugat în coșul tău.`,
+      });
+    }
   };
 
   return (
