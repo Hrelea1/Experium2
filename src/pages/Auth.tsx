@@ -126,7 +126,8 @@ const Auth = () => {
       if (error.message.includes('Email not confirmed')) {
         setSignupEmail(loginEmail);
         setShowOTP(true);
-        handleResendOTP(); // Trigger resend automatically
+        // Pass loginEmail directly to avoid race condition with state update
+        handleResendOTP(loginEmail); 
         toast({
           title: 'Email neconfirmat',
           description: 'Ți-am mai trimis o dată codul de confirmare.',
@@ -232,15 +233,24 @@ const Auth = () => {
     }
   };
 
-  const handleResendOTP = async () => {
+  const handleResendOTP = async (email?: string) => {
+    const targetEmail = email || signupEmail;
+    console.log('Attempting to resend OTP to:', targetEmail);
+    
+    if (!targetEmail) {
+      console.error('No email available for resend');
+      return;
+    }
+
     const { error } = await supabase.auth.resend({
       type: 'signup',
-      email: signupEmail,
+      email: targetEmail,
     });
 
     if (error) {
+      console.error('Resend error:', error);
       toast({
-        title: "Eroare",
+        title: "Eroare retransmitere",
         description: error.message,
         variant: "destructive",
       });
@@ -377,7 +387,7 @@ const Auth = () => {
                     type="button"
                     variant="ghost"
                     className="w-full text-sm"
-                    onClick={handleResendOTP}
+                    onClick={() => handleResendOTP()}
                   >
                     N-ai primit codul? Trimite din nou
                   </Button>
