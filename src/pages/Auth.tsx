@@ -39,11 +39,7 @@ const Auth = () => {
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-  // OTP state
-  const [showOTP, setShowOTP] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [verifyingOTP, setVerifyingOTP] = useState(false);
-  const [otpError, setOtpError] = useState('');
+
 
   const mode = searchParams.get('mode');
 
@@ -123,24 +119,13 @@ const Auth = () => {
 
       navigate('/');
     } catch (error: any) {
-      if (error.message.includes('Email not confirmed')) {
-        setSignupEmail(loginEmail);
-        setShowOTP(true);
-        // Pass loginEmail directly to avoid race condition with state update
-        handleResendOTP(loginEmail); 
-        toast({
-          title: 'Email neconfirmat',
-          description: 'Ți-am mai trimis o dată codul de confirmare.',
-        });
-      } else {
-        toast({
-          title: 'Eroare autentificare',
-          description: error.message === 'Invalid login credentials' 
-            ? 'Email sau parolă incorectă' 
-            : error.message,
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'Eroare autentificare',
+        description: error.message === 'Invalid login credentials' 
+          ? 'Email sau parolă incorectă' 
+          : error.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -180,11 +165,9 @@ const Auth = () => {
     const { error } = await signUp(signupEmail, signupPassword, signupFullName);
     setLoading(false);
     if (!error) {
-      setShowOTP(true);
-      setOtpError('');
       toast({
-        title: "Cod trimis!",
-        description: "Ți-am trimis un cod de 6 cifre pe email pentru a-ți confirma contul.",
+        title: "Cont creat!",
+        description: "Verifică inbox-ul pentru confirmarea contului.",
       });
     } else {
       if (error.message.includes('already registered')) {
@@ -197,70 +180,6 @@ const Auth = () => {
     }
   };
 
-  const handleVerifyOTP = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setOtpError('');
-    
-    if (!otpCode || otpCode.length !== 6) {
-      setOtpError("Introdu codul de 6 cifre primit pe email.");
-      return;
-    }
-
-    setVerifyingOTP(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: signupEmail,
-        token: otpCode,
-        type: 'signup',
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Succes!",
-        description: "Contul tău a fost confirmat cu succes. Bine ai venit pe Experium!",
-      });
-      // Navigation is handled by the useEffect watching 'user'
-    } catch (error: any) {
-      setOtpError(error.message);
-      toast({
-        title: "Eroare verificare",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setVerifyingOTP(false);
-    }
-  };
-
-  const handleResendOTP = async (email?: string) => {
-    const targetEmail = email || signupEmail;
-    console.log('Attempting to resend OTP to:', targetEmail);
-    
-    if (!targetEmail) {
-      console.error('No email available for resend');
-      return;
-    }
-
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: targetEmail,
-    });
-
-    if (error) {
-      console.error('Resend error:', error);
-      toast({
-        title: "Eroare retransmitere",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Cod retrimis",
-        description: "Verifică din nou inbox-ul.",
-      });
-    }
-  };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -349,68 +268,7 @@ const Auth = () => {
     );
   }
 
-  if (showOTP) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Confirmă-ți identitatea</CardTitle>
-              <CardDescription>
-                Introdu codul de 6 cifre trimis la <strong>{signupEmail}</strong>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleVerifyOTP} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="otp-code">Cod de confirmare</Label>
-                  <Input
-                    id="otp-code"
-                    type="text"
-                    placeholder="000000"
-                    maxLength={6}
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    required
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground text-center">
-                    Verifică și folderul de spam/junk.
-                  </p>
-                </div>
-                <Button type="submit" className="w-full" disabled={verifyingOTP}>
-                  {verifyingOTP ? 'Se verifică...' : 'Confirmă cont'}
-                </Button>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full text-sm"
-                    onClick={() => handleResendOTP()}
-                  >
-                    N-ai primit codul? Trimite din nou
-                  </Button>
-                  {otpError && (
-                    <p className="text-sm text-destructive text-center">{otpError}</p>
-                  )}
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="w-full text-sm"
-                    onClick={() => setShowOTP(false)}
-                  >
-                    Înapoi la înregistrare
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+
   if (requires2FA) {
     return (
       <div className="min-h-screen flex flex-col">

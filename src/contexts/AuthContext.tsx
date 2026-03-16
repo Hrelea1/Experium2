@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       toast({
         title: "Cont creat!",
-        description: "Introdu codul de 6 cifre trimis pe email pentru a activa contul.",
+        description: "Verifică inbox-ul pentru confirmarea contului.",
       });
     }
 
