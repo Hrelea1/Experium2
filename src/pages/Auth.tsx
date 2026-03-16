@@ -39,6 +39,11 @@ const Auth = () => {
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
+  // OTP state
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [verifyingOTP, setVerifyingOTP] = useState(false);
+
   const mode = searchParams.get('mode');
 
   useEffect(() => {
@@ -163,13 +168,10 @@ const Auth = () => {
     const { error } = await signUp(signupEmail, signupPassword, signupFullName);
     setLoading(false);
     if (!error) {
-      // Don't navigate immediately - wait for auth state to update
-      // If auto-confirm is on, onAuthStateChange will redirect via useEffect
-      // If email confirmation is needed, show a clear message
+      setShowOTP(true);
       toast({
-        title: "Cont creat cu succes!",
-        description: "Verifică-ți email-ul pentru a confirma contul, apoi te poți autentifica.",
-        duration: 8000,
+        title: "Cod trimis!",
+        description: "Ți-am trimis un cod de 6 cifre pe email pentru a-ți confirma contul.",
       });
     } else {
       if (error.message.includes('already registered')) {
@@ -177,6 +179,63 @@ const Auth = () => {
       } else {
         setPasswordError(error.message);
       }
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode || otpCode.length !== 6) {
+      toast({
+        title: "Cod invalid",
+        description: "Introdu codul de 6 cifre primit pe email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setVerifyingOTP(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: signupEmail,
+        token: otpCode,
+        type: 'signup',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Succes!",
+        description: "Contul tău a fost confirmat cu succes. Bine ai venit pe Experium!",
+      });
+      navigate('/');
+    } catch (error: any) {
+      toast({
+        title: "Eroare verificare",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setVerifyingOTP(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: signupEmail,
+    });
+
+    if (error) {
+      toast({
+        title: "Eroare",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Cod retrimis",
+        description: "Verifică din nou inbox-ul.",
+      });
     }
   };
 
@@ -267,6 +326,65 @@ const Auth = () => {
     );
   }
 
+  if (showOTP) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Confirmă-ți identitatea</CardTitle>
+              <CardDescription>
+                Introdu codul de 6 cifre trimis la <strong>{signupEmail}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleVerifyOTP} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp-code">Cod de confirmare</Label>
+                  <Input
+                    id="otp-code"
+                    type="text"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    required
+                    autoFocus
+                  />
+                  <p className="text-xs text-muted-foreground text-center">
+                    Verifică și folderul de spam/junk.
+                  </p>
+                </div>
+                <Button type="submit" className="w-full" disabled={verifyingOTP}>
+                  {verifyingOTP ? 'Se verifică...' : 'Confirmă cont'}
+                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full text-sm"
+                    onClick={handleResendOTP}
+                  >
+                    N-ai primit codul? Trimite din nou
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="w-full text-sm"
+                    onClick={() => setShowOTP(false)}
+                  >
+                    Înapoi la înregistrare
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   if (requires2FA) {
     return (
       <div className="min-h-screen flex flex-col">
