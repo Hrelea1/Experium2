@@ -187,9 +187,11 @@ export default function CreateExperience() {
         if (svcError) console.error('Error adding services:', svcError);
       }
 
+      console.log('Experience created successfully:', expData.id);
       toast({ title: 'Experiență creată!', description: 'Experiența a fost trimisă spre aprobare.' });
       navigate('/provider');
     } catch (error: any) {
+      console.error('Experience creation failed:', error);
       toast({ title: 'Eroare', description: error.message, variant: 'destructive' });
     } finally {
       setSaving(false);
