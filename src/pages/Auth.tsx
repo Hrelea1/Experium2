@@ -43,6 +43,7 @@ const Auth = () => {
   const [showOTP, setShowOTP] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [verifyingOTP, setVerifyingOTP] = useState(false);
+  const [otpError, setOtpError] = useState('');
 
   const mode = searchParams.get('mode');
 
@@ -122,13 +123,23 @@ const Auth = () => {
 
       navigate('/');
     } catch (error: any) {
-      toast({
-        title: 'Eroare autentificare',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email sau parolă incorectă' 
-          : error.message,
-        variant: 'destructive',
-      });
+      if (error.message.includes('Email not confirmed')) {
+        setSignupEmail(loginEmail);
+        setShowOTP(true);
+        handleResendOTP(); // Trigger resend automatically
+        toast({
+          title: 'Email neconfirmat',
+          description: 'Ți-am mai trimis o dată codul de confirmare.',
+        });
+      } else {
+        toast({
+          title: 'Eroare autentificare',
+          description: error.message === 'Invalid login credentials' 
+            ? 'Email sau parolă incorectă' 
+            : error.message,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -169,27 +180,28 @@ const Auth = () => {
     setLoading(false);
     if (!error) {
       setShowOTP(true);
+      setOtpError('');
       toast({
         title: "Cod trimis!",
         description: "Ți-am trimis un cod de 6 cifre pe email pentru a-ți confirma contul.",
       });
     } else {
       if (error.message.includes('already registered')) {
-        setPasswordError('Acest email este deja înregistrat');
+        setPasswordError('Acest email este deja înregistrat. Dacă nu ai primit codul, poți încerca să te autentifici pentru a-l primi din nou.');
+        // If we want to be proactive, we can show a button or link specifically for resending
+        setSignupEmail(signupEmail); 
       } else {
         setPasswordError(error.message);
       }
     }
   };
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyOTP = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setOtpError('');
+    
     if (!otpCode || otpCode.length !== 6) {
-      toast({
-        title: "Cod invalid",
-        description: "Introdu codul de 6 cifre primit pe email.",
-        variant: "destructive",
-      });
+      setOtpError("Introdu codul de 6 cifre primit pe email.");
       return;
     }
 
@@ -207,8 +219,9 @@ const Auth = () => {
         title: "Succes!",
         description: "Contul tău a fost confirmat cu succes. Bine ai venit pe Experium!",
       });
-      navigate('/');
+      // Navigation is handled by the useEffect watching 'user'
     } catch (error: any) {
+      setOtpError(error.message);
       toast({
         title: "Eroare verificare",
         description: error.message,
@@ -368,6 +381,9 @@ const Auth = () => {
                   >
                     N-ai primit codul? Trimite din nou
                   </Button>
+                  {otpError && (
+                    <p className="text-sm text-destructive text-center">{otpError}</p>
+                  )}
                   <Button
                     type="button"
                     variant="link"
