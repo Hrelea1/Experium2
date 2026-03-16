@@ -128,6 +128,7 @@ export default function CreateExperience() {
           region_id: regionId,
           location_name: locationName,
           cancellation_policy: cancellationPolicy || null,
+          ambassador_id: user.id,
           is_active: false,
         })
         .select()
