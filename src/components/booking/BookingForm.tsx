@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Users, ShoppingBag, CalendarCheck, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { useTranslation } from "react-i18next";
 import { ServiceSelector, SelectedService } from "./ServiceSelector";
 import { SlotPicker } from "./SlotPicker";
 import { AvailabilitySlot } from "@/hooks/useAvailabilitySlots";
+import { AvailabilityInfoModal } from "./AvailabilityInfoModal";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingFormProps {
   experience: {
@@ -34,6 +36,9 @@ export function BookingForm({ experience }: BookingFormProps) {
   const [servicesTotal, setServicesTotal] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [isAssisted, setIsAssisted] = useState(false);
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   const totalPrice = (experience.price * participants) + servicesTotal;
   const savings = experience.originalPrice 
@@ -53,6 +58,86 @@ export function BookingForm({ experience }: BookingFormProps) {
     setSelectedSlot(slot);
     setAddedToCart(false);
   }, []);
+
+  useEffect(() => {
+    const checkProviderMode = async () => {
+      try {
+        const { data: providerLink } = await supabase
+          .from('experience_providers')
+          .select('provider_user_id')
+          .eq('experience_id', experience.id)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (providerLink) {
+          const { data: profile } = await supabase
+            .from('provider_profiles')
+            .select('mode')
+            .eq('user_id', providerLink.provider_user_id)
+            .maybeSingle();
+          
+          if (profile?.mode === 'assisted') {
+            setIsAssisted(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking provider mode:', error);
+      }
+    };
+
+    checkProviderMode();
+  }, [experience.id]);
+
+  const handleInitiateCheck = async () => {
+    if (!user) {
+      toast({ title: "Autentificare necesară", description: "Trebuie să fii autentificat.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
+    
+    setCheckingAvailability(true);
+    try {
+      // 1. Create a pending booking
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: user.id,
+          experience_id: experience.id,
+          booking_date: `${selectedSlot?.slot_date}T${selectedSlot?.start_time}`,
+          participants,
+          total_price: totalPrice,
+          status: 'pending' as any, // Use type casting if necessary
+        })
+        .select()
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      // 2. Call initiate-availability-check edge function
+      const { error: initiateError } = await supabase.functions.invoke('initiate-availability-check', {
+        body: { booking_id: booking.id }
+      });
+
+      if (initiateError) throw initiateError;
+
+      toast({
+        title: "Cerere trimisă! ⌛",
+        description: "Vom notifica furnizorul. Vei primi un SMS în max. 15 minute.",
+      });
+      
+      setShowAvailabilityModal(false);
+    } catch (error: any) {
+      console.error('Error initiating check:', error);
+      toast({
+        title: "Eroare",
+        description: "Nu am putut iniția verificarea. Te rugăm să încerci mai târziu.",
+        variant: "destructive"
+      });
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!user) {
@@ -200,6 +285,17 @@ export function BookingForm({ experience }: BookingFormProps) {
               <Check className="w-4 h-4" /> Adăugat în coș
             </p>
           </div>
+        ) : isAssisted ? (
+          <Button
+            type="button"
+            size="xl"
+            className="w-full bg-amber-600 hover:bg-amber-700"
+            onClick={() => setShowAvailabilityModal(true)}
+            disabled={!selectedSlot || checkingAvailability}
+          >
+            <CalendarCheck className="w-5 h-5 mr-2" />
+            {checkingAvailability ? "Se procesează..." : "Verifică Disponibilitate"}
+          </Button>
         ) : (
           <Button
             type="button"
@@ -221,6 +317,13 @@ export function BookingForm({ experience }: BookingFormProps) {
             )}
           </Button>
         )}
+
+        <AvailabilityInfoModal 
+          isOpen={showAvailabilityModal}
+          onClose={() => setShowAvailabilityModal(false)}
+          onConfirm={handleInitiateCheck}
+          experienceTitle={experience.title}
+        />
 
         {/* Security Note */}
         <p className="text-center text-xs text-muted-foreground">

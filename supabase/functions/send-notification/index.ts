@@ -86,6 +86,18 @@ function smsBookingReminder(vars: Record<string, string>): string {
   return `Experium: Reminder - experiența ${vars.title} la ${vars.location} este mâine, ${vars.date}. Ajunge cu 10-15 min înainte!`;
 }
 
+function smsProviderAssistedCheck(vars: Record<string, string>): string {
+  return `Experium: Verifică disponibilitatea pentru ${vars.title} pe ${vars.date}. Client: ${vars.clientName}. [Confirm]: ${vars.confirmLink} [Decline]: ${vars.declineLink}. Valabil 15m.`;
+}
+
+function smsUserAssistedConfirmed(vars: Record<string, string>): string {
+  return `Experium: Veste bună! Slotul pentru ${vars.title} a fost confirmat. Finalizează achiziția în 15 minute aici: ${vars.paymentLink}`;
+}
+
+function smsUserAssistedUnavailable(vars: Record<string, string>): string {
+  return `Experium: Ne pare rău, slotul pentru ${vars.title} pe ${vars.date} nu mai este disponibil. Încearcă altă perioadă!`;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -103,7 +115,10 @@ type EventType =
   | "booking_cancelled"
   | "booking_reminder"
   | "provider_new_booking"
-  | "provider_booking_cancelled";
+  | "provider_booking_cancelled"
+  | "assisted_availability_check"
+  | "assisted_confirmed"
+  | "assisted_unavailable";
 
 interface NotificationRequest {
   event_type: EventType;
@@ -118,6 +133,7 @@ function validateInput(data: unknown): NotificationRequest {
   const validEvents: EventType[] = [
     "booking_confirmed", "booking_cancelled", "booking_reminder",
     "provider_new_booking", "provider_booking_cancelled",
+    "assisted_availability_check", "assisted_confirmed", "assisted_unavailable",
   ];
   if (!event_type || !validEvents.includes(event_type as EventType)) {
     throw new Error("Invalid event_type");
@@ -456,6 +472,10 @@ const handler = async (req: Request): Promise<Response> => {
       } else if (event_type === "booking_reminder") {
         if (clientSmsPrefs && !clientSmsPrefs.sms_booking_reminder) shouldSendSms = false;
         smsText = smsBookingReminder(vars);
+      } else if (event_type === "assisted_confirmed") {
+        smsText = smsUserAssistedConfirmed(vars);
+      } else if (event_type === "assisted_unavailable") {
+        smsText = smsUserAssistedUnavailable(vars);
       }
 
       if (smsText && shouldSendSms) {
@@ -539,6 +559,8 @@ const handler = async (req: Request): Promise<Response> => {
           providerSmsText = smsProviderNewBooking(providerVars);
         } else if (event_type === "booking_cancelled" || event_type === "provider_booking_cancelled") {
           providerSmsText = smsProviderBookingCancelled(providerVars);
+        } else if (event_type === "assisted_availability_check") {
+          providerSmsText = smsProviderAssistedCheck(providerVars);
         }
         if (providerSmsText) {
           const smsSent = await sendSms(providerProfile.phone, providerSmsText);

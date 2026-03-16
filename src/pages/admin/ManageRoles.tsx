@@ -61,6 +61,8 @@ const ManageRoles = () => {
   const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
   const [ambassadorStats, setAmbassadorStats] = useState<Record<string, any>>({});
   const [providerStats, setProviderStats] = useState<Record<string, { experienceCount: number; totalRevenue: number; totalSales: number }>>({});
+  const [providerModes, setProviderModes] = useState<Record<string, 'independent' | 'assisted'>>({});
+  const [selectedProviderMode, setSelectedProviderMode] = useState<'independent' | 'assisted'>('independent');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -158,6 +160,17 @@ const ManageRoles = () => {
         pStatsMap[role.user_id] = { experienceCount: expCount || 0, totalRevenue, totalSales };
       }
       setProviderStats(pStatsMap);
+
+      // Fetch provider modes
+      const { data: modesData } = await supabase
+        .from('provider_profiles')
+        .select('user_id, mode');
+      
+      const modesMap: Record<string, 'independent' | 'assisted'> = {};
+      modesData?.forEach(m => {
+        modesMap[m.user_id] = m.mode;
+      });
+      setProviderModes(modesMap);
     } catch (error: any) {
       toast({
         title: 'Eroare',
@@ -212,9 +225,21 @@ const ManageRoles = () => {
           throw error;
         }
       } else {
+        // If provider, also update/insert provider_profile mode
+        if (newUserRole === 'provider') {
+          const { error: modeError } = await supabase
+            .from('provider_profiles')
+            .upsert({
+              user_id: selectedUserId,
+              mode: selectedProviderMode,
+            });
+          
+          if (modeError) console.error('Error saving provider mode:', modeError);
+        }
+
         toast({
           title: 'Succes!',
-          description: `Rolul ${newUserRole} a fost acordat`,
+          description: `Rolul ${newUserRole} a fost acordat${newUserRole === 'provider' ? ` (${selectedProviderMode})` : ''}`,
         });
 
         setSelectedUserId('');
@@ -430,6 +455,22 @@ const ManageRoles = () => {
                               <UserPlus className="h-4 w-4" />
                             </Button>
                           </div>
+                          {selectedUserId === profile.id && newUserRole === 'provider' && (
+                            <div className="mt-2 flex justify-end">
+                              <Select 
+                                value={selectedProviderMode} 
+                                onValueChange={(v: 'independent' | 'assisted') => setSelectedProviderMode(v)}
+                              >
+                                <SelectTrigger className="w-32 h-8 text-xs">
+                                  <SelectValue placeholder="Mod" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="independent">Independent</SelectItem>
+                                  <SelectItem value="assisted">Asistat</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -600,7 +641,14 @@ const ManageRoles = () => {
                         </TableCell>
                         <TableCell>{pStats?.totalSales || 0}</TableCell>
                         <TableCell className="font-semibold">{pStats?.totalRevenue?.toLocaleString() || 0} Lei</TableCell>
-                        <TableCell><Badge variant="default">Activ</Badge></TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="default">Activ</Badge>
+                            <Badge variant="outline" className="text-[10px] uppercase">
+                              {providerModes[role.user_id] === 'assisted' ? 'Asistat (SMS)' : 'Independent'}
+                            </Badge>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
