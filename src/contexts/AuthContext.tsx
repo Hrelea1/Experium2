@@ -67,11 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Cont creat!",
-        description: "Verifică inbox-ul pentru confirmarea contului.",
-      });
     }
 
     return { data, error };

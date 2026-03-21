@@ -31,7 +31,3 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = true
-
-[auth.email.template.confirmation]
-subject = "Confirm Your Signup"
-content_path = "./supabase/templates/confirmation.html"

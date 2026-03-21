@@ -163,29 +163,24 @@ const Auth = () => {
     }
     
     setLoading(true);
-    const { data, error } = await signUp(signupEmail, signupPassword, signupFullName);
-    setLoading(false);
-    if (!error) {
-      if (data?.session) {
-        await supabase.auth.signOut();
-        setPasswordError('Autentificarea a fost blocată: Administratorul trebuie să activeze setarea "Confirm Email" în panoul Supabase pentru a forța validarea OTP. Momentan, sistemul acceptă conturi fără verificare.');
-        return;
-      }
 
-      toast({
-        title: "Cont creat!",
-        description: "Am trimis un cod pe email pentru confirmare.",
-      });
-      setShowSignupOtpInput(true);
-    } else {
-      if (error.message.includes('already registered')) {
-        setPasswordError('Acest email este deja înregistrat. Dacă nu ai primit codul, poți încerca să te autentifici pentru a-l primi din nou.');
-        // If we want to be proactive, we can show a button or link specifically for resending
-        setSignupEmail(signupEmail); 
-      } else {
-        setPasswordError(error.message);
-      }
+    // Call custom Edge Function to generate and send OTP via Resend
+    const { data, error } = await supabase.functions.invoke('send-notification', {
+      body: { event_type: 'send_otp', email: signupEmail }
+    });
+
+    setLoading(false);
+
+    if (error) {
+      setPasswordError(error.message || 'Eroare la trimiterea codului OTP');
+      return;
     }
+
+    toast({
+      title: "Cod trimis!",
+      description: "Am trimis un cod pe email pentru confirmare (via Resend).",
+    });
+    setShowSignupOtpInput(true);
   };
 
 
@@ -214,16 +209,41 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.verifyOtp({
-      email: signupEmail,
-      token: otpCode,
-      type: 'signup'
+    // Verify custom OTP via RPC
+    const { data: isValid, error: verifyError } = await supabase.rpc('verify_custom_otp', {
+      p_email: signupEmail,
+      p_otp_code: otpCode
     });
-    setLoading(false);
-    if (error) {
+
+    if (verifyError || !isValid) {
+      setLoading(false);
       toast({ title: 'Eroare', description: 'Cod invalid sau expirat', variant: 'destructive' });
+      return;
+    }
+
+    // OTP is valid! Now actually create the user account
+    const { data: signUpData, error: signUpError } = await signUp(signupEmail, signupPassword, signupFullName);
+    
+    setLoading(false);
+
+    if (signUpError) {
+      toast({ title: 'Eroare la crearea contului', description: signUpError.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Succes', description: 'Contul a fost confirmat cu succes.' });
+      toast({ title: 'Succes', description: 'Contul tău a fost creat și confirmat!' });
+      // Depending on auto-login settings, user might be logged in now or forced to login again
+      // The session should be active if "Confirm Email" is off.
+      if (signUpData?.session) {
+        navigate('/');
+      } else {
+        // If they need to login manually
+        setShowSignupOtpInput(false);
+        // Switch to login tab conceptually
+        const tabsElement = document.querySelector('[data-state="active"][value="signup"]');
+        if (tabsElement) {
+          // hacky but avoids needing completely new state for the tabs controlled component
+          window.location.reload();
+        }
+      }
     }
   };
 

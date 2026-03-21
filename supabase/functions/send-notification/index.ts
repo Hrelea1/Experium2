@@ -118,12 +118,14 @@ type EventType =
   | "provider_booking_cancelled"
   | "assisted_availability_check"
   | "assisted_confirmed"
-  | "assisted_unavailable";
+  | "assisted_unavailable"
+  | "send_otp";
 
 interface NotificationRequest {
   event_type: EventType;
   booking_id?: string;
   voucher_id?: string;
+  email?: string;
 }
 
 function validateInput(data: unknown): NotificationRequest {
@@ -134,6 +136,7 @@ function validateInput(data: unknown): NotificationRequest {
     "booking_confirmed", "booking_cancelled", "booking_reminder",
     "provider_new_booking", "provider_booking_cancelled",
     "assisted_availability_check", "assisted_confirmed", "assisted_unavailable",
+    "send_otp",
   ];
   if (!event_type || !validEvents.includes(event_type as EventType)) {
     throw new Error("Invalid event_type");
@@ -144,7 +147,12 @@ function validateInput(data: unknown): NotificationRequest {
     throw new Error("Invalid booking_id");
   }
 
-  return { event_type: event_type as EventType, booking_id: booking_id as string | undefined, voucher_id: voucher_id as string | undefined };
+  return { 
+    event_type: event_type as EventType, 
+    booking_id: booking_id as string | undefined, 
+    voucher_id: voucher_id as string | undefined,
+    email: (data as any).email as string | undefined
+  };
 }
 
 // ---------- EMAIL TEMPLATES ----------
@@ -326,7 +334,59 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const rawBody = await req.json();
-    const { event_type, booking_id } = validateInput(rawBody);
+    const { event_type, booking_id, email } = validateInput(rawBody);
+
+    // Add explicit handle for send_otp to avoid booking requirement
+    if (event_type === "send_otp") {
+      if (!email) {
+        return new Response(JSON.stringify({ error: "email required for send_otp" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Generate 6 digit code
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Store it in registration_otps
+      const { error: insertError } = await supabaseAdmin
+        .from('registration_otps')
+        .insert({
+          email: email,
+          otp_code: otpCode
+        });
+
+      if (insertError) {
+        console.error("Failed to store OTP:", insertError);
+        return new Response(JSON.stringify({ error: "Failed to generate OTP" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Send via Resend
+      const htmlTemplate = `<!DOCTYPE html><html>
+        <head><style>
+          body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:#333; line-height: 1.6; }
+          .container { max-width:600px; margin:0 auto; padding:20px; }
+          .code { font-size:32px; font-weight:bold; letter-spacing:4px; color:#667eea; text-align:center; padding:20px; background:#f5f5f5; border-radius:8px; margin:20px 0; }
+        </style></head>
+        <body><div class="container">
+          <h2>Codul tău de verificare Experium</h2>
+          <p>Te rugăm să folosești codul de mai jos pentru a-ți finaliza înregistrarea. Codul este valabil 10 minute.</p>
+          <div class="code">${otpCode}</div>
+          <p>Dacă nu ai solicitat acest cod, te rugăm să ignori acest mesaj.</p>
+          <p style="color:#999;font-size:12px;text-align:center;margin-top:30px;">© ${new Date().getFullYear()} Experium</p>
+        </div></body></html>`;
+
+      try {
+        await resend.emails.send({
+          from: "Experium <onboarding@resend.dev>",
+          to: [email],
+          subject: "Codul tău de verificare Experium",
+          html: htmlTemplate,
+        });
+        
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (err) {
+        console.error("Resend error (OTP):", err);
+        return new Response(JSON.stringify({ error: "Failed to send email" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     if (!booking_id) {
       return new Response(JSON.stringify({ error: "booking_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
