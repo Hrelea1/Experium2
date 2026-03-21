@@ -63,6 +63,7 @@ const ManageRoles = () => {
   const [providerStats, setProviderStats] = useState<Record<string, { experienceCount: number; totalRevenue: number; totalSales: number }>>({});
   const [providerModes, setProviderModes] = useState<Record<string, 'independent' | 'assisted'>>({});
   const [selectedProviderMode, setSelectedProviderMode] = useState<'independent' | 'assisted'>('independent');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -303,6 +304,54 @@ const ManageRoles = () => {
     }
   };
 
+  const deleteUser = async (userId: string) => {
+    // Check if user is primary admin via server-side function
+    const { data: isTargetPrimaryAdmin } = await supabase.rpc('is_primary_admin', {
+      _user_id: userId,
+    });
+    
+    if (isTargetPrimaryAdmin) {
+      toast({
+        title: 'Acțiune Interzisă',
+        description: 'Nu poți șterge contul administratorului principal',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isPrimaryAdmin) {
+      toast({
+        title: 'Acces Interzis',
+        description: 'Doar administratorii pot șterge conturi',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setDeletingUserId(userId);
+
+    try {
+      const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Succes',
+        description: 'Contul a fost șters definitiv',
+      });
+
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Eroare',
+        description: error.message || 'Nu am putut șterge utilizatorul',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   const getProfileById = (userId: string): Profile | undefined => {
     return allProfiles.find(p => p.id === userId);
   };
@@ -454,6 +503,36 @@ const ManageRoles = () => {
                             >
                               <UserPlus className="h-4 w-4" />
                             </Button>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  title="Șterge utilizator"
+                                  disabled={deletingUserId === profile.id}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Ești complet sigur?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Această acțiune va șterge definitiv contul <strong>{profile.email}</strong>, inclusiv profilul, rolurile și datele asociate. Acțiunea este ireversibilă.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Anulează</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => deleteUser(profile.id)}
+                                  >
+                                    Șterge Ireversibil
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                           {selectedUserId === profile.id && newUserRole === 'provider' && (
                             <div className="mt-2 flex justify-end">
