@@ -40,9 +40,8 @@ const Auth = () => {
   const [resetSent, setResetSent] = useState(false);
 
   // Email OTP auth state
-  const [otpEmail, setOtpEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [showSignupOtpInput, setShowSignupOtpInput] = useState(false);
   const mode = searchParams.get('mode');
 
   useEffect(() => {
@@ -169,8 +168,9 @@ const Auth = () => {
     if (!error) {
       toast({
         title: "Cont creat!",
-        description: "Verifică inbox-ul pentru confirmarea contului.",
+        description: "Am trimis un cod pe email pentru confirmare.",
       });
+      setShowSignupOtpInput(true);
     } else {
       if (error.message.includes('already registered')) {
         setPasswordError('Acest email este deja înregistrat. Dacă nu ai primit codul, poți încerca să te autentifici pentru a-l primi din nou.');
@@ -204,34 +204,20 @@ const Auth = () => {
     }
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const { error } = await supabase.auth.signInWithOtp({
-      email: otpEmail,
-    });
-    setLoading(false);
-    if (error) {
-      toast({ title: 'Eroare', description: error.message, variant: 'destructive' });
-    } else {
-      setShowOtpInput(true);
-      toast({ title: 'Cod trimis', description: 'Verifică email-ul pentru codul primit.' });
-    }
-  };
-
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     const { error } = await supabase.auth.verifyOtp({
-      email: otpEmail,
+      email: signupEmail,
       token: otpCode,
-      type: 'email'
+      type: 'signup'
     });
     setLoading(false);
     if (error) {
       toast({ title: 'Eroare', description: 'Cod invalid sau expirat', variant: 'destructive' });
+    } else {
+      toast({ title: 'Succes', description: 'Contul a fost confirmat cu succes.' });
     }
   };
 
@@ -366,10 +352,9 @@ const Auth = () => {
             </div>
 
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="login">Parolă</TabsTrigger>
-                <TabsTrigger value="email-otp">Cod Email</TabsTrigger>
-                <TabsTrigger value="signup">Cont nou</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Autentificare</TabsTrigger>
+                <TabsTrigger value="signup">Înregistrare</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
@@ -410,30 +395,69 @@ const Auth = () => {
                 </form>
               </TabsContent>
 
-              <TabsContent value="email-otp">
-                {!showOtpInput ? (
-                  <form onSubmit={handleSendOtp} className="space-y-4">
+              <TabsContent value="signup">
+                {!showSignupOtpInput ? (
+                  <form onSubmit={handleSignup} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="login-otp-email">Adresă de email</Label>
+                      <Label htmlFor="signup-name">Nume complet</Label>
                       <Input
-                        id="login-otp-email"
-                        type="email"
-                        placeholder="adresa@email.com"
-                        value={otpEmail}
-                        onChange={(e) => setOtpEmail(e.target.value)}
+                        id="signup-name"
+                        type="text"
+                        placeholder="Ion Popescu"
+                        value={signupFullName}
+                        onChange={(e) => setSignupFullName(e.target.value)}
                         required
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-email">Email</Label>
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="adresa@email.com"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-password">Parolă</Label>
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        required
+                        minLength={8}
+                      />
+                      <p className="text-xs text-muted-foreground">Min. 8 caractere, literă mare, mică, cifră și caracter special</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-confirm-password">Confirmă parola</Label>
+                      <Input
+                        id="signup-confirm-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={signupConfirmPassword}
+                        onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                    {passwordError && (
+                      <p className="text-sm text-destructive">{passwordError}</p>
+                    )}
                     <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? 'Se trimite...' : 'Trimite cod pe email'}
+                      {loading ? 'Se creează contul...' : 'Creează cont'}
                     </Button>
                   </form>
                 ) : (
                   <form onSubmit={handleVerifyOtp} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="login-otp">Cod de acces</Label>
+                      <Label htmlFor="signup-otp">Cod de confirmare (din email)</Label>
                       <Input
-                        id="login-otp"
+                        id="signup-otp"
                         type="text"
                         placeholder="123456"
                         maxLength={6}
@@ -443,76 +467,18 @@ const Auth = () => {
                       />
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? 'Se verifică...' : 'Verifică codul'}
+                      {loading ? 'Se verifică...' : 'Confirmă contul'}
                     </Button>
                     <Button 
                       type="button" 
                       variant="ghost" 
                       className="w-full mt-2"
-                      onClick={() => setShowOtpInput(false)}
+                      onClick={() => setShowSignupOtpInput(false)}
                     >
-                      Înapoi la adresa de email
+                      Înapoi la formularul de înregistrare
                     </Button>
                   </form>
                 )}
-              </TabsContent>
-
-              <TabsContent value="signup">
-                <form onSubmit={handleSignup} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Nume complet</Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Ion Popescu"
-                      value={signupFullName}
-                      onChange={(e) => setSignupFullName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="adresa@email.com"
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Parolă</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signupPassword}
-                      onChange={(e) => setSignupPassword(e.target.value)}
-                      required
-                      minLength={8}
-                    />
-                    <p className="text-xs text-muted-foreground">Min. 8 caractere, literă mare, mică, cifră și caracter special</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-confirm-password">Confirmă parola</Label>
-                    <Input
-                      id="signup-confirm-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={signupConfirmPassword}
-                      onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  {passwordError && (
-                    <p className="text-sm text-destructive">{passwordError}</p>
-                  )}
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Se creează contul...' : 'Creează cont'}
-                  </Button>
-                </form>
               </TabsContent>
             </Tabs>
           </CardContent>

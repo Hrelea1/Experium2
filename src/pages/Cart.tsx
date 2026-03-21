@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ArrowRight, Trash2, CalendarDays, Clock, Users, MapPin, CreditCard, AlertTriangle } from "lucide-react";
+import { ShoppingBag, ArrowRight, Trash2, CalendarDays, Clock, Users, MapPin, CreditCard, AlertTriangle, Phone } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCheckout } from "@/hooks/useCheckout";
 import { BillingForm, BillingData } from "@/components/booking/BillingForm";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Cart() {
   const { t } = useTranslation();
@@ -21,6 +25,22 @@ export default function Cart() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [billingData, setBillingData] = useState<BillingData | null>(null);
+
+  const [showPhoneDialog, setShowPhoneDialog] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const fetchProfile = async () => {
+        const { data } = await supabase.from('profiles').select('phone').eq('id', user.id).single();
+        if (data?.phone) {
+          setPhoneNumber(data.phone);
+        }
+      };
+      fetchProfile();
+    }
+  }, [user]);
 
   const LOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -52,6 +72,26 @@ export default function Cart() {
       });
       return;
     }
+
+    setShowPhoneDialog(true);
+  };
+
+  const handleConfirmPhoneAndCheckout = async () => {
+    if (!phoneNumber.trim()) {
+      toast({ title: "Eroare", description: "Te rugăm să introduci un număr de telefon valid pentru notificări SMS.", variant: "destructive" });
+      return;
+    }
+
+    setIsUpdatingPhone(true);
+    // Best effort update
+    const { error } = await supabase.from('profiles').update({ phone: phoneNumber }).eq('id', user.id);
+    setIsUpdatingPhone(false);
+
+    if (error) {
+       console.error("Failed to update phone", error);
+    }
+
+    setShowPhoneDialog(false);
 
     const checkoutItems = items.map(item => ({
       experienceId: item.experienceId,
@@ -268,6 +308,43 @@ export default function Cart() {
           </motion.div>
         </div>
       </main>
+
+      {/* Phone Number Modal */}
+      <Dialog open={showPhoneDialog} onOpenChange={setShowPhoneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Număr de telefon</DialogTitle>
+            <DialogDescription>
+              Avem nevoie de numărul tău de telefon pentru a-ți putea trimite notificări SMS importante despre rezervarea ta.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone-number">Număr de telefon</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone-number"
+                  placeholder="+40 712 345 678"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="pl-9"
+                  disabled={isUpdatingPhone}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPhoneDialog(false)} disabled={isUpdatingPhone}>
+              Renunță
+            </Button>
+            <Button onClick={handleConfirmPhoneAndCheckout} disabled={isUpdatingPhone || isProcessing || !phoneNumber.trim()}>
+              {isUpdatingPhone || isProcessing ? "Se procesează..." : "Confirmă și Plătește"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </div>
   );

@@ -19,6 +19,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [totpSecret, setTotpSecret] = useState<string>('');
+  const [factorId, setFactorId] = useState<string>('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -51,6 +52,7 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
       if (error) throw error;
 
       if (data) {
+        setFactorId(data.id);
         setTotpSecret(data.totp.secret);
         
         // Generate QR code
@@ -79,14 +81,10 @@ export function TwoFactorSetup({ onSuccess }: TwoFactorSetupProps) {
 
     setIsVerifying(true);
     try {
-      const factors = await supabase.auth.mfa.listFactors();
-      if (factors.error) throw factors.error;
-
-      const totpFactor = factors.data?.totp?.[0];
-      if (!totpFactor) throw new Error('Factor TOTP not found');
+      if (!factorId) throw new Error('ID-ul factorului lipsește. Reîncearcă configurarea.');
 
       const { data, error } = await supabase.auth.mfa.challengeAndVerify({
-        factorId: totpFactor.id,
+        factorId: factorId,
         code: verificationCode,
       });
 
