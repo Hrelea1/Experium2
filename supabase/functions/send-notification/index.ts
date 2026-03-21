@@ -3,8 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-
 // ---------- TWILIO SMS ----------
 
 async function sendSms(to: string, body: string): Promise<boolean> {
@@ -359,6 +357,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Send via Resend
+      const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
       const htmlTemplate = `<!DOCTYPE html><html>
         <head><style>
           body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:#333; line-height: 1.6; }
@@ -375,7 +374,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       try {
         await resend.emails.send({
-          from: "Experium <onboarding@resend.dev>",
+          from: "Experium <contact@experium.ro>",
           to: [email],
           subject: "Codul tău de verificare Experium",
           html: htmlTemplate,
@@ -474,8 +473,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (clientTemplate && shouldSendClient) {
       try {
+        const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
         await resend.emails.send({
-          from: "Experium <onboarding@resend.dev>",
+          from: "Experium <contact@experium.ro>",
           to: [clientProfile.email],
           subject: clientTemplate.subject,
           html: clientTemplate.html,
@@ -569,8 +569,9 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (providerTemplate) {
         try {
+          const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
           await resend.emails.send({
-            from: "Experium <onboarding@resend.dev>",
+            from: "Experium <contact@experium.ro>",
             to: [provider.email],
             subject: providerTemplate.subject,
             html: providerTemplate.html,
