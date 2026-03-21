@@ -329,12 +329,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
     
-    if (!authenticatedUserId) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
     const rawBody = await req.json();
     const { event_type, booking_id, email } = validateInput(rawBody);
+
+    if (event_type !== "send_otp" && !authenticatedUserId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // Add explicit handle for send_otp to avoid booking requirement
     if (event_type === "send_otp") {
