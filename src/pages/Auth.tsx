@@ -163,9 +163,15 @@ const Auth = () => {
     }
     
     setLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, signupFullName);
+    const { data, error } = await signUp(signupEmail, signupPassword, signupFullName);
     setLoading(false);
     if (!error) {
+      if (data?.session) {
+        await supabase.auth.signOut();
+        setPasswordError('Autentificarea a fost blocată: Administratorul trebuie să activeze setarea "Confirm Email" în panoul Supabase pentru a forța validarea OTP. Momentan, sistemul acceptă conturi fără verificare.');
+        return;
+      }
+
       toast({
         title: "Cont creat!",
         description: "Am trimis un cod pe email pentru confirmare.",

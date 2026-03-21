@@ -23,3 +23,15 @@ verify_jwt = false
 
 [functions.push-notifications]
 verify_jwt = false
+
+[auth]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[auth.email.template.confirmation]
+subject = "Confirm Your Signup"
+content_path = "./supabase/templates/confirmation.html"
