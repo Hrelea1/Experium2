@@ -39,8 +39,10 @@ const Auth = () => {
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-
-
+  // Email OTP auth state
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const mode = searchParams.get('mode');
 
   useEffect(() => {
@@ -202,6 +204,37 @@ const Auth = () => {
     }
   };
 
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const { error } = await supabase.auth.signInWithOtp({
+      email: otpEmail,
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Eroare', description: error.message, variant: 'destructive' });
+    } else {
+      setShowOtpInput(true);
+      toast({ title: 'Cod trimis', description: 'Verifică email-ul pentru codul primit.' });
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: otpEmail,
+      token: otpCode,
+      type: 'email'
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Eroare', description: 'Cod invalid sau expirat', variant: 'destructive' });
+    }
+  };
+
   if (showResetForm) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -333,9 +366,10 @@ const Auth = () => {
             </div>
 
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Autentificare</TabsTrigger>
-                <TabsTrigger value="signup">Înregistrare</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="login">Parolă</TabsTrigger>
+                <TabsTrigger value="email-otp">Cod Email</TabsTrigger>
+                <TabsTrigger value="signup">Cont nou</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
@@ -374,6 +408,53 @@ const Auth = () => {
                     {loading ? 'Se autentifică...' : 'Autentifică-te'}
                   </Button>
                 </form>
+              </TabsContent>
+
+              <TabsContent value="email-otp">
+                {!showOtpInput ? (
+                  <form onSubmit={handleSendOtp} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="login-otp-email">Adresă de email</Label>
+                      <Input
+                        id="login-otp-email"
+                        type="email"
+                        placeholder="adresa@email.com"
+                        value={otpEmail}
+                        onChange={(e) => setOtpEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? 'Se trimite...' : 'Trimite cod pe email'}
+                    </Button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="login-otp">Cod de acces</Label>
+                      <Input
+                        id="login-otp"
+                        type="text"
+                        placeholder="123456"
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? 'Se verifică...' : 'Verifică codul'}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      className="w-full mt-2"
+                      onClick={() => setShowOtpInput(false)}
+                    >
+                      Înapoi la adresa de email
+                    </Button>
+                  </form>
+                )}
               </TabsContent>
 
               <TabsContent value="signup">

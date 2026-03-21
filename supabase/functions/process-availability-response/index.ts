@@ -17,29 +17,89 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { token, action } = await req.json();
+    const { token, booking_id, action } = await req.json();
 
-    if (!token || !action) {
-      return new Response(JSON.stringify({ error: "Missing token or action" }), {
+    if (!action || (!token && !booking_id)) {
+      return new Response(JSON.stringify({ error: "Missing token/booking_id or action" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 1. Find the request by token
-    const tokenColumn = action === "confirm" ? "confirm_token" : "decline_token";
-    const { data: request, error: fetchError } = await supabaseAdmin
-      .from("availability_requests")
-      .select("*, booking_id")
-      .eq(tokenColumn, token)
-      .eq("status", "pending")
-      .single();
+    let request;
 
-    if (fetchError || !request) {
-      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (token) {
+      // 1a. Find the request by token
+      const tokenColumn = action === "confirm" ? "confirm_token" : "decline_token";
+      const { data: reqData, error: fetchError } = await supabaseAdmin
+        .from("availability_requests")
+        .select("*, booking_id")
+        .eq(tokenColumn, token)
+        .eq("status", "pending")
+        .single();
+      
+      if (fetchError || !reqData) {
+        return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      request = reqData;
+    } else {
+      // 1b. Find the request by booking_id and authenticate provider
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }});
+      }
+
+      const supabaseUser = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      
+      const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" }});
+      }
+
+      // Verify ownership of the booking's experience
+      const { data: bookingData } = await supabaseAdmin
+        .from("bookings")
+        .select("experience_id")
+        .eq("id", booking_id)
+        .single();
+
+      if (!bookingData) {
+        return new Response(JSON.stringify({ error: "Booking not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" }});
+      }
+
+      const { data: providerData } = await supabaseAdmin
+        .from("experience_providers")
+        .select("id")
+        .eq("experience_id", bookingData.experience_id)
+        .eq("provider_user_id", user.id)
+        .eq("is_active", true)
+        .single();
+
+      if (!providerData) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" }});
+      }
+
+      const { data: reqData, error: fetchError } = await supabaseAdmin
+        .from("availability_requests")
+        .select("*, booking_id")
+        .eq("booking_id", booking_id)
+        .eq("status", "pending")
+        .single();
+
+      if (fetchError || !reqData) {
+        return new Response(JSON.stringify({ error: "Request not found or not pending" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      request = reqData;
     }
 
     // 2. Check if expired
@@ -143,8 +203,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Internal server error";
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

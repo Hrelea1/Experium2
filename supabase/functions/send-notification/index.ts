@@ -87,7 +87,7 @@ function smsBookingReminder(vars: Record<string, string>): string {
 }
 
 function smsProviderAssistedCheck(vars: Record<string, string>): string {
-  return `Experium: Verifică disponibilitatea pentru ${vars.title} pe ${vars.date}. Client: ${vars.clientName}. [Confirm]: ${vars.confirmLink} [Decline]: ${vars.declineLink}. Valabil 15m.`;
+  return `Experium: Cerere rezervare pentru ${vars.title} pe ${vars.date}. Client: ${vars.clientName}. Loghează-te pe experium.ro pentru a confirma sau respinge. Valabil 15m.`;
 }
 
 function smsUserAssistedConfirmed(vars: Record<string, string>): string {

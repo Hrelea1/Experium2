@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarDays, Clock, Users, Plus, Trash2, PlusCircle, Building2, Wrench, Bell, TrendingUp, BarChart3, ArrowLeft, MapPin, Star, Eye, Image as ImageIcon, Tag, CheckCircle2, ExternalLink } from 'lucide-react';
+import { CalendarDays, Clock, Users, Plus, Trash2, PlusCircle, Building2, Wrench, Bell, TrendingUp, BarChart3, ArrowLeft, MapPin, Star, Eye, Image as ImageIcon, Tag, CheckCircle2, ExternalLink, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RecurringAvailability } from '@/components/provider/RecurringAvailability';
 import { ProviderBookings } from '@/components/provider/ProviderBookings';
@@ -539,6 +539,7 @@ export default function ProviderDashboard() {
   const [salesStats, setSalesStats] = useState({ totalSales: 0, totalRevenue: 0, totalBookings: 0 });
   const [userProfiles, setUserProfiles] = useState<Record<string, string>>({});
   const [activeExperienceId, setActiveExperienceId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) fetchData();
@@ -625,6 +626,26 @@ export default function ProviderDashboard() {
       fetchData();
     } catch (error: any) {
       toast({ title: 'Eroare', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleBookingAction = async (bookingId: string, action: 'confirm' | 'decline') => {
+    setActionLoading(bookingId);
+    try {
+      const { error } = await supabase.functions.invoke('process-availability-response', {
+        body: { booking_id: bookingId, action }
+      });
+      if (error) throw error;
+      
+      toast({ 
+        title: "Succes", 
+        description: action === 'confirm' ? "Rezervarea a fost confirmată!" : "Rezervarea a fost respinsă."
+      });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: 'Eroare', description: error.message || 'Eroare la procesarea rezervării', variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -735,6 +756,7 @@ export default function ProviderDashboard() {
                           <TableHead>Client</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Valoare</TableHead>
+                          <TableHead className="text-right">Acțiuni</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -755,6 +777,32 @@ export default function ProviderDashboard() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right font-medium">{b.total_price} Lei</TableCell>
+                            <TableCell className="text-right">
+                              {b.status === 'pending' && (
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                                    onClick={() => handleBookingAction(b.id, 'confirm')} 
+                                    disabled={actionLoading === b.id}
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                                    Confirmă
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                                    onClick={() => handleBookingAction(b.id, 'decline')} 
+                                    disabled={actionLoading === b.id}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-1" />
+                                    Respinge
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
