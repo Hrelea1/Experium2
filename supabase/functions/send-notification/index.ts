@@ -332,7 +332,7 @@ const handler = async (req: Request): Promise<Response> => {
     const rawBody = await req.json();
     const { event_type, booking_id, email } = validateInput(rawBody);
 
-    if (event_type !== "send_otp" && !authenticatedUserId) {
+    if (event_type !== "send_otp" && event_type !== "delete_user" && !authenticatedUserId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
