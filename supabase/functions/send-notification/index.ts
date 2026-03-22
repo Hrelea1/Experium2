@@ -136,7 +136,7 @@ function validateInput(data: unknown): NotificationRequest {
     "booking_confirmed", "booking_cancelled", "booking_reminder",
     "provider_new_booking", "provider_booking_cancelled",
     "assisted_availability_check", "assisted_confirmed", "assisted_unavailable",
-    "send_otp",
+    "send_otp", "delete_user",
   ];
   if (!event_type || !validEvents.includes(event_type as EventType)) {
     throw new Error("Invalid event_type");
