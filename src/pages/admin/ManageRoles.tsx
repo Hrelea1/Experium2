@@ -331,7 +331,9 @@ const ManageRoles = () => {
     setDeletingUserId(userId);
 
     try {
-      const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+      const { error } = await supabase.functions.invoke('delete-user', {
+        body: { target_user_id: userId }
+      });
 
       if (error) throw error;
 
