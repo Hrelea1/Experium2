@@ -331,8 +331,8 @@ const ManageRoles = () => {
     setDeletingUserId(userId);
 
     try {
-      const { error } = await supabase.functions.invoke('delete-user', {
-        body: { target_user_id: userId }
+      const { error } = await supabase.functions.invoke('send-notification', {
+        body: { event_type: 'delete_user', target_user_id: userId }
       });
 
       if (error) throw error;

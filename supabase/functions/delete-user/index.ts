@@ -13,7 +13,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Authenticate the calling user
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Authenticate the calling user via their JWT
     const authHeader = req.headers.get("Authorization") || "";
     const supabaseUser = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -30,11 +35,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check if calling user is admin
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
     const { data: callerRoles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -48,7 +48,8 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    const { target_user_id } = await req.json();
+    const body = await req.json();
+    const target_user_id = body?.target_user_id;
     if (!target_user_id) {
       return new Response(JSON.stringify({ error: "target_user_id required" }), {
         status: 400,
@@ -56,47 +57,41 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Check if target is a primary admin (first admin - protect them)
-    const { data: targetRoles } = await supabaseAdmin
+    // Protect primary admin
+    const { data: firstAdmin } = await supabaseAdmin
       .from("user_roles")
-      .select("role")
-      .eq("user_id", target_user_id);
+      .select("user_id")
+      .eq("role", "admin")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
 
-    if (targetRoles?.some((r: { role: string }) => r.role === "admin") && target_user_id !== user.id) {
-      // Get first admin ever created
-      const { data: firstAdmin } = await supabaseAdmin
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .single();
-
-      if (firstAdmin?.user_id === target_user_id) {
-        return new Response(JSON.stringify({ error: "Cannot delete the primary admin" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (firstAdmin?.user_id === target_user_id) {
+      return new Response(JSON.stringify({ error: "Cannot delete the primary admin" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Nullify non-cascading foreign keys first
-    await supabaseAdmin
-      .from("experiences")
-      .update({ ambassador_id: null })
-      .eq("ambassador_id", target_user_id);
+    // Nullify non-cascading foreign keys
+    await supabaseAdmin.from("experiences").update({ ambassador_id: null }).eq("ambassador_id", target_user_id);
+    await supabaseAdmin.from("vouchers").update({ ambassador_id: null }).eq("ambassador_id", target_user_id);
 
-    await supabaseAdmin
-      .from("vouchers")
-      .update({ ambassador_id: null })
-      .eq("ambassador_id", target_user_id);
+    // Use Supabase Admin REST API directly to delete (most reliable method)
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const deleteRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${target_user_id}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${serviceRoleKey}`,
+        "apikey": serviceRoleKey,
+      },
+    });
 
-    // Use Supabase Admin API to delete the user (handles auth + cascading)
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(target_user_id);
-
-    if (deleteError) {
-      console.error("Delete user error:", deleteError);
-      return new Response(JSON.stringify({ error: deleteError.message }), {
+    if (!deleteRes.ok) {
+      const errText = await deleteRes.text();
+      console.error("Delete failed:", errText);
+      return new Response(JSON.stringify({ error: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -108,7 +103,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (err) {
     console.error("Unexpected error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

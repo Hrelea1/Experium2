@@ -117,13 +117,15 @@ type EventType =
   | "assisted_availability_check"
   | "assisted_confirmed"
   | "assisted_unavailable"
-  | "send_otp";
+  | "send_otp"
+  | "delete_user";
 
 interface NotificationRequest {
   event_type: EventType;
   booking_id?: string;
   voucher_id?: string;
   email?: string;
+  target_user_id?: string;
 }
 
 function validateInput(data: unknown): NotificationRequest {
@@ -385,6 +387,50 @@ const handler = async (req: Request): Promise<Response> => {
         console.error("Resend error (OTP):", err);
         return new Response(JSON.stringify({ error: "Failed to send email" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+    }
+
+    // ---------- DELETE USER ----------
+    if (event_type === "delete_user") {
+      if (!rawBody.target_user_id) {
+        return new Response(JSON.stringify({ error: "target_user_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      if (!authenticatedUserId || authenticatedUserId === "service-role") {
+        // Need a real user to check admin role
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Check caller is admin
+      const { data: callerRoles } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", authenticatedUserId);
+      const isAdmin = callerRoles?.some((r: { role: string }) => r.role === "admin");
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden: Admin only" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Protect primary admin
+      const { data: firstAdmin } = await supabaseAdmin.from("user_roles").select("user_id").eq("role", "admin").order("created_at", { ascending: true }).limit(1).single();
+      if (firstAdmin?.user_id === rawBody.target_user_id) {
+        return new Response(JSON.stringify({ error: "Cannot delete the primary admin" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Nullify FK references
+      await supabaseAdmin.from("experiences").update({ ambassador_id: null }).eq("ambassador_id", rawBody.target_user_id);
+      await supabaseAdmin.from("vouchers").update({ ambassador_id: null }).eq("ambassador_id", rawBody.target_user_id);
+
+      // Delete via Supabase Auth REST API
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const supaUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const delRes = await fetch(`${supaUrl}/auth/v1/admin/users/${rawBody.target_user_id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
+      });
+
+      if (!delRes.ok) {
+        const errText = await delRes.text();
+        return new Response(JSON.stringify({ error: errText }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (!booking_id) {
