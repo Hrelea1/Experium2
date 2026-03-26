@@ -20,6 +20,10 @@ import homepageContentRoutes from './routes/homepageContent';
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 
+// ─── Trust Railway's proxy ────────────────────────────────────────────────────
+// Required for express-rate-limit to work correctly behind Railway/cloud proxies
+app.set('trust proxy', 1);
+
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
 const allowedOrigins = [
