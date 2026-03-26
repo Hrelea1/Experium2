@@ -40,7 +40,14 @@ router.post('/signup', async (req: Request, res: Response) => {
     }
 
     const otp = await generateAndStoreOtp(email);
-    await sendOtpEmail(email, otp, full_name);
+    try {
+      await sendOtpEmail(email, otp, full_name);
+    } catch (emailErr: any) {
+      console.error('[auth/signup] Email send failed:', emailErr.message);
+      return res.status(500).json({
+        error: `Contul a fost creat dar emailul OTP nu a putut fi trimis: ${emailErr.message}. Verificați configurarea SMTP.`
+      });
+    }
 
     res.json({ message: 'OTP sent to email' });
   } catch (err) {

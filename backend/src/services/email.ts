@@ -1,20 +1,31 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+  host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
   port: parseInt(process.env.SMTP_PORT ?? '587', 10),
   secure: process.env.SMTP_SECURE === 'true',
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  connectionTimeout: 10000,  // 10s max to connect
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
 
 const FROM = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
 
+// Wrapper: fails fast if email takes > 12 seconds
+async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMail>[0]) {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Email timeout after 12s')), 12000)
+  );
+  return Promise.race([transporter.sendMail(mailOptions), timeout]);
+}
+
 // ─── OTP Email ────────────────────────────────────────────────────────────────
 export async function sendOtpEmail(email: string, otp: string, name?: string): Promise<void> {
-  await transporter.sendMail({
+  await sendWithTimeout({
     from: FROM,
     to: email,
     subject: 'Codul tău de verificare Experium',
