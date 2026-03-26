@@ -79,15 +79,16 @@ async function migrate() {
     console.log('[DB] ✅ Schema applied (auto-migrate)');
   } catch (err: any) {
     console.error('[DB] ⚠️ Auto-migrate warning:', err.message);
-    // Non-fatal: tables may already exist; server still starts
   }
 }
 
-migrate().then(() => {
-  app.listen(PORT, () => {
-    console.log(`✅ Experium backend running at http://localhost:${PORT}`);
-    console.log(`   Mode: ${process.env.NODE_ENV ?? 'development'}`);
-  });
+// Start listening IMMEDIATELY so Railway health checks pass
+app.listen(PORT, () => {
+  console.log(`✅ Experium backend running at http://localhost:${PORT}`);
+  console.log(`   Mode: ${process.env.NODE_ENV ?? 'development'}`);
+  // Then run migration in background (non-blocking)
+  setTimeout(() => migrate().catch(console.error), 2000);
 });
+
 
 export default app;
