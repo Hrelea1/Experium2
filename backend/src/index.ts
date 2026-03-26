@@ -51,6 +51,11 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ─── POST test (to diagnose Railway proxy issues) ─────────────────────────────
+app.post('/ping', (_req, res) => {
+  res.json({ pong: true, received: new Date().toISOString() });
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
