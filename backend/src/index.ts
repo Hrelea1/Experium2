@@ -73,12 +73,14 @@ import { pool } from './db';
 
 async function migrate() {
   try {
-    const schemaPath = path.join(__dirname, '..', '..', 'db', 'schema.sql');
+    // __dirname is /app/dist/ → schema is at /app/db/schema.sql (one level up, not two)
+    const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
+    console.log('[DB] Running schema from:', schemaPath);
     const sql = fs.readFileSync(schemaPath, 'utf8');
     await pool.query(sql);
     console.log('[DB] ✅ Schema applied (auto-migrate)');
   } catch (err: any) {
-    console.error('[DB] ⚠️ Auto-migrate warning:', err.message);
+    console.error('[DB] ⚠️ Auto-migrate error:', err.message);
   }
 }
 
@@ -86,9 +88,11 @@ async function migrate() {
 app.listen(PORT, () => {
   console.log(`✅ Experium backend running at http://localhost:${PORT}`);
   console.log(`   Mode: ${process.env.NODE_ENV ?? 'development'}`);
-  // Then run migration in background (non-blocking)
-  setTimeout(() => migrate().catch(console.error), 2000);
 });
+
+// Run migration immediately in background (no delay)
+migrate().catch(console.error);
+
 
 
 export default app;
