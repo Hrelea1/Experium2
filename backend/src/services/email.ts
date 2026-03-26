@@ -1,5 +1,13 @@
 import nodemailer from 'nodemailer';
 
+console.log('[SMTP] Init with:', {
+  host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
+  port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+  secure: process.env.SMTP_SECURE === 'true',
+  hasUser: !!process.env.SMTP_USER,
+  hasPass: !!process.env.SMTP_PASS,
+});
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
   port: parseInt(process.env.SMTP_PORT ?? '587', 10),
