@@ -8,8 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { TwoFactorChallenge } from '@/components/auth/TwoFactorChallenge';
-import { supabase } from '@/integrations/supabase/client';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { signupSchema } from '@/lib/validations';
@@ -18,136 +16,52 @@ import { z } from 'zod';
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, signIn, signUp, resetPassword } = useAuth();
+  const { user, signIn, signUp, verifyOtp, resetPassword } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [requires2FA, setRequires2FA] = useState(false);
   const { toast } = useToast();
 
-  // Login form state
+  // Login form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Signup form state
+  // Signup form
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [signupFullName, setSignupFullName] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showSignupOtpInput, setShowSignupOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
 
-  // Reset password state
+  // Reset password
   const [resetEmail, setResetEmail] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-  // Email OTP auth state
-  const [otpCode, setOtpCode] = useState('');
-  const [showSignupOtpInput, setShowSignupOtpInput] = useState(false);
   const mode = searchParams.get('mode');
 
   useEffect(() => {
-    if (user && !requires2FA) {
-      navigate('/');
-    }
-  }, [user, requires2FA, navigate]);
+    if (user) navigate('/');
+  }, [user, navigate]);
 
   useEffect(() => {
-    if (mode === 'reset') {
-      setShowResetForm(true);
-    }
+    if (mode === 'reset') setShowResetForm(true);
   }, [mode]);
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (error) {
-      toast({
-        title: 'Eroare autentificare',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-    setLoading(false);
-  };
-
-  const handleFacebookLogin = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (error) {
-      toast({
-        title: 'Eroare autentificare',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-    setLoading(false);
-  };
-
+  // ─── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Check if 2FA is required
-      if (data?.user) {
-        const { data: factors } = await supabase.auth.mfa.listFactors();
-        const hasTOTP = factors?.totp?.some((f) => f.status === 'verified');
-        
-        if (hasTOTP) {
-          setRequires2FA(true);
-          setLoading(false);
-          return;
-        }
-      }
-
-      navigate('/');
-    } catch (error: any) {
-      toast({
-        title: 'Eroare autentificare',
-        description: error.message === 'Invalid login credentials' 
-          ? 'Email sau parolă incorectă' 
-          : error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+    const { error } = await signIn(loginEmail, loginPassword);
+    setLoading(false);
+    if (!error) navigate('/');
   };
 
-  const handle2FASuccess = () => {
-    setRequires2FA(false);
-    navigate('/');
-  };
-
-  const handle2FACancel = async () => {
-    await supabase.auth.signOut();
-    setRequires2FA(false);
-    setLoginPassword('');
-  };
-
+  // ─── Signup Step 1: send OTP ─────────────────────────────────────────────────
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError('');
-    
-    // Validate with zod schema
+
     try {
       signupSchema.parse({
         fullName: signupFullName,
@@ -161,92 +75,45 @@ const Auth = () => {
         return;
       }
     }
-    
+
     setLoading(true);
-
-    // Call custom Edge Function to generate and send OTP via Resend
-    const { data, error } = await supabase.functions.invoke('send-notification', {
-      body: { event_type: 'send_otp', email: signupEmail }
-    });
-
+    const { error } = await signUp(signupEmail, signupPassword, signupFullName);
     setLoading(false);
 
-    if (error) {
-      setPasswordError(error.message || 'Eroare la trimiterea codului OTP');
-      return;
+    if (!error) {
+      toast({ title: 'Cod trimis!', description: 'Am trimis un cod de confirmare pe email.' });
+      setShowSignupOtpInput(true);
     }
-
-    toast({
-      title: "Cod trimis!",
-      description: "Am trimis un cod pe email pentru confirmare (via Resend).",
-    });
-    setShowSignupOtpInput(true);
   };
 
+  // ─── Signup Step 2: verify OTP ───────────────────────────────────────────────
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await verifyOtp(signupEmail, otpCode);
+    setLoading(false);
 
+    if (!error) {
+      toast({ title: 'Succes!', description: 'Contul tău a fost creat și confirmat!' });
+      navigate('/');
+    } else {
+      toast({ title: 'Eroare', description: error, variant: 'destructive' });
+    }
+  };
+
+  // ─── Reset password ──────────────────────────────────────────────────────────
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const { error } = await resetPassword(resetEmail);
     setLoading(false);
-    
+
     if (!error) {
       setResetSent(true);
-      toast({
-        title: 'Email trimis',
-        description: 'Verifică-ți email-ul pentru link-ul de resetare a parolei.',
-      });
-    } else {
-      toast({
-        title: 'Eroare',
-        description: error.message,
-        variant: 'destructive',
-      });
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    // Verify custom OTP via RPC
-    const { data: isValid, error: verifyError } = await supabase.rpc('verify_custom_otp', {
-      p_email: signupEmail,
-      p_otp_code: otpCode
-    });
-
-    if (verifyError || !isValid) {
-      setLoading(false);
-      toast({ title: 'Eroare', description: 'Cod invalid sau expirat', variant: 'destructive' });
-      return;
-    }
-
-    // OTP is valid! Now actually create the user account
-    const { data: signUpData, error: signUpError } = await signUp(signupEmail, signupPassword, signupFullName);
-    
-    setLoading(false);
-
-    if (signUpError) {
-      toast({ title: 'Eroare la crearea contului', description: signUpError.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Succes', description: 'Contul tău a fost creat și confirmat!' });
-      // Depending on auto-login settings, user might be logged in now or forced to login again
-      // The session should be active if "Confirm Email" is off.
-      if (signUpData?.session) {
-        navigate('/');
-      } else {
-        // If they need to login manually
-        setShowSignupOtpInput(false);
-        // Switch to login tab conceptually
-        const tabsElement = document.querySelector('[data-state="active"][value="signup"]');
-        if (tabsElement) {
-          // hacky but avoids needing completely new state for the tabs controlled component
-          window.location.reload();
-        }
-      }
-    }
-  };
-
+  // ─── Reset form ──────────────────────────────────────────────────────────────
   if (showResetForm) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -256,8 +123,8 @@ const Auth = () => {
             <CardHeader>
               <CardTitle>Resetare parolă</CardTitle>
               <CardDescription>
-                {resetSent 
-                  ? 'Verifică-ți email-ul pentru instrucțiuni' 
+                {resetSent
+                  ? 'Verifică-ți email-ul pentru codul OTP'
                   : 'Introdu adresa de email pentru a reseta parola'}
               </CardDescription>
             </CardHeader>
@@ -265,17 +132,9 @@ const Auth = () => {
               {resetSent ? (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Am trimis un email cu instrucțiuni pentru resetarea parolei. 
-                    Verifică și folderul de spam dacă nu găsești email-ul.
+                    Am trimis un cod OTP pe email. Folosește-l pentru a te autentifica și a-ți schimba parola din profil.
                   </p>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setShowResetForm(false);
-                      setResetSent(false);
-                    }}
-                  >
+                  <Button variant="outline" className="w-full" onClick={() => { setShowResetForm(false); setResetSent(false); }}>
                     Înapoi la autentificare
                   </Button>
                 </div>
@@ -293,36 +152,15 @@ const Auth = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Se trimite...' : 'Trimite email resetare'}
+                    {loading ? 'Se trimite...' : 'Trimite cod OTP'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => setShowResetForm(false)}
-                  >
+                  <Button type="button" variant="ghost" className="w-full" onClick={() => setShowResetForm(false)}>
                     Înapoi la autentificare
                   </Button>
                 </form>
               )}
             </CardContent>
           </Card>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-
-  if (requires2FA) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
-          <TwoFactorChallenge 
-            onSuccess={handle2FASuccess} 
-            onCancel={handle2FACancel}
-          />
         </main>
         <Footer />
       </div>
@@ -336,53 +174,16 @@ const Auth = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Bun venit la Experium</CardTitle>
-            <CardDescription>
-              Autentifică-te sau creează un cont nou
-            </CardDescription>
+            <CardDescription>Autentifică-te sau creează un cont nou</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Social Login Buttons */}
-            <div className="space-y-3 mb-6">
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={handleGoogleLogin}
-                disabled={loading}
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Continuă cu Google
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={handleFacebookLogin}
-                disabled={loading}
-              >
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                Continuă cu Facebook
-              </Button>
-            </div>
-
-            <div className="relative mb-6">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                sau
-              </span>
-            </div>
-
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Autentificare</TabsTrigger>
                 <TabsTrigger value="signup">Înregistrare</TabsTrigger>
               </TabsList>
 
+              {/* ── Login tab ── */}
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
@@ -421,6 +222,7 @@ const Auth = () => {
                 </form>
               </TabsContent>
 
+              {/* ── Signup tab ── */}
               <TabsContent value="signup">
                 {!showSignupOtpInput ? (
                   <form onSubmit={handleSignup} className="space-y-4">
@@ -468,20 +270,21 @@ const Auth = () => {
                         value={signupConfirmPassword}
                         onChange={(e) => setSignupConfirmPassword(e.target.value)}
                         required
-                        minLength={6}
+                        minLength={8}
                       />
                     </div>
-                    {passwordError && (
-                      <p className="text-sm text-destructive">{passwordError}</p>
-                    )}
+                    {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? 'Se creează contul...' : 'Creează cont'}
                     </Button>
                   </form>
                 ) : (
                   <form onSubmit={handleVerifyOtp} className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Am trimis un cod de 6 cifre la <strong>{signupEmail}</strong>. Introdu-l mai jos:
+                    </p>
                     <div className="space-y-2">
-                      <Label htmlFor="signup-otp">Cod de confirmare (din email)</Label>
+                      <Label htmlFor="signup-otp">Cod de confirmare</Label>
                       <Input
                         id="signup-otp"
                         type="text"
@@ -495,13 +298,8 @@ const Auth = () => {
                     <Button type="submit" className="w-full" disabled={loading}>
                       {loading ? 'Se verifică...' : 'Confirmă contul'}
                     </Button>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      className="w-full mt-2"
-                      onClick={() => setShowSignupOtpInput(false)}
-                    >
-                      Înapoi la formularul de înregistrare
+                    <Button type="button" variant="ghost" className="w-full" onClick={() => setShowSignupOtpInput(false)}>
+                      Înapoi
                     </Button>
                   </form>
                 )}
