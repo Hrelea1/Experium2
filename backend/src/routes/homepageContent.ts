@@ -21,8 +21,8 @@ router.get('/:key', async (req: Request, res: Response) => {
       'SELECT * FROM homepage_content WHERE section_key = $1',
       [req.params.key]
     );
-    if (!row) return res.status(404).json({ error: 'Section not found' });
-    res.json(row);
+    // Return empty content instead of 404 — frontend handles missing sections gracefully
+    res.json(row ?? { section_key: req.params.key, content: {} });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch content section' });
   }
