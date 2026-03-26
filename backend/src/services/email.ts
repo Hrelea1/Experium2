@@ -23,8 +23,23 @@ const transporter = nodemailer.createTransport({
 
 const FROM = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
 
+// Check if SMTP is using default/dummy config
+const isDummyEmail = !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com';
+
 // Wrapper: fails fast if email takes > 12 seconds
 async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMail>[0]) {
+  if (isDummyEmail) {
+    console.log('\n📧 [DEV EMAIL] -----------------------------------------');
+    console.log(`To: ${mailOptions.to}`);
+    console.log(`Subject: ${mailOptions.subject}`);
+    if (String(mailOptions.html).includes('font-size: 40px')) {
+      // Extract OTP for easy copying in dev
+      const match = String(mailOptions.html).match(/color: #1a1a2e;">(\d+)<\/span>/);
+      if (match) console.log(`[OTP CODE]: ${match[1]}`);
+    }
+    console.log('------------------------------------------------------\n');
+    return;
+  }
   const timeout = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error('Email timeout after 12s')), 12000)
   );
@@ -61,7 +76,7 @@ export async function sendBookingConfirmation(params: {
   totalPrice: number;
   bookingId: string;
 }): Promise<void> {
-  await transporter.sendMail({
+  await sendWithTimeout({
     from: FROM,
     to: params.email,
     subject: `Rezervare confirmată — ${params.experienceTitle}`,
@@ -91,7 +106,7 @@ export async function sendCancellationConfirmation(params: {
   bookingId: string;
   refundEligible: boolean;
 }): Promise<void> {
-  await transporter.sendMail({
+  await sendWithTimeout({
     from: FROM,
     to: params.email,
     subject: `Rezervare anulată — ${params.experienceTitle}`,
@@ -119,7 +134,7 @@ export async function sendAvailabilityRequest(params: {
   confirmUrl: string;
   declineUrl: string;
 }): Promise<void> {
-  await transporter.sendMail({
+  await sendWithTimeout({
     from: FROM,
     to: params.providerEmail,
     subject: `Cerere disponibilitate — ${params.experienceTitle}`,
@@ -146,7 +161,7 @@ export async function sendVoucherExpiryAlert(params: {
   experienceTitle: string;
   expiryDate: string;
 }): Promise<void> {
-  await transporter.sendMail({
+  await sendWithTimeout({
     from: FROM,
     to: params.email,
     subject: `Voucherul tău expiră în curând — ${params.experienceTitle}`,

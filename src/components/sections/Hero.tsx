@@ -34,16 +34,16 @@ export function Hero() {
 
   const { data: content } = useHomepageContent("hero");
   
-  const heroContent = content?.content || {
-    title: "Oferă Momente",
-    titleHighlight: "Memorabile",
-    subtitle: t('hero.subtitle'),
-    badge: t('hero.badge'),
-    ctaPrimary: t('hero.discover'),
-    ctaPrimaryLink: "/category/toate-categoriile",
-    ctaSecondary: t('hero.hasVoucher'),
-    ctaSecondaryLink: "/my-bookings",
-    backgroundImage: "",
+  const heroContent = {
+    title: content?.content?.title || "Oferă Momente",
+    titleHighlight: content?.content?.titleHighlight || "Memorabile",
+    subtitle: content?.content?.subtitle || t('hero.subtitle'),
+    badge: content?.content?.badge || t('hero.badge'),
+    ctaPrimary: content?.content?.ctaPrimary || t('hero.discover'),
+    ctaPrimaryLink: content?.content?.ctaPrimaryLink || "/category/toate-categoriile",
+    ctaSecondary: content?.content?.ctaSecondary || t('hero.hasVoucher'),
+    ctaSecondaryLink: content?.content?.ctaSecondaryLink || "/my-bookings",
+    backgroundImage: content?.content?.backgroundImage || "",
   };
 
   const backgroundImage = heroContent.backgroundImage || heroBg;

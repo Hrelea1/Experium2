@@ -55,17 +55,26 @@ export function Regions() {
     experiences: r.experience_count || 0,
   }));
 
-  // If no regions in DB, show default set
-  const displayRegions =
-    regions.length > 0
-      ? regions
-      : [
-          { id: "1", name: "Transilvania", slug: "transilvania", image: transilvaniaImg, experiences: 156 },
-          { id: "2", name: "Bucovina", slug: "bucovina", image: bucovinaImg, experiences: 48 },
-          { id: "3", name: "Maramureș", slug: "maramures", image: maramuresImg, experiences: 42 },
-          { id: "4", name: "Dobrogea", slug: "dobrogea", image: dobrogeaImg, experiences: 67 },
-          { id: "5", name: "Banat", slug: "banat", image: banatImg, experiences: 54 },
-        ];
+  // Provide a set of default regions to ensure UI is always populated
+  const defaultRegions = [
+    { id: "1", name: "Transilvania", slug: "transilvania", image: transilvaniaImg, experiences: 156 },
+    { id: "2", name: "Bucovina", slug: "bucovina", image: bucovinaImg, experiences: 48 },
+    { id: "3", name: "Maramureș", slug: "maramures", image: maramuresImg, experiences: 42 },
+    { id: "4", name: "Dobrogea", slug: "dobrogea", image: dobrogeaImg, experiences: 67 },
+    { id: "5", name: "Banat", slug: "banat", image: banatImg, experiences: 54 },
+  ];
+
+  // Merge DB regions with defaults to ensure missing regions are filled
+  let displayRegions = [...regions];
+
+  // If there are fewer than 5 regions from the DB, append missing defaults By slug
+  if (displayRegions.length < 5) {
+    for (const defReg of defaultRegions) {
+      if (!displayRegions.find(r => r.slug === defReg.slug)) {
+        displayRegions.push(defReg);
+      }
+    }
+  }
 
   const handleRegionClick = (slug: string) => {
     navigate(`/category/toate-categoriile?region=${slug}`);
