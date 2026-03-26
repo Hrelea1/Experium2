@@ -90,9 +90,13 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user = await queryOne<{
       id: string; password_hash: string; full_name: string;
-      role: string; is_verified: boolean; avatar_url: string;
+      role: string; is_verified: boolean; avatar_url: string | null;
     }>(
-      'SELECT id, password_hash, full_name, role, is_verified, avatar_url FROM users WHERE email = $1',
+      `SELECT u.id, u.password_hash, u.full_name, u.role, u.is_verified,
+              p.avatar_url
+       FROM users u
+       LEFT JOIN profiles p ON p.id = u.id
+       WHERE u.email = $1`,
       [email]
     );
 
@@ -105,7 +109,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const token = signToken({ userId: user.id, email, role: user.role as 'user' });
     res.json({
       token,
-      user: { id: user.id, email, full_name: user.full_name, role: user.role, avatar_url: user.avatar_url },
+      user: { id: user.id, email, full_name: user.full_name, role: user.role, avatar_url: user.avatar_url ?? null },
     });
   } catch (err) {
     console.error('[auth/login]', err);
