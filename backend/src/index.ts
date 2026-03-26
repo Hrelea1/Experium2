@@ -67,9 +67,27 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).json({ error: err.message ?? 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Experium backend running at http://localhost:${PORT}`);
-  console.log(`   Mode: ${process.env.NODE_ENV ?? 'development'}`);
+// ─── Auto-migrate on startup ──────────────────────────────────────────────────
+import fs from 'fs';
+import { pool } from './db';
+
+async function migrate() {
+  try {
+    const schemaPath = path.join(__dirname, '..', '..', 'db', 'schema.sql');
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(sql);
+    console.log('[DB] ✅ Schema applied (auto-migrate)');
+  } catch (err: any) {
+    console.error('[DB] ⚠️ Auto-migrate warning:', err.message);
+    // Non-fatal: tables may already exist; server still starts
+  }
+}
+
+migrate().then(() => {
+  app.listen(PORT, () => {
+    console.log(`✅ Experium backend running at http://localhost:${PORT}`);
+    console.log(`   Mode: ${process.env.NODE_ENV ?? 'development'}`);
+  });
 });
 
 export default app;

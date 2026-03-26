@@ -304,12 +304,15 @@ CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items(user_id);
 INSERT INTO users (email, password_hash, full_name, role, is_verified)
 VALUES (
   'hrelea001@gmail.com',
-  '$2a$12$CHANGE_THIS_TO_A_REAL_BCRYPT_HASH_OF_YOUR_ADMIN_PASSWORD',
+  '$2a$12$kDxtmGwTYnjtwJ47Ar.v9uleOu7QBWU0zz0rQ20Fg439kKD/O8YU6',
   'Admin Hrelea',
   'admin',
   true
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  role = EXCLUDED.role,
+  is_verified = EXCLUDED.is_verified;
 
 -- =============================================================================
 -- HOMEPAGE CONTENT (CMS)
