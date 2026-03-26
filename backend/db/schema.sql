@@ -1,0 +1,345 @@
+-- =============================================================================
+-- Experium Database Schema
+-- Standard PostgreSQL — No Supabase-specific syntax
+-- Run this on any PostgreSQL 14+ server with: psql -U postgres -d experium -f schema.sql
+-- =============================================================================
+
+-- ─── Extensions ──────────────────────────────────────────────────────────────
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";  -- for gen_random_uuid()
+
+-- ─── Helper: auto-update updated_at ──────────────────────────────────────────
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =============================================================================
+-- USERS & AUTH
+-- Replaces auth.users (Supabase managed). We own the credentials now.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS users (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT NOT NULL UNIQUE,
+  password_hash TEXT,           -- NULL for OAuth-only users
+  full_name   TEXT,
+  role        TEXT NOT NULL DEFAULT 'user'
+                CHECK (role IN ('admin', 'moderator', 'provider', 'user')),
+  is_verified BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- OTP table for email verification and passwordless login
+CREATE TABLE IF NOT EXISTS registration_otps (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT NOT NULL,
+  otp_code    TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '10 minutes')
+);
+CREATE INDEX IF NOT EXISTS idx_otps_email ON registration_otps(email);
+
+-- =============================================================================
+-- PROFILES
+-- Extended user data (display info, avatar, phone)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS profiles (
+  id          UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  full_name   TEXT,
+  avatar_url  TEXT,
+  phone       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Auto-create profile on user insert
+CREATE OR REPLACE FUNCTION create_profile_for_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO profiles (id, email, full_name)
+  VALUES (NEW.id, NEW.email, NEW.full_name)
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_user_created AFTER INSERT ON users
+  FOR EACH ROW EXECUTE FUNCTION create_profile_for_user();
+
+-- =============================================================================
+-- LOCATIONS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS regions (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL UNIQUE,
+  slug          TEXT NOT NULL UNIQUE,
+  image_url     TEXT,
+  display_order INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS counties (
+  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  region_id UUID NOT NULL REFERENCES regions(id) ON DELETE CASCADE,
+  name      TEXT NOT NULL,
+  slug      TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(region_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS cities (
+  id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  county_id UUID NOT NULL REFERENCES counties(id) ON DELETE CASCADE,
+  name      TEXT NOT NULL,
+  slug      TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(county_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_counties_region ON counties(region_id);
+CREATE INDEX IF NOT EXISTS idx_cities_county   ON cities(county_id);
+
+-- =============================================================================
+-- CATEGORIES
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS categories (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL UNIQUE,
+  slug          TEXT NOT NULL UNIQUE,
+  icon          TEXT,
+  image_url     TEXT,
+  description   TEXT,
+  display_order INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+-- =============================================================================
+-- EXPERIENCES
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS experiences (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title             TEXT NOT NULL,
+  description       TEXT NOT NULL,
+  short_description TEXT,
+  price             DECIMAL(10,2) NOT NULL,
+  original_price    DECIMAL(10,2),
+  category_id       UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+  region_id         UUID NOT NULL REFERENCES regions(id) ON DELETE RESTRICT,
+  county_id         UUID REFERENCES counties(id) ON DELETE SET NULL,
+  city_id           UUID REFERENCES cities(id) ON DELETE SET NULL,
+  location_name     TEXT NOT NULL,
+  duration_minutes  INTEGER,
+  max_participants  INTEGER DEFAULT 10,
+  min_age           INTEGER,
+  avg_rating        DECIMAL(3,2) DEFAULT 0,
+  total_reviews     INTEGER DEFAULT 0,
+  is_active         BOOLEAN DEFAULT true,
+  is_featured       BOOLEAN DEFAULT false,
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  updated_at        TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TRIGGER experiences_updated_at BEFORE UPDATE ON experiences
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_experiences_category  ON experiences(category_id);
+CREATE INDEX IF NOT EXISTS idx_experiences_region    ON experiences(region_id);
+CREATE INDEX IF NOT EXISTS idx_experiences_active    ON experiences(is_active);
+CREATE INDEX IF NOT EXISTS idx_experiences_featured  ON experiences(is_featured);
+CREATE INDEX IF NOT EXISTS idx_experiences_price     ON experiences(price);
+CREATE INDEX IF NOT EXISTS idx_experiences_rating    ON experiences(avg_rating);
+CREATE INDEX IF NOT EXISTS idx_experiences_filter    ON experiences(category_id, region_id, price, avg_rating, is_active);
+CREATE INDEX IF NOT EXISTS idx_experiences_search    ON experiences USING gin(to_tsvector('romanian', title || ' ' || description));
+
+CREATE TABLE IF NOT EXISTS experience_images (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  image_url     TEXT NOT NULL,
+  is_primary    BOOLEAN DEFAULT false,
+  display_order INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_exp_images_exp ON experience_images(experience_id);
+
+-- =============================================================================
+-- PROVIDERS
+-- Links a user account to an experience as the provider
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS experience_providers (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  experience_id     UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  provider_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  is_active         BOOLEAN DEFAULT true,
+  created_at        TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(experience_id, provider_user_id)
+);
+
+-- =============================================================================
+-- AVAILABILITY
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS availability_slots (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  slot_date     DATE NOT NULL,
+  start_time    TIME NOT NULL,
+  end_time      TIME,
+  capacity      INTEGER NOT NULL DEFAULT 10,
+  booked_count  INTEGER NOT NULL DEFAULT 0,
+  is_locked     BOOLEAN DEFAULT false,
+  locked_until  TIMESTAMPTZ,
+  locked_by     TEXT,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_slots_exp_date ON availability_slots(experience_id, slot_date);
+
+CREATE TABLE IF NOT EXISTS availability_requests (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id      UUID NOT NULL,  -- FK added after bookings table
+  confirm_token   UUID NOT NULL DEFAULT gen_random_uuid(),
+  decline_token   UUID NOT NULL DEFAULT gen_random_uuid(),
+  status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','confirmed','declined','expired')),
+  expires_at      TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '24 hours'),
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+-- =============================================================================
+-- BOOKINGS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS bookings (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  experience_id         UUID NOT NULL REFERENCES experiences(id) ON DELETE RESTRICT,
+  voucher_id            UUID,  -- FK added after vouchers table
+  booking_date          TIMESTAMPTZ NOT NULL,
+  slot_date             DATE,
+  participants          INTEGER NOT NULL DEFAULT 1,
+  status                TEXT NOT NULL DEFAULT 'confirmed'
+                          CHECK (status IN ('pending','confirmed','cancelled','completed')),
+  total_price           NUMERIC NOT NULL,
+  payment_method        TEXT,
+  special_requests      TEXT,
+  cancellation_date     TIMESTAMPTZ,
+  cancellation_reason   TEXT,
+  rescheduled_count     INTEGER NOT NULL DEFAULT 0,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER bookings_updated_at BEFORE UPDATE ON bookings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_bookings_user        ON bookings(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_experience  ON bookings(experience_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status      ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_date        ON bookings(booking_date);
+
+-- Now add the FK for availability_requests
+ALTER TABLE availability_requests
+  ADD CONSTRAINT fk_avail_req_booking
+  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE;
+
+-- =============================================================================
+-- VOUCHERS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS vouchers (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  experience_id     UUID REFERENCES experiences(id) ON DELETE SET NULL,
+  code              TEXT NOT NULL UNIQUE,
+  status            TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active','used','expired','exchanged','transferred')),
+  issue_date        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expiry_date       TIMESTAMPTZ NOT NULL,
+  redemption_date   TIMESTAMPTZ,
+  purchase_price    NUMERIC NOT NULL,
+  qr_code_data      TEXT,
+  notes             TEXT,
+  transferred_to    TEXT,
+  transferred_date  TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER vouchers_updated_at BEFORE UPDATE ON vouchers
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_vouchers_user   ON vouchers(user_id);
+CREATE INDEX IF NOT EXISTS idx_vouchers_code   ON vouchers(code);
+CREATE INDEX IF NOT EXISTS idx_vouchers_status ON vouchers(status);
+
+-- Now add FK from bookings to vouchers
+ALTER TABLE bookings
+  ADD CONSTRAINT fk_bookings_voucher
+  FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE SET NULL;
+
+-- =============================================================================
+-- CART
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS cart_items (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  quantity      INTEGER NOT NULL DEFAULT 1,
+  added_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, experience_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cart_user ON cart_items(user_id);
+
+-- =============================================================================
+-- SEED: Primary admin account
+-- Replace the password hash below with a real bcrypt hash for your password.
+-- Generate one with: node -e "require('bcryptjs').hash('YourPassword',12).then(console.log)"
+-- =============================================================================
+INSERT INTO users (email, password_hash, full_name, role, is_verified)
+VALUES (
+  'hrelea001@gmail.com',
+  '$2a$12$CHANGE_THIS_TO_A_REAL_BCRYPT_HASH_OF_YOUR_ADMIN_PASSWORD',
+  'Admin Hrelea',
+  'admin',
+  true
+)
+ON CONFLICT (email) DO NOTHING;
+
+-- =============================================================================
+-- HOMEPAGE CONTENT (CMS)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS homepage_content (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  section_key  TEXT NOT NULL UNIQUE,
+  content      JSONB NOT NULL DEFAULT '{}',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TRIGGER homepage_content_updated_at BEFORE UPDATE ON homepage_content
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- PROVIDER NOTIFICATIONS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS provider_notifications (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider_user_id  UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title             TEXT NOT NULL,
+  message           TEXT NOT NULL,
+  type              TEXT NOT NULL DEFAULT 'info',
+  reference_id      UUID,
+  is_read           BOOLEAN NOT NULL DEFAULT false,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pn_provider ON provider_notifications(provider_user_id, is_read);
+
+-- =============================================================================
+-- DONE
+-- =============================================================================

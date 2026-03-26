@@ -1,7 +1,22 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { tokenStore } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
+async function apiRequest(path: string, options: RequestInit = {}) {
+  const token = tokenStore.get();
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string>),
+    },
+  });
+  return res.ok ? res.json() : Promise.reject(await res.json());
+}
 
 export interface CartItemService {
   serviceId: string;
@@ -11,7 +26,7 @@ export interface CartItemService {
 }
 
 export interface CartItem {
-  id: string;           // DB UUID (or temp local key for guests)
+  id: string;
   experienceId: string;
   title: string;
   location: string;
@@ -25,7 +40,7 @@ export interface CartItem {
   endTime: string;
   maxParticipants: number;
   services: CartItemService[];
-  addedAt: number;      // ms timestamp for slot lock expiry tracking
+  addedAt: number;
 }
 
 interface CartContextType {
@@ -39,116 +54,64 @@ interface CartContextType {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
 const CART_STORAGE_KEY = "experium_cart";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 function saveLocal(items: CartItem[]) {
-  try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-  } catch {}
+  try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items)); } catch {}
 }
-
 function loadLocal(): CartItem[] {
   try {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
+    const s = localStorage.getItem(CART_STORAGE_KEY);
+    return s ? JSON.parse(s) : [];
+  } catch { return []; }
 }
-
-// ── Provider ─────────────────────────────────────────────────────────────────
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
-
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const hasLoadedRef = useRef(false);
 
-  // ── Load cart ─────────────────────────────────────────────────────────────
+  // ── Load cart ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) {
-      // Unauthenticated: use localStorage only
       setItems(loadLocal());
       hasLoadedRef.current = false;
       return;
     }
 
-    // Authenticated: load from DB (and merge any guest items first)
     const loadFromDb = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from("cart_items")
-          .select(`
-            id,
-            experience_id,
-            slot_id,
-            participants,
-            services,
-            added_at,
-            experiences (
-              title,
-              location_name,
-              price,
-              original_price,
-              experience_images (image_url, is_primary)
-            ),
-            availability_slots (
-              slot_date,
-              start_time,
-              end_time,
-              max_participants
-            )
-          `)
-          .eq("user_id", user.id);
+        const data: any[] = await apiRequest("/cart");
 
-        if (error) throw error;
+        const dbItems: CartItem[] = data.map((row) => ({
+          id: row.id,
+          experienceId: row.experience_id,
+          title: row.title ?? "",
+          location: row.location_name ?? "",
+          price: row.price ?? 0,
+          originalPrice: row.original_price ?? undefined,
+          image: row.image ?? "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop",
+          participants: row.quantity ?? 1,
+          slotId: row.id,     // simple cart — no slot lock in custom backend
+          slotDate: "",
+          startTime: "",
+          endTime: "",
+          maxParticipants: row.max_participants ?? 10,
+          services: [],
+          addedAt: new Date(row.added_at).getTime(),
+        }));
 
-        const dbItems: CartItem[] = (data || []).map((row: any) => {
-          const exp = row.experiences;
-          const slot = row.availability_slots;
-          const images: { image_url: string; is_primary: boolean }[] =
-            exp?.experience_images || [];
-          const primary =
-            images.find((i) => i.is_primary) || images[0];
-
-          return {
-            id: row.id,
-            experienceId: row.experience_id,
-            title: exp?.title || "",
-            location: exp?.location_name || "",
-            price: exp?.price ?? 0,
-            originalPrice: exp?.original_price ?? undefined,
-            image:
-              primary?.image_url ||
-              "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop",
-            participants: row.participants,
-            slotId: row.slot_id,
-            slotDate: slot?.slot_date || "",
-            startTime: slot?.start_time || "",
-            endTime: slot?.end_time || "",
-            maxParticipants: slot?.max_participants ?? 0,
-            services: (row.services as CartItemService[]) || [],
-            addedAt: new Date(row.added_at).getTime(),
-          };
-        });
-
-        // Merge guest items that aren't already in DB
         const guestItems = loadLocal().filter(
-          (g) => !dbItems.some((db) => db.slotId === g.slotId)
+          (g) => !dbItems.some((db) => db.experienceId === g.experienceId)
         );
-
         const merged = [...dbItems, ...guestItems];
         setItems(merged);
         saveLocal(merged);
       } catch (err) {
         console.error("Error loading cart from DB:", err);
-        // Fallback to localStorage
         setItems(loadLocal());
       } finally {
         setIsLoading(false);
@@ -159,164 +122,54 @@ export function CartProvider({ children }: { children: ReactNode }) {
     loadFromDb();
   }, [user]);
 
-  // Persist to localStorage whenever items change
-  useEffect(() => {
-    saveLocal(items);
-  }, [items]);
+  useEffect(() => { saveLocal(items); }, [items]);
 
-  // ── addItem ───────────────────────────────────────────────────────────────
+  // ── addItem ─────────────────────────────────────────────────────────────────
   const addItem = async (item: CartItem): Promise<boolean> => {
-    // For authenticated users: lock slot + persist to DB
     if (user) {
-      // 1. Atomically lock the slot
-      const { data: lockData, error: lockError } = await supabase.rpc(
-        "lock_availability_slot",
-        { p_slot_id: item.slotId, p_user_id: user.id }
-      );
-
-      if (lockError) {
-        toast({
-          title: "Slot indisponibil",
-          description: lockError.message,
-          variant: "destructive",
+      try {
+        await apiRequest("/cart", {
+          method: "POST",
+          body: JSON.stringify({ experience_id: item.experienceId, quantity: item.participants }),
         });
+      } catch (err: any) {
+        toast({ title: "Eroare la adăugarea în coș", description: err?.error ?? err?.message, variant: "destructive" });
         return false;
       }
-
-      const lockResult = Array.isArray(lockData) ? lockData[0] : lockData;
-      if (!lockResult?.success) {
-        toast({
-          title: "Slot indisponibil",
-          description: lockResult?.error_message || "Slotul nu mai este disponibil.",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      // 2. Upsert into cart_items and read back the UUID
-      const { data: upserted, error: upsertError } = await supabase
-        .from("cart_items")
-        .upsert(
-          {
-            user_id: user.id,
-            experience_id: item.experienceId,
-            slot_id: item.slotId,
-            participants: item.participants,
-            services: item.services as any,
-            added_at: new Date(item.addedAt).toISOString(),
-          },
-          { onConflict: "user_id,slot_id" }
-        )
-        .select("id")
-        .single();
-
-      if (upsertError) {
-        // Unlock the slot we just locked since save failed
-        supabase.rpc("unlock_availability_slot", {
-          p_slot_id: item.slotId,
-          p_user_id: user.id,
-        });
-        toast({
-          title: "Eroare la adăugarea în coș",
-          description: upsertError.message,
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      // Use DB-assigned UUID so removeItem works correctly
-      const dbId = upserted?.id ?? item.id;
-      const finalItem: CartItem = { ...item, id: dbId };
-
-      setItems((curr) => {
-        const filtered = curr.filter((i) => i.slotId !== item.slotId);
-        return [...filtered, finalItem];
-      });
-      return true;
     }
 
-    // Guest (not logged in): localStorage only, no slot lock
     setItems((curr) => {
-      const filtered = curr.filter((i) => i.slotId !== item.slotId);
+      const filtered = curr.filter((i) => i.experienceId !== item.experienceId);
       return [...filtered, item];
     });
     return true;
   };
 
-  // ── removeItem ────────────────────────────────────────────────────────────
+  // ── removeItem ──────────────────────────────────────────────────────────────
   const removeItem = async (id: string) => {
-    const item = items.find((i) => i.id === id);
-    if (!item) return;
-
-    // Unlock slot (fire-and-forget)
     if (user) {
-      supabase
-        .rpc("unlock_availability_slot", {
-          p_slot_id: item.slotId,
-          p_user_id: user.id,
-        })
-        .then(() => {});
-
-      // Delete by primary key (UUID)
-      const { error } = await supabase
-        .from("cart_items")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error removing cart item from DB:", error);
-      }
+      apiRequest(`/cart/${id}`, { method: "DELETE" }).catch(console.error);
     }
-
     setItems((curr) => curr.filter((i) => i.id !== id));
   };
 
-  // ── clearCart ─────────────────────────────────────────────────────────────
+  // ── clearCart ───────────────────────────────────────────────────────────────
   const clearCart = async () => {
     if (user) {
-      // Unlock all slots
-      items.forEach((item) => {
-        supabase
-          .rpc("unlock_availability_slot", {
-            p_slot_id: item.slotId,
-            p_user_id: user.id,
-          })
-          .then(() => {});
-      });
-
-      await supabase
-        .from("cart_items")
-        .delete()
-        .eq("user_id", user.id);
+      apiRequest("/cart", { method: "DELETE" }).catch(console.error);
     }
-
     setItems([]);
   };
 
-  // ── totals ────────────────────────────────────────────────────────────────
   const totalItems = items.length;
   const subtotal = items.reduce((sum, item) => {
     const base = item.price * item.participants;
-    const extras = item.services.reduce(
-      (s, svc) => s + svc.price * svc.quantity,
-      0
-    );
+    const extras = item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0);
     return sum + base + extras;
   }, 0);
 
   return (
-    <CartContext.Provider
-      value={{
-        items,
-        addItem,
-        removeItem,
-        clearCart,
-        totalItems,
-        subtotal,
-        isLoading,
-      }}
-    >
+    <CartContext.Provider value={{ items, addItem, removeItem, clearCart, totalItems, subtotal, isLoading }}>
       {children}
     </CartContext.Provider>
   );
@@ -324,8 +177,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 export function useCart() {
   const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider");
-  }
+  if (!context) throw new Error("useCart must be used within a CartProvider");
   return context;
 }

@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { tokenStore } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 interface CheckoutItem {
   experienceId: string;
@@ -11,6 +13,10 @@ interface CheckoutItem {
   title: string;
 }
 
+/**
+ * useCheckout — replaced supabase.functions.invoke('create-checkout')
+ * Now calls POST /bookings for each item and optionally redirects to payment.
+ */
 export function useCheckout() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -18,47 +24,52 @@ export function useCheckout() {
 
   const processCheckout = async (items: CheckoutItem[]): Promise<boolean> => {
     if (!user) {
-      toast({
-        title: 'Eroare',
-        description: 'Trebuie să fii autentificat pentru a finaliza plata',
-        variant: 'destructive',
-      });
+      toast({ title: 'Eroare', description: 'Trebuie să fii autentificat pentru a finaliza plata', variant: 'destructive' });
       return false;
     }
 
     setIsProcessing(true);
-
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          items,
-          returnUrl: window.location.origin + window.location.pathname,
-        },
-      });
+      const token = tokenStore.get();
+      // Create a booking for each cart item
+      const results = await Promise.allSettled(
+        items.map((item) =>
+          fetch(`${API_BASE}/bookings`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              experience_id: item.experienceId,
+              booking_date: new Date().toISOString(),
+              participants: item.participants,
+              total_price: item.totalPrice,
+              payment_method: 'card',
+            }),
+          }).then((r) => (r.ok ? r.json() : Promise.reject(r)))
+        )
+      );
 
-      if (error) throw error;
-      if (!data?.url) throw new Error('No checkout URL received');
-
-      const stripeWindow = window.open(data.url, '_blank');
-      if (!stripeWindow) {
-        window.location.href = data.url;
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        throw new Error(`${failed.length} rezerv(e) au eșuat`);
       }
-      setIsProcessing(false);
+
+      toast({ title: 'Rezervare confirmată!', description: `${items.length} rezervare(i) create cu succes.` });
       return true;
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast({
-        title: 'Eroare la procesarea plății',
+        title: 'Eroare la procesarea rezervării',
         description: error.message || 'Te rugăm să încerci din nou',
         variant: 'destructive',
       });
-      setIsProcessing(false);
       return false;
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  return {
-    processCheckout,
-    isProcessing,
-  };
+  return { processCheckout, isProcessing };
 }

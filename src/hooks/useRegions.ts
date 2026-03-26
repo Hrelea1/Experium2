@@ -1,6 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { tokenStore } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+
+async function apiReq(path: string, options: RequestInit = {}) {
+  const token = tokenStore.get();
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string>),
+    },
+  });
+  if (!res.ok) throw new Error((await res.json()).error ?? "Request failed");
+  return res.json();
+}
 
 export type Region = {
   id: string;
@@ -11,119 +27,61 @@ export type Region = {
   experience_count?: number;
 };
 
+// ─── Fetch all regions with experience counts ─────────────────────────────────
 export function useRegions() {
   return useQuery({
     queryKey: ["regions"],
-    queryFn: async () => {
-      const { data: regions, error } = await supabase
-        .from("regions")
-        .select("*")
-        .order("display_order", { ascending: true, nullsFirst: false });
-
-      if (error) throw error;
-
-      // Fetch active experiences to count them per region
-      const { data: expData, error: expError } = await supabase
-        .from("experiences")
-        .select("region_id")
-        .eq("is_active", true);
-
-      if (expError) throw expError;
-
-      const counts: Record<string, number> = {};
-      expData?.forEach(exp => {
-        if (exp.region_id) {
-          counts[exp.region_id] = (counts[exp.region_id] || 0) + 1;
-        }
-      });
-
-      return (regions as Region[]).map(r => ({
-        ...r,
-        experience_count: counts[r.id] || 0
-      }));
-    },
+    queryFn: () => apiReq("/regions") as Promise<Region[]>,
   });
 }
 
+// ─── Update region image_url ──────────────────────────────────────────────────
 export function useUpdateRegionImage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({
-      regionId,
-      imageUrl,
-    }: {
-      regionId: string;
-      imageUrl: string;
-    }) => {
-      const { data, error } = await supabase
-        .from("regions")
-        .update({ image_url: imageUrl })
-        .eq("id", regionId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: ({ regionId, imageUrl }: { regionId: string; imageUrl: string }) =>
+      apiReq(`/admin/regions/${regionId}`, {
+        method: "PUT",
+        body: JSON.stringify({ image_url: imageUrl }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["regions"] });
-      toast({
-        title: "Succes!",
-        description: "Imaginea regiunii a fost actualizată",
-      });
+      toast({ title: "Succes!", description: "Imaginea regiunii a fost actualizată" });
     },
     onError: (error: Error) => {
-      toast({
-        title: "Eroare",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Eroare", description: error.message, variant: "destructive" });
     },
   });
 }
 
+// ─── Upload region image ──────────────────────────────────────────────────────
 export function useUploadRegionImage() {
   const { toast } = useToast();
 
   return useMutation({
     mutationFn: async (file: File) => {
-      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+      const MAX_FILE_SIZE = 5 * 1024 * 1024;
       const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
-      if (file.size > MAX_FILE_SIZE) {
-        throw new Error("Fișierul este prea mare. Mărimea maximă este 5MB.");
-      }
+      if (file.size > MAX_FILE_SIZE) throw new Error("Fișierul este prea mare. Mărimea maximă este 5MB.");
+      if (!ALLOWED_TYPES.includes(file.type)) throw new Error("Tip de fișier invalid. Folosește JPG, PNG sau WebP.");
 
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        throw new Error("Tip de fișier invalid. Folosește JPG, PNG sau WebP.");
-      }
+      const token = tokenStore.get();
+      const formData = new FormData();
+      formData.append("image", file);
 
-      const fileExt = file.name.split(".").pop()?.toLowerCase();
-      const sanitizedFileName = `regions/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("homepage-images")
-        .upload(sanitizedFileName, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from("homepage-images")
-        .getPublicUrl(sanitizedFileName);
-
-      return data.publicUrl;
+      const res = await fetch(`${API_BASE}/uploads/general`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+      return (await res.json()).image_url as string;
     },
     onError: (error: Error) => {
-      toast({
-        title: "Eroare la încărcare",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Eroare la încărcare", description: error.message, variant: "destructive" });
     },
   });
 }

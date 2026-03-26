@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Experium</title>
+    <script>
+      // GitHub Pages SPA redirect
+      // Stores the path in sessionStorage and redirects to the root
+      var l = window.location;
+      sessionStorage.redirect = l.pathname.replace('/Experium2', '') + l.search + l.hash;
+      l.replace(l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + '/Experium2/');
+    </script>
+  </head>
+  <body></body>
+</html>

@@ -1,47 +1,17 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 type AppRole = 'admin' | 'moderator' | 'provider' | 'ambassador' | 'user';
 
+/**
+ * useRoleCheck — replaced supabase.from('user_roles').select('role')
+ * Role is now a single field on the user object from the JWT.
+ */
 export function useRoleCheck() {
-  const { user } = useAuth();
-  const [roles, setRoles] = useState<AppRole[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      checkRoles();
-    } else {
-      setRoles([]);
-      setLoading(false);
-    }
-  }, [user]);
+  const role = (user?.role ?? 'user') as AppRole;
 
-  const checkRoles = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      const userRoles = data?.map(r => r.role as AppRole) || [];
-      setRoles(userRoles);
-    } catch (error) {
-      console.error('Error checking roles:', error);
-      setRoles([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const hasRole = (role: AppRole): boolean => {
-    return roles.includes(role);
-  };
+  const hasRole = (r: AppRole): boolean => role === r;
 
   const isAdmin = hasRole('admin');
   const isAmbassador = hasRole('ambassador');
@@ -49,13 +19,14 @@ export function useRoleCheck() {
   const isModerator = hasRole('moderator');
 
   return {
-    roles,
+    roles: user ? [role] : [] as AppRole[],
     loading,
     hasRole,
     isAdmin,
     isAmbassador,
     isProvider,
     isModerator,
-    refetch: checkRoles,
+    // no-op: roles come from JWT, re-fetching user refreshes it
+    refetch: () => {},
   };
 }

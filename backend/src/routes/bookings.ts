@@ -1,0 +1,188 @@
+import { Router, Request, Response } from 'express';
+import { query, queryOne } from '../db';
+import { requireAuth, requireAdmin } from '../middleware/auth';
+import { sendBookingConfirmation, sendCancellationConfirmation } from '../services/email';
+
+const router = Router();
+
+// ─── GET /bookings ────────────────────────────────────────────────────────────
+router.get('/', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const isAdmin = req.user!.role === 'admin';
+
+    const rows = await query(
+      `SELECT
+        b.id, b.booking_date, b.participants, b.status, b.total_price,
+        b.special_requests, b.cancellation_reason, b.rescheduled_count,
+        b.created_at,
+        e.title AS experience_title, e.location_name,
+        (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS experience_image
+       FROM bookings b
+       JOIN experiences e ON e.id = b.experience_id
+       WHERE ${isAdmin ? 'TRUE' : 'b.user_id = $1'}
+       ORDER BY b.created_at DESC`,
+      isAdmin ? [] : [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[bookings GET /]', err);
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// ─── GET /bookings/:id ────────────────────────────────────────────────────────
+router.get('/:id', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const booking = await queryOne(
+      `SELECT b.*, e.title AS experience_title, e.location_name, e.duration_minutes,
+        u.email AS user_email, p.full_name AS user_full_name
+       FROM bookings b
+       JOIN experiences e ON e.id = b.experience_id
+       JOIN users u ON u.id = b.user_id
+       LEFT JOIN profiles p ON p.id = b.user_id
+       WHERE b.id = $1 AND (b.user_id = $2 OR $3 = true)`,
+      [req.params.id, req.user!.userId, req.user!.role === 'admin']
+    );
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    res.json(booking);
+  } catch (err) {
+    console.error('[bookings GET /:id]', err);
+    res.status(500).json({ error: 'Failed to fetch booking' });
+  }
+});
+
+// ─── POST /bookings ───────────────────────────────────────────────────────────
+router.post('/', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const {
+      experience_id, booking_date, participants = 1,
+      total_price, payment_method = 'card', special_requests, voucher_id,
+    } = req.body;
+
+    if (!experience_id || !booking_date || !total_price) {
+      return res.status(400).json({ error: 'experience_id, booking_date, and total_price are required' });
+    }
+
+    const booking = await queryOne<{ id: string }>(
+      `INSERT INTO bookings
+        (user_id, experience_id, booking_date, participants, total_price, payment_method, special_requests, voucher_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'confirmed')
+       RETURNING id`,
+      [req.user!.userId, experience_id, booking_date, participants, total_price,
+       payment_method, special_requests ?? null, voucher_id ?? null]
+    );
+
+    // Send confirmation email asynchronously (non-blocking)
+    queryOne<{ email: string; full_name: string; title: string }>(
+      `SELECT u.email, p.full_name, e.title
+       FROM users u
+       LEFT JOIN profiles p ON p.id = u.id
+       JOIN experiences e ON e.id = $2
+       WHERE u.id = $1`,
+      [req.user!.userId, experience_id]
+    ).then(async (info) => {
+      if (info) {
+        await sendBookingConfirmation({
+          email: info.email,
+          name: info.full_name ?? 'Client',
+          experienceTitle: info.title,
+          bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
+          participants: Number(participants),
+          totalPrice: Number(total_price),
+          bookingId: booking!.id,
+        });
+      }
+    }).catch(console.error);
+
+    res.status(201).json({ id: booking!.id, message: 'Booking confirmed' });
+  } catch (err) {
+    console.error('[bookings POST]', err);
+    res.status(500).json({ error: 'Failed to create booking' });
+  }
+});
+
+// ─── POST /bookings/:id/cancel ────────────────────────────────────────────────
+router.post('/:id/cancel', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { cancellation_reason } = req.body;
+    const booking = await queryOne<{
+      id: string; booking_date: string; status: string;
+      experience_id: string; user_id: string;
+    }>(
+      'SELECT id, booking_date, status, experience_id, user_id FROM bookings WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user!.userId]
+    );
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (!['confirmed', 'pending'].includes(booking.status)) {
+      return res.status(400).json({ error: 'Booking cannot be cancelled in its current state' });
+    }
+
+    const hoursUntil = (new Date(booking.booking_date).getTime() - Date.now()) / 3600000;
+    const refundEligible = hoursUntil >= 48;
+
+    await query(
+      `UPDATE bookings SET status = 'cancelled', cancellation_date = now(),
+       cancellation_reason = $1, updated_at = now() WHERE id = $2`,
+      [cancellation_reason ?? null, req.params.id]
+    );
+
+    // Send email async
+    queryOne<{ email: string; full_name: string; title: string }>(
+      `SELECT u.email, p.full_name, e.title FROM users u
+       LEFT JOIN profiles p ON p.id = u.id
+       JOIN experiences e ON e.id = $2 WHERE u.id = $1`,
+      [req.user!.userId, booking.experience_id]
+    ).then(async (info) => {
+      if (info) {
+        await sendCancellationConfirmation({
+          email: info.email,
+          name: info.full_name,
+          experienceTitle: info.title,
+          bookingId: req.params.id,
+          refundEligible,
+        });
+      }
+    }).catch(console.error);
+
+    res.json({ success: true, refund_eligible: refundEligible });
+  } catch (err) {
+    console.error('[bookings cancel]', err);
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
+// ─── POST /bookings/:id/reschedule ────────────────────────────────────────────
+router.post('/:id/reschedule', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { new_booking_date } = req.body;
+    if (!new_booking_date) return res.status(400).json({ error: 'new_booking_date required' });
+
+    const booking = await queryOne<{ status: string; rescheduled_count: number }>(
+      'SELECT status, rescheduled_count FROM bookings WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user!.userId]
+    );
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    if (!['confirmed', 'pending'].includes(booking.status)) {
+      return res.status(400).json({ error: 'Booking cannot be rescheduled' });
+    }
+    if (booking.rescheduled_count >= 1) {
+      return res.status(400).json({ error: 'You can only reschedule a booking once' });
+    }
+
+    await query(
+      `UPDATE bookings SET booking_date = $1, rescheduled_count = rescheduled_count + 1, updated_at = now()
+       WHERE id = $2`,
+      [new_booking_date, req.params.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[bookings reschedule]', err);
+    res.status(500).json({ error: 'Failed to reschedule booking' });
+  }
+});
+
+export default router;

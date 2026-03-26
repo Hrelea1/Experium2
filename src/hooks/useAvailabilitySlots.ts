@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 export interface AvailabilitySlot {
   id: string;
@@ -7,10 +8,14 @@ export interface AvailabilitySlot {
   slot_date: string;
   start_time: string;
   end_time: string;
+  capacity: number;
+  booked_count: number;
+  available_spots: number;
+  is_locked: boolean;
+  // Legacy compat fields
   max_participants: number;
   booked_participants: number;
   is_available: boolean;
-  is_locked: boolean;
   locked_by: string | null;
   locked_until: string | null;
   slot_type: string;
@@ -22,66 +27,47 @@ export function useAvailabilitySlots(experienceId: string) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const fetchSlots = useCallback(async () => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data, error } = await supabase
-      .from("availability_slots")
-      .select("*")
-      .eq("experience_id", experienceId)
-      .eq("is_available", true)
-      .gte("slot_date", today)
-      .order("slot_date", { ascending: true })
-      .order("start_time", { ascending: true });
+    if (!experienceId) return;
+    setLoading(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const res = await fetch(
+        `${API_BASE}/availability/${experienceId}?from=${today}`
+      );
+      if (!res.ok) throw new Error("Failed to fetch slots");
+      const data: any[] = await res.json();
 
-    if (!error && data) {
-      setSlots(data as AvailabilitySlot[]);
+      // Normalise to legacy shape so SlotPicker doesn't break
+      const normalised: AvailabilitySlot[] = data.map((s) => ({
+        ...s,
+        max_participants: s.capacity,
+        booked_participants: s.booked_count,
+        is_available: !s.is_locked && s.available_spots > 0,
+        locked_by: null,
+        locked_until: null,
+        slot_type: "regular",
+      }));
+
+      setSlots(normalised);
+    } catch (err) {
+      console.error("[useAvailabilitySlots]", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [experienceId]);
 
   useEffect(() => {
     fetchSlots();
+    // Poll every 30 seconds to refresh availability (replaces Supabase realtime)
+    const interval = setInterval(fetchSlots, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchSlots]);
 
-    // Realtime subscription
-    const channel = supabase
-      .channel(`slots-${experienceId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "availability_slots",
-          filter: `experience_id=eq.${experienceId}`,
-        },
-        () => {
-          fetchSlots();
-        }
-      )
-      .subscribe();
+  const availableDates = Array.from(new Set(slots.map((s) => s.slot_date)));
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [experienceId, fetchSlots]);
-
-  // Get unique available dates
-  const availableDates = Array.from(
-    new Set(slots.map((s) => s.slot_date))
-  );
-
-  // Get slots for selected date
   const slotsForDate = selectedDate
-    ? slots.filter(
-        (s) => s.slot_date === selectedDate.toISOString().split("T")[0]
-      )
+    ? slots.filter((s) => s.slot_date === selectedDate.toISOString().split("T")[0])
     : [];
 
-  return {
-    slots,
-    loading,
-    availableDates,
-    selectedDate,
-    setSelectedDate,
-    slotsForDate,
-    refetch: fetchSlots,
-  };
+  return { slots, loading, availableDates, selectedDate, setSelectedDate, slotsForDate, refetch: fetchSlots };
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { tokenStore } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 export interface ProviderNotification {
   id: string;
@@ -13,6 +15,10 @@ export interface ProviderNotification {
   created_at: string;
 }
 
+/**
+ * useProviderNotifications — replaced supabase realtime subscription.
+ * Polls /notifications every 30s (no Supabase realtime in custom backend).
+ */
 export function useProviderNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<ProviderNotification[]>([]);
@@ -21,73 +27,48 @@ export function useProviderNotifications() {
 
   const fetchNotifications = async () => {
     if (!user) return;
+    const token = tokenStore.get();
     try {
-      const { data, error } = await supabase
-        .from('provider_notifications')
-        .select('*')
-        .eq('provider_user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      const notifs = (data || []) as ProviderNotification[];
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.is_read).length);
+      const res = await fetch(`${API_BASE}/notifications`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) return;
+      const data: ProviderNotification[] = await res.json();
+      setNotifications(data);
+      setUnreadCount(data.filter((n) => !n.is_read).length);
     } catch {
-      // silent
+      // silent — notifications are non-critical
     } finally {
       setLoading(false);
     }
   };
 
   const markAsRead = async (id: string) => {
-    await supabase
-      .from('provider_notifications')
-      .update({ is_read: true })
-      .eq('id', id);
-    setNotifications(prev =>
-      prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+    const token = tokenStore.get();
+    await fetch(`${API_BASE}/notifications/${id}/read`, {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
-    await supabase
-      .from('provider_notifications')
-      .update({ is_read: true })
-      .eq('provider_user_id', user.id)
-      .eq('is_read', false);
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    const token = tokenStore.get();
+    await fetch(`${API_BASE}/notifications/read-all`, {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
 
   useEffect(() => {
     fetchNotifications();
-  }, [user]);
-
-  // Realtime subscription
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel('provider-notifs-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'provider_notifications',
-          filter: `provider_user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newNotif = payload.new as ProviderNotification;
-          setNotifications(prev => [newNotif, ...prev]);
-          setUnreadCount(prev => prev + 1);
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    // Poll every 30 seconds (replaces Supabase realtime)
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
   }, [user]);
 
   return { notifications, unreadCount, loading, markAsRead, markAllAsRead, refetch: fetchNotifications };

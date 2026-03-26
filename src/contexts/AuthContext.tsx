@@ -1,138 +1,156 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { auth as authApi, tokenStore, type User } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ data: any; error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
+  sendOtp: (email: string) => Promise<{ error: string | null }>;
+  verifyOtp: (email: string, otp: string) => Promise<{ error: string | null; user?: User }>;
+  otpLogin: (email: string, otp: string) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // Load user from token on mount
   useEffect(() => {
-    console.log('AuthContext initialized. Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-    // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    authApi.getUser()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
   }, []);
 
+  const refreshUser = async () => {
+    const u = await authApi.getUser();
+    setUser(u);
+  };
+
+  // ─── signUp ────────────────────────────────────────────────────────────────
+  // Step 1: creates pending account and dispatches OTP email
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (error) {
-      toast({
-        title: "Eroare înregistrare",
-        description: error.message,
-        variant: "destructive",
-      });
+    try {
+      await authApi.signUp(email, password, fullName);
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Eroare la înregistrare';
+      toast({ title: 'Eroare înregistrare', description: message, variant: 'destructive' });
+      return { error: message };
     }
-
-    return { data, error };
   };
 
+  // ─── verifyOtp ─────────────────────────────────────────────────────────────
+  // Step 2 of signup: verify OTP code, sets user + token
+  const verifyOtp = async (email: string, otp: string) => {
+    try {
+      const result = await authApi.verifyOtp(email, otp);
+      setUser(result.user);
+      return { error: null, user: result.user };
+    } catch (err: any) {
+      const message = err.message ?? 'Cod OTP invalid';
+      toast({ title: 'Eroare verificare', description: message, variant: 'destructive' });
+      return { error: message };
+    }
+  };
+
+  // ─── signIn ────────────────────────────────────────────────────────────────
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      const message = error.message === 'Failed to fetch'
+    try {
+      const result = await authApi.signIn(email, password);
+      setUser(result.user);
+      return { error: null };
+    } catch (err: any) {
+      const raw = err.message ?? '';
+      const message = raw.includes('fetch')
         ? 'Nu s-a putut conecta la server. Verificați conexiunea la internet.'
-        : error.message === 'Invalid login credentials'
+        : raw.includes('password') || raw.includes('credentials')
         ? 'Email sau parolă incorectă'
-        : error.message;
-      toast({
-        title: "Eroare autentificare",
-        description: message,
-        variant: "destructive",
-      });
+        : raw;
+      toast({ title: 'Eroare autentificare', description: message, variant: 'destructive' });
+      return { error: message };
     }
-
-    return { error };
   };
 
+  // ─── sendOtp ───────────────────────────────────────────────────────────────
+  const sendOtp = async (email: string) => {
+    try {
+      await authApi.sendOtp(email);
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Eroare la trimiterea OTP';
+      toast({ title: 'Eroare', description: message, variant: 'destructive' });
+      return { error: message };
+    }
+  };
+
+  // ─── otpLogin ──────────────────────────────────────────────────────────────
+  const otpLogin = async (email: string, otp: string) => {
+    try {
+      const result = await authApi.otpLogin(email, otp);
+      setUser(result.user);
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Autentificare OTP eșuată';
+      toast({ title: 'Eroare', description: message, variant: 'destructive' });
+      return { error: message };
+    }
+  };
+
+  // ─── signOut ───────────────────────────────────────────────────────────────
   const signOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Deconectat cu succes",
-    });
+    await authApi.signOut();
+    setUser(null);
+    toast({ title: 'Deconectat cu succes' });
   };
 
+  // ─── resetPassword ─────────────────────────────────────────────────────────
+  // Sends an OTP to the email to use as password reset flow
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/#/auth?mode=reset`;
-    
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
-    });
-
-    if (error) {
+    try {
+      await authApi.sendOtp(email);
       toast({
-        title: "Eroare",
-        description: error.message,
-        variant: "destructive",
+        title: 'Email trimis',
+        description: 'Verifică inbox-ul pentru codul OTP de resetare.',
       });
-    } else {
-      toast({
-        title: "Email trimis",
-        description: "Verifică inbox-ul pentru instrucțiunile de resetare.",
-      });
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Eroare la resetarea parolei';
+      toast({ title: 'Eroare', description: message, variant: 'destructive' });
+      return { error: message };
     }
-
-    return { error };
   };
 
-  const value = {
-    user,
-    session,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    resetPassword,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      sendOtp,
+      verifyOtp,
+      otpLogin,
+      resetPassword,
+      refreshUser,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
