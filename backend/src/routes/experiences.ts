@@ -110,7 +110,11 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 
     const experience = await queryOne(
       `SELECT
-        e.*,
+        e.id, e.title, e.description, e.short_description, e.price, e.original_price,
+        e.category_id, e.region_id, e.county_id, e.city_id, e.location_name,
+        e.duration_minutes, e.max_participants, e.min_age,
+        e.avg_rating, e.total_reviews, e.is_active, e.is_featured,
+        e.created_at, e.updated_at,
         ep.provider_user_id AS provider_id,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
