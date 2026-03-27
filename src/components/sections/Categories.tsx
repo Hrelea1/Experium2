@@ -7,27 +7,24 @@ import { useCategories } from "@/hooks/useCategories";
 
 // Mapping defaults for generic categories if missing from content
 const resolveImage = (slug: string, index: number) => {
-  const defaults = [
-    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1530866495561-507c9faab2ed?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=800&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1517400508447-f8dd518b86e0?q=80&w=800&auto=format&fit=crop",
-  ];
-  return defaults[index % defaults.length];
+  const images: Record<string, string> = {
+    'spa-si-relaxare': "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop",
+    'gastronomie': "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop",
+    'aventura-si-sport': "https://images.unsplash.com/photo-1530866495561-507c9faab2ed?q=80&w=800&auto=format&fit=crop",
+    'natura': "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop",
+  };
+  
+  return images[slug] || "https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=800&auto=format&fit=crop";
 };
 
-const resolveColor = (index: number) => {
-  const colors = [
-    "from-cyan-500/80 to-blue-500/80",
-    "from-amber-500/80 to-orange-500/80",
-    "from-orange-500/80 to-red-500/80",
-    "from-teal-500/80 to-green-500/80",
-    "from-purple-500/80 to-indigo-500/80",
-    "from-pink-500/80 to-rose-500/80",
-  ];
-  return colors[index % colors.length];
+const resolveColor = (slug: string, index: number) => {
+  const colors: Record<string, string> = {
+    'spa-si-relaxare': "from-cyan-500/80 to-blue-500/80",
+    'gastronomie': "from-amber-500/80 to-orange-500/80",
+    'aventura-si-sport': "from-orange-500/80 to-red-500/80",
+    'natura': "from-teal-500/80 to-green-500/80",
+  };
+  return colors[slug] || "from-slate-500/80 to-slate-600/80";
 };
 
 const containerVariants = {
@@ -108,7 +105,7 @@ export function Categories() {
               />
               
               {/* Overlay Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-t ${resolveColor(idx)} opacity-80 group-hover:opacity-90 transition-opacity duration-300`} />
+              <div className={`absolute inset-0 bg-gradient-to-t ${resolveColor(category.slug, idx)} opacity-80 group-hover:opacity-90 transition-opacity duration-300`} />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent" />
 
               {/* Content Box */}

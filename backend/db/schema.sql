@@ -394,3 +394,31 @@ CREATE INDEX IF NOT EXISTS idx_pn_provider ON provider_notifications(provider_us
 -- =============================================================================
 -- DONE
 -- =============================================================================
+
+-- RESTRICT CATEGORIES TO SPECIFIC FOUR
+-- This block ensures only the four requested categories exist.
+DO $$
+BEGIN
+  -- 1. Ensure the 4 requested categories exist
+  INSERT INTO categories (name, slug, display_order)
+  VALUES 
+    ('Spa și relaxare', 'spa-si-relaxare', 1),
+    ('Gastronomie', 'gastronomie', 2),
+    ('Aventură și sport', 'aventura-si-sport', 3),
+    ('Natură', 'natura', 4)
+  ON CONFLICT (slug) DO UPDATE SET 
+    name = EXCLUDED.name,
+    display_order = EXCLUDED.display_order;
+
+  -- 2. Update experiences currently in categories that are about to be deleted
+  UPDATE experiences
+  SET category_id = (SELECT id FROM categories WHERE slug = 'natura')
+  WHERE category_id NOT IN (
+    SELECT id FROM categories WHERE slug IN ('spa-si-relaxare', 'gastronomie', 'aventura-si-sport', 'natura')
+  );
+
+  -- 3. Delete all other categories
+  DELETE FROM categories
+  WHERE slug NOT IN ('spa-si-relaxare', 'gastronomie', 'aventura-si-sport', 'natura');
+END $$;
+
