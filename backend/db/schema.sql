@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS users_updated_at ON users;
 CREATE TRIGGER users_updated_at BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -73,6 +75,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS on_user_created ON users;
 CREATE TRIGGER on_user_created AFTER INSERT ON users
   FOR EACH ROW EXECUTE FUNCTION create_profile_for_user();
 
@@ -149,6 +152,7 @@ CREATE TABLE IF NOT EXISTS experiences (
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS experiences_updated_at ON experiences;
 CREATE TRIGGER experiences_updated_at BEFORE UPDATE ON experiences
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -170,6 +174,20 @@ CREATE TABLE IF NOT EXISTS experience_images (
   created_at    TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_exp_images_exp ON experience_images(experience_id);
+
+CREATE TABLE IF NOT EXISTS experience_services (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  experience_id   UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  description     TEXT,
+  price           DECIMAL(10,2) NOT NULL,
+  max_quantity    INTEGER NOT NULL DEFAULT 1,
+  is_required     BOOLEAN DEFAULT false,
+  is_active       BOOLEAN DEFAULT true,
+  display_order   INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_exp_services_exp ON experience_services(experience_id);
 
 -- =============================================================================
 -- PROVIDERS
@@ -236,6 +254,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS bookings_updated_at ON bookings;
 CREATE TRIGGER bookings_updated_at BEFORE UPDATE ON bookings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -271,6 +290,7 @@ CREATE TABLE IF NOT EXISTS vouchers (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS vouchers_updated_at ON vouchers;
 CREATE TRIGGER vouchers_updated_at BEFORE UPDATE ON vouchers
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -325,6 +345,7 @@ CREATE TABLE IF NOT EXISTS homepage_content (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DROP TRIGGER IF EXISTS homepage_content_updated_at ON homepage_content;
 CREATE TRIGGER homepage_content_updated_at BEFORE UPDATE ON homepage_content
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

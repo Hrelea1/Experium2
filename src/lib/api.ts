@@ -50,12 +50,14 @@ export interface User {
 }
 
 export const auth = {
-  /** Start signup: creates pending account and sends OTP */
-  async signUp(email: string, password: string, fullName?: string) {
-    return request('/auth/signup', {
+  /** Direct signup: creates account and logs in */
+  async signUp(email: string, password: string, fullName?: string): Promise<{ token: string; user: User }> {
+    const result = await request<{ token: string; user: User }>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password, full_name: fullName }),
     });
+    tokenStore.set(result.token);
+    return result;
   },
 
   /** Verify OTP after signup — returns token + user */
@@ -165,6 +167,13 @@ export interface ExperienceFilters {
 }
 
 export const experiences = {
+  async create(payload: any): Promise<{ id: string }> {
+    return request<{ id: string }>('/experiences', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   async list(filters: ExperienceFilters = {}): Promise<{ data: Experience[]; total: number }> {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([k, v]) => {

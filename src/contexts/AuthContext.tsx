@@ -44,10 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ─── signUp ────────────────────────────────────────────────────────────────
-  // Step 1: creates pending account and dispatches OTP email
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      await authApi.signUp(email, password, fullName);
+      const result = await authApi.signUp(email, password, fullName);
+      setUser(result.user);
       return { error: null };
     } catch (err: any) {
       const message = err.message ?? 'Eroare la înregistrare';

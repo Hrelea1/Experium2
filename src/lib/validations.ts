@@ -8,15 +8,11 @@ export const emailSchema = z
   .email({ message: 'Adresa de email nu este validă' })
   .max(255, { message: 'Email-ul trebuie să aibă maxim 255 caractere' });
 
-// Strong password validation schema
+// Relaxed password validation schema
 export const passwordSchema = z
   .string()
-  .min(8, { message: 'Parola trebuie să aibă cel puțin 8 caractere' })
-  .max(72, { message: 'Parola trebuie să aibă maxim 72 caractere' })
-  .regex(/[a-z]/, { message: 'Parola trebuie să conțină cel puțin o literă mică' })
-  .regex(/[A-Z]/, { message: 'Parola trebuie să conțină cel puțin o literă mare' })
-  .regex(/[0-9]/, { message: 'Parola trebuie să conțină cel puțin o cifră' })
-  .regex(/[^a-zA-Z0-9]/, { message: 'Parola trebuie să conțină cel puțin un caracter special (!@#$%^&*)' });
+  .min(6, { message: 'Parola trebuie să aibă cel puțin 6 caractere' })
+  .max(72, { message: 'Parola trebuie să aibă maxim 72 caractere' });
 
 // Full name validation schema
 export const fullNameSchema = z

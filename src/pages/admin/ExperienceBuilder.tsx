@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Wand2, Plus, X, Package, Upload } from 'lucide-react';
 import { uploadExperienceImageFile } from '@/lib/experienceImages';
+import { api } from '@/lib/api';
 import {
   Select,
   SelectContent,
@@ -54,24 +55,47 @@ const ExperienceBuilder = () => {
   const [duration, setDuration] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [minAge, setMinAge] = useState('');
-  const [images, setImages] = useState<Array<{ url: string; file?: File | null }>>([
-    { url: '' },
+  const [images, setImages] = useState<Array<{ url: string; file?: File | null; isPrimary?: boolean; displayOrder?: number }>>([
+    { url: '', isPrimary: true, displayOrder: 0 },
   ]);
   const [services, setServices] = useState<ServiceInput[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
+  const [providerId, setProviderId] = useState('');
 
   useEffect(() => {
     fetchCategories();
     fetchRegions();
+    fetchProviders();
   }, []);
 
+  const fetchProviders = async () => {
+    try {
+      const users = await api.admin.getUsers({ role: 'provider' });
+      setProviders(Array.isArray(users) ? users : []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchCategories = async () => {
-    const { data } = await supabase.from('categories').select('id, name').order('name');
-    setCategories(data || []);
+    try {
+      const { data } = await supabase.from('categories').select('id, name').order('name');
+      setCategories(data || []);
+    } catch (e) {}
   };
 
   const fetchRegions = async () => {
-    const { data } = await supabase.from('regions').select('id, name').order('name');
-    setRegions(data || []);
+    try {
+      // Using the backend route directly
+      const reg = await api.regions.list();
+      setRegions(Array.isArray(reg) ? reg : []);
+    } catch (e) {
+      // Fallback
+      if (regions.length === 0) {
+        const { data } = await supabase.from('regions').select('id, name').order('name');
+        setRegions(data || []);
+      }
+    }
   };
 
   const addImageField = () => {
@@ -108,10 +132,10 @@ const ExperienceBuilder = () => {
   };
 
   const createExperience = async () => {
-    if (!title || !description || !locationName || !price || !categoryId || !regionId) {
+    if (!title || !description || !locationName || !price || !categoryId || !regionId || !providerId) {
       toast({
         title: 'Eroare',
-        description: 'Completează toate câmpurile obligatorii',
+        description: 'Completează toate câmpurile obligatorii, inclusiv furnizorul',
         variant: 'destructive',
       });
       return;
@@ -120,75 +144,58 @@ const ExperienceBuilder = () => {
     setCreating(true);
 
     try {
-      // Create voucher
-      const { data: experience, error: expError } = await supabase
-        .from('experiences')
-        .insert({
-          title,
-          description,
-          short_description: shortDescription || null,
-          location_name: locationName,
-          price: parseFloat(price),
-          original_price: originalPrice ? parseFloat(originalPrice) : null,
-          category_id: categoryId,
-          region_id: regionId,
-          duration_minutes: duration ? parseInt(duration) : null,
-          max_participants: parseInt(maxParticipants),
-          min_age: minAge ? parseInt(minAge) : null,
-          is_active: true,
-          is_featured: false,
-        })
-        .select()
-        .single();
-
-      if (expError) throw expError;
-
-      // Add images
+      // 1. Upload new images first to get URLs
       const uploadedOrUrls: string[] = [];
-      for (const img of images) {
+      const finalImagesData: any[] = [];
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        let urlObj = img.url.trim();
         if (img.file) {
-          const url = await uploadExperienceImageFile({
-            experienceId: experience.id,
-            file: img.file,
+          urlObj = await uploadExperienceImageFile({ file: img.file });
+        }
+        if (urlObj) {
+          finalImagesData.push({
+            url: urlObj,
+            is_primary: i === 0,
+            display_order: i
           });
-          uploadedOrUrls.push(url);
-        } else if (img.url.trim()) {
-          uploadedOrUrls.push(img.url.trim());
         }
       }
 
-      if (uploadedOrUrls.length > 0) {
-        const imageRecords = uploadedOrUrls.map((url, index) => ({
-          experience_id: experience.id,
-          image_url: url,
-          is_primary: index === 0,
-          display_order: index,
-        }));
-
-        const { error: imgError } = await supabase.from('experience_images').insert(imageRecords);
-        if (imgError) console.error('Error adding images:', imgError);
-      }
-
-      // Add services
-      const validServices = services.filter(s => s.name.trim() && s.price);
-      if (validServices.length > 0) {
-        const serviceRecords = validServices.map((s, index) => ({
-          experience_id: experience.id,
+      // 2. Prepare Services
+      const validServices = services
+        .filter(s => s.name.trim() && s.price)
+        .map((s, idx) => ({
           name: s.name.trim(),
           description: s.description.trim() || null,
           price: parseFloat(s.price),
           max_quantity: parseInt(s.maxQuantity) || 1,
           is_required: s.isRequired,
-          display_order: index,
-          is_active: true,
+          display_order: idx
         }));
 
-        const { error: svcError } = await supabase
-          .from('experience_services')
-          .insert(serviceRecords);
+      // 3. Create the compound payload
+      const payload = {
+        title,
+        description,
+        short_description: shortDescription || null,
+        location_name: locationName,
+        price: parseFloat(price),
+        original_price: originalPrice ? parseFloat(originalPrice) : null,
+        category_id: categoryId,
+        region_id: regionId,
+        provider_id: providerId,  // Admin provider assignment
+        duration_minutes: duration ? parseInt(duration) : null,
+        max_participants: parseInt(maxParticipants),
+        min_age: minAge ? parseInt(minAge) : null,
+        is_active: true,
+        is_featured: false,
+        images: finalImagesData,
+        services: validServices
+      };
 
-        if (svcError) console.error('Error adding services:', svcError);
-      }
+      // 4. Send to Node Backend API
+      await api.experiences.create(payload);
 
       toast({
         title: 'Succes!',
@@ -234,6 +241,22 @@ const ExperienceBuilder = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="provider">Furnizor (Provider) *</Label>
+              <Select value={providerId} onValueChange={setProviderId}>
+                <SelectTrigger id="provider" className="bg-background">
+                  <SelectValue placeholder="Selectează Furnizorul de experiență" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100]">
+                  {providers.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.full_name || p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="title">Titlu *</Label>
               <Input

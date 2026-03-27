@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Save, Building2, Wrench, Plus, X, Upload, Package } from 'lucide-react';
 import { uploadExperienceImageFile } from '@/lib/experienceImages';
+import { api } from '@/lib/api';
 
 interface Category { id: string; name: string; }
 interface Region { id: string; name: string; }
@@ -113,81 +114,56 @@ export default function CreateExperience() {
 
     setSaving(true);
     try {
-      // 1. Create experience
-      const { data: expData, error: expError } = await supabase
-        .from('experiences')
-        .insert({
-          title,
-          description,
-          short_description: shortDescription || null,
-          price: parseFloat(price),
-          provider_type: providerType,
-          duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
-          max_participants: parseInt(maxParticipants) || 10,
-          category_id: categoryId,
-          region_id: regionId,
-          location_name: locationName,
-          cancellation_policy: cancellationPolicy || null,
-          ambassador_id: user.id,
-          is_active: false,
-        })
-        .select()
-        .single();
-
-      if (expError) throw expError;
-
-      // 2. Auto-assign provider (must happen before images/services for RLS)
-      const { error: assignError } = await supabase
-        .from('experience_providers')
-        .insert({
-          experience_id: expData.id,
-          provider_user_id: user.id,
-          assigned_by: user.id,
-          is_active: true,
-        });
-
-      if (assignError) throw assignError;
-
-      // 3. Upload images
-      const uploadedUrls: string[] = [];
-      for (const img of images) {
+      // 1. Upload images
+      const finalImagesData: any[] = [];
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        let urlObj = img.url.trim();
         if (img.file) {
-          const url = await uploadExperienceImageFile({ experienceId: expData.id, file: img.file });
-          uploadedUrls.push(url);
-        } else if (img.url.trim()) {
-          uploadedUrls.push(img.url.trim());
+          urlObj = await uploadExperienceImageFile({ file: img.file });
+        }
+        if (urlObj) {
+          finalImagesData.push({
+            url: urlObj,
+            is_primary: i === 0,
+            display_order: i
+          });
         }
       }
 
-      if (uploadedUrls.length > 0) {
-        const imageRecords = uploadedUrls.map((url, index) => ({
-          experience_id: expData.id,
-          image_url: url,
-          is_primary: index === 0,
-          display_order: index,
-        }));
-        const { error: imgError } = await supabase.from('experience_images').insert(imageRecords);
-        if (imgError) console.error('Error adding images:', imgError);
-      }
-
-      // 4. Insert services
-      const validServices = services.filter(s => s.name.trim() && s.price);
-      if (validServices.length > 0) {
-        const serviceRecords = validServices.map((s, index) => ({
-          experience_id: expData.id,
+      // 2. Prepare services
+      const validServices = services
+        .filter(s => s.name.trim() && s.price)
+        .map((s, idx) => ({
           name: s.name.trim(),
           description: s.description.trim() || null,
           price: parseFloat(s.price),
           max_quantity: parseInt(s.maxQuantity) || 1,
           is_required: s.isRequired,
-          display_order: index,
-          is_active: true,
+          display_order: idx
         }));
-        const { error: svcError } = await supabase.from('experience_services').insert(serviceRecords);
-        if (svcError) console.error('Error adding services:', svcError);
-      }
 
-      console.log('Experience created successfully:', expData.id);
+      // 3. Create experience via Node API (provider id is handled by session)
+      const payload = {
+        title,
+        description,
+        short_description: shortDescription || null,
+        price: parseFloat(price),
+        provider_type: providerType,
+        duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
+        max_participants: parseInt(maxParticipants) || 10,
+        category_id: categoryId,
+        region_id: regionId,
+        location_name: locationName,
+        cancellation_policy: cancellationPolicy || null,
+        is_active: false, // always pending for providers
+        images: finalImagesData,
+        services: validServices
+      };
+
+      const res = await api.experiences.create(payload);
+
+      console.log('Experience created successfully:', res.id);
       toast({ title: 'Experiență creată!', description: 'Experiența a fost trimisă spre aprobare.' });
       navigate('/provider');
     } catch (error: any) {

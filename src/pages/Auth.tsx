@@ -30,8 +30,6 @@ const Auth = () => {
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [signupFullName, setSignupFullName] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  const [showSignupOtpInput, setShowSignupOtpInput] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
 
   // Reset password
   const [resetEmail, setResetEmail] = useState('');
@@ -57,7 +55,7 @@ const Auth = () => {
     if (!error) navigate('/');
   };
 
-  // ─── Signup Step 1: send OTP ─────────────────────────────────────────────────
+  // ─── Signup ─────────────────────────────────────────────────────────────────
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError('');
@@ -81,23 +79,8 @@ const Auth = () => {
     setLoading(false);
 
     if (!error) {
-      toast({ title: 'Cod trimis!', description: 'Am trimis un cod de confirmare pe email.' });
-      setShowSignupOtpInput(true);
-    }
-  };
-
-  // ─── Signup Step 2: verify OTP ───────────────────────────────────────────────
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await verifyOtp(signupEmail, otpCode);
-    setLoading(false);
-
-    if (!error) {
-      toast({ title: 'Succes!', description: 'Contul tău a fost creat și confirmat!' });
+      toast({ title: 'Succes!', description: 'Contul a fost creat cu succes!' });
       navigate('/');
-    } else {
-      toast({ title: 'Eroare', description: error, variant: 'destructive' });
     }
   };
 
@@ -224,8 +207,7 @@ const Auth = () => {
 
               {/* ── Signup tab ── */}
               <TabsContent value="signup">
-                {!showSignupOtpInput ? (
-                  <form onSubmit={handleSignup} className="space-y-4">
+                <form onSubmit={handleSignup} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="signup-name">Nume complet</Label>
                       <Input
@@ -257,9 +239,9 @@ const Auth = () => {
                         value={signupPassword}
                         onChange={(e) => setSignupPassword(e.target.value)}
                         required
-                        minLength={8}
+                        minLength={6}
                       />
-                      <p className="text-xs text-muted-foreground">Min. 8 caractere, literă mare, mică, cifră și caracter special</p>
+                      <p className="text-xs text-muted-foreground">Min. 6 caractere</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="signup-confirm-password">Confirmă parola</Label>
@@ -270,7 +252,7 @@ const Auth = () => {
                         value={signupConfirmPassword}
                         onChange={(e) => setSignupConfirmPassword(e.target.value)}
                         required
-                        minLength={8}
+                        minLength={6}
                       />
                     </div>
                     {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
@@ -278,31 +260,6 @@ const Auth = () => {
                       {loading ? 'Se creează contul...' : 'Creează cont'}
                     </Button>
                   </form>
-                ) : (
-                  <form onSubmit={handleVerifyOtp} className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Am trimis un cod de 6 cifre la <strong>{signupEmail}</strong>. Introdu-l mai jos:
-                    </p>
-                    <div className="space-y-2">
-                      <Label htmlFor="signup-otp">Cod de confirmare</Label>
-                      <Input
-                        id="signup-otp"
-                        type="text"
-                        placeholder="123456"
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={loading}>
-                      {loading ? 'Se verifică...' : 'Confirmă contul'}
-                    </Button>
-                    <Button type="button" variant="ghost" className="w-full" onClick={() => setShowSignupOtpInput(false)}>
-                      Înapoi
-                    </Button>
-                  </form>
-                )}
               </TabsContent>
             </Tabs>
           </CardContent>

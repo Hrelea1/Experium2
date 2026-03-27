@@ -8,48 +8,30 @@ import { sendOtpEmail } from '../services/email';
 const router = Router();
 
 // ─── POST /auth/signup ────────────────────────────────────────────────────────
-// Step 1 of signup: store pending user, send OTP
 router.post('/signup', async (req: Request, res: Response) => {
   try {
     const { email, password, full_name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
-    // Check if already registered and verified
-    const existing = await queryOne<{ id: string; is_verified: boolean }>(
-      'SELECT id, is_verified FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (existing?.is_verified) {
+    // Check if already registered
+    const existing = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
 
-    if (existing && !existing.is_verified) {
-      // Update the pending user
-      await query('UPDATE users SET password_hash = $1, full_name = $2 WHERE email = $3', [
-        passwordHash, full_name ?? null, email,
-      ]);
-    } else {
-      // Insert new pending user
-      await query(
-        'INSERT INTO users (email, password_hash, full_name, is_verified) VALUES ($1, $2, $3, false)',
-        [email, passwordHash, full_name ?? null]
-      );
-    }
+    // Insert new verified user
+    const userRow = await queryOne<{ id: string; email: string; full_name: string; role: string }>(
+      'INSERT INTO users (email, password_hash, full_name, is_verified) VALUES ($1, $2, $3, true) RETURNING id, email, full_name, role',
+      [email, passwordHash, full_name ?? null]
+    );
 
-    const otp = await generateAndStoreOtp(email);
-    try {
-      await sendOtpEmail(email, otp, full_name);
-    } catch (emailErr: any) {
-      console.error('[auth/signup] Email send failed:', emailErr.message);
-      return res.status(500).json({
-        error: `Contul a fost creat dar emailul OTP nu a putut fi trimis: ${emailErr.message}. Verificați configurarea SMTP.`
-      });
-    }
+    if (!userRow) return res.status(500).json({ error: 'Failed to create user' });
 
-    res.json({ message: 'OTP sent to email' });
+    // Ensure profile is created/updated (trigger creates it, but returning the info is enough)
+    const token = signToken({ userId: userRow.id, email: userRow.email, role: userRow.role as 'user' });
+    res.json({ token, user: { id: userRow.id, email: userRow.email, full_name: userRow.full_name, role: userRow.role, avatar_url: null } });
   } catch (err) {
     console.error('[auth/signup]', err);
     res.status(500).json({ error: 'Signup failed' });

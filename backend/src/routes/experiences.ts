@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { query, queryOne } from '../db';
-import { requireAuth, requireAdmin, optionalAuth } from '../middleware/auth';
+import { requireAuth, requireAdmin, optionalAuth, requireRole } from '../middleware/auth';
+import { query, queryOne, pool } from '../db';
 
 const router = Router();
 
@@ -127,16 +127,24 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
-// ─── POST /experiences (Admin only) ──────────────────────────────────────────
-router.post('/', requireAdmin, async (req: Request, res: Response) => {
+// ─── POST /experiences (Admin/Provider) ─────────────────────────────────────────
+router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const {
       title, description, short_description, price, original_price,
       category_id, region_id, county_id, city_id, location_name,
       duration_minutes, max_participants, min_age, is_featured,
+      provider_id, images, services
     } = req.body;
 
-    const row = await queryOne<{ id: string }>(
+    // Determine provider ID
+    const actualProviderId = (req.user!.role === 'admin' && provider_id) ? provider_id : req.user!.userId;
+
+    await client.query('BEGIN');
+
+    // 1. Insert experience
+    const expRes = await client.query(
       `INSERT INTO experiences
         (title, description, short_description, price, original_price, category_id, region_id,
          county_id, city_id, location_name, duration_minutes, max_participants, min_age, is_featured)
@@ -146,11 +154,49 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
        county_id ?? null, city_id ?? null, location_name, duration_minutes ?? null,
        max_participants ?? 10, min_age ?? null, is_featured ?? false]
     );
+    const experienceId = expRes.rows[0].id;
 
-    res.status(201).json({ id: row!.id, message: 'Experience created' });
+    // 2. Insert provider mapping
+    await client.query(
+      `INSERT INTO experience_providers (experience_id, provider_user_id) VALUES ($1, $2)`,
+      [experienceId, actualProviderId]
+    );
+
+    // 3. Insert images
+    if (Array.isArray(images) && images.length > 0) {
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img.url) continue;
+        await client.query(
+          `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order)
+           VALUES ($1, $2, $3, $4)`,
+          [experienceId, img.url, img.is_primary || i === 0, img.display_order || i]
+        );
+      }
+    }
+
+    // 4. Insert services
+    if (Array.isArray(services) && services.length > 0) {
+      for (let i = 0; i < services.length; i++) {
+        const svc = services[i];
+        if (!svc.name || !svc.price) continue;
+        await client.query(
+          `INSERT INTO experience_services
+            (experience_id, name, description, price, max_quantity, is_required, display_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [experienceId, svc.name, svc.description || null, svc.price, svc.max_quantity || 1, svc.is_required || false, svc.display_order || i]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ id: experienceId, message: 'Experience created' });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('[experiences POST]', err);
     res.status(500).json({ error: 'Failed to create experience' });
+  } finally {
+    client.release();
   }
 });
 

@@ -1,42 +1,38 @@
-import { supabase } from "@/integrations/supabase/client";
+import { tokenStore } from "@/lib/api";
 
-const BUCKET = "experience-images";
-
-function getFileExt(filename: string) {
-  const parts = filename.split(".");
-  if (parts.length < 2) return "";
-  return parts[parts.length - 1].toLowerCase();
-}
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 export async function uploadExperienceImageFile(params: {
-  experienceId: string;
   file: File;
 }) {
-  const { experienceId, file } = params;
+  const { file } = params;
 
   if (!file.type.startsWith("image/")) {
     throw new Error("Fișier invalid: te rog selectează o imagine.");
   }
 
-  const ext = getFileExt(file.name);
-  const fileName = `${typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : Date.now()}${
-    ext ? `.${ext}` : ""
-  }`;
-  const path = `experiences/${experienceId}/${fileName}`;
+  const formData = new FormData();
+  formData.append("image", file);
 
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type,
-    });
+  const token = tokenStore.get();
+  
+  const response = await fetch(`${BASE_URL}/uploads/experience-image`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    },
+    body: formData,
+  });
 
-  if (uploadError) throw uploadError;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Nu am putut încărca imaginea.");
+  }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  if (!data?.publicUrl) {
+  const data = await response.json();
+  if (!data.image_url) {
     throw new Error("Nu am putut genera URL-ul public pentru imagine.");
   }
-  return data.publicUrl;
+  
+  return data.image_url;
 }

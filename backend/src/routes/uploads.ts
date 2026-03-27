@@ -36,24 +36,11 @@ router.post('/experience-image', requireRole('admin', 'provider', 'moderator'), 
     try {
       if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
 
-      const { experience_id, is_primary = 'false', display_order = '0' } = req.body;
-      if (!experience_id) return res.status(400).json({ error: 'experience_id required' });
-
       const baseUrl = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
       const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
 
-      if (is_primary === 'true') {
-        // Unset previous primary
-        await query('UPDATE experience_images SET is_primary = false WHERE experience_id = $1', [experience_id]);
-      }
-
-      const row = await query<{ id: string }>(
-        `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-        [experience_id, imageUrl, is_primary === 'true', parseInt(display_order, 10)]
-      );
-
-      res.status(201).json({ id: row[0].id, image_url: imageUrl });
+      // Decoupled from DB: Just return the URL to the frontend
+      res.status(201).json({ image_url: imageUrl });
     } catch (err) {
       console.error('[uploads/experience-image]', err);
       res.status(500).json({ error: 'Upload failed' });
