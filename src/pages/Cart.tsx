@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCheckout } from "@/hooks/useCheckout";
 import { BillingForm, BillingData } from "@/components/booking/BillingForm";
 import { useToast } from "@/hooks/use-toast";
+import { ExperienceImage } from "@/components/ExperienceImage";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -177,10 +178,10 @@ export default function Cart() {
                             <div className="flex flex-col sm:flex-row">
                               {/* Image */}
                               <div className="w-full sm:w-36 h-32 sm:h-auto flex-shrink-0">
-                                <img
+                                <ExperienceImage
                                   src={item.image}
                                   alt={item.title}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full"
                                 />
                               </div>
 

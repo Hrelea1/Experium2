@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
+import { ExperienceImage } from '@/components/ExperienceImage';
 
 interface AssignedExperience {
   id: string;
@@ -269,15 +270,12 @@ function ExperienceDetailView({
               {images.length > 0 ? (
                 <>
                   <div className="aspect-[4/3] overflow-hidden bg-muted">
-                    <img
+                    <ExperienceImage
                       src={currentImage?.image_url}
                       alt={exp.title}
-                      className="w-full h-full object-cover transition-all duration-500"
-                      style={{
-                        objectPosition: currentImage
-                          ? `${currentImage.focal_x}% ${currentImage.focal_y}%`
-                          : 'center',
-                      }}
+                      focalX={currentImage?.focal_x}
+                      focalY={currentImage?.focal_y}
+                      className="w-full h-full"
                     />
                   </div>
                   {images.length > 1 && (
@@ -291,11 +289,12 @@ function ExperienceDetailView({
                             idx === previewImageIdx ? "border-primary ring-1 ring-primary/30" : "border-transparent opacity-70 hover:opacity-100"
                           )}
                         >
-                          <img
+                          <ExperienceImage
                             src={img.image_url}
                             alt=""
-                            className="w-full h-full object-cover"
-                            style={{ objectPosition: `${img.focal_x}% ${img.focal_y}%` }}
+                            focalX={img.focal_x}
+                            focalY={img.focal_y}
+                            className="w-full h-full"
                           />
                         </button>
                       ))}

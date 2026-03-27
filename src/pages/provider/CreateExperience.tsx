@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Save, Building2, Wrench, Plus, X, Upload, Package } from 'lucide-react';
 import { uploadExperienceImageFile } from '@/lib/experienceImages';
 import { api } from '@/lib/api';
+import { ExperienceImage } from '@/components/ExperienceImage';
 
 interface Category { id: string; name: string; }
 interface Region { id: string; name: string; }
@@ -365,11 +366,10 @@ export default function CreateExperience() {
                       {/* Image preview thumbnail */}
                       {(img.file || img.url.trim()) && (
                         <div className="relative w-32 h-20 rounded-lg overflow-hidden border bg-muted">
-                          <img
+                          <ExperienceImage
                             src={img.file ? URL.createObjectURL(img.file) : img.url.trim()}
                             alt={`Preview ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            className="w-full h-full"
                           />
                           {index === 0 && (
                             <span className="absolute top-1 left-1 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded font-medium">

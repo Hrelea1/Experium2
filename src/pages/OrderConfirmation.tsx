@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
+import { ExperienceImage } from "@/components/ExperienceImage";
 
 interface OrderItem {
   id: string;
@@ -176,10 +177,10 @@ export default function OrderConfirmation() {
               >
                 <Card className="p-6">
                   <div className="flex flex-col md:flex-row gap-4">
-                    <img
+                    <ExperienceImage
                       src={item.image}
                       alt={item.title}
-                      className="w-full md:w-32 h-32 rounded-lg object-cover"
+                      className="w-full md:w-32 h-32 rounded-lg"
                     />
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg mb-1">{item.title}</h3>
