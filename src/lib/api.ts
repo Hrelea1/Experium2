@@ -9,8 +9,9 @@
  *   const data = await api.auth.login('email', 'password');
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
-
+const isProd = import.meta.env.PROD;
+const defaultApiUrl = isProd ? 'https://experium2-production.up.railway.app' : 'http://localhost:3001';
+const BASE_URL = import.meta.env.VITE_API_URL ?? defaultApiUrl;
 // ─── Token Storage ────────────────────────────────────────────────────────────
 export const tokenStore = {
   get: () => localStorage.getItem('experium_token'),
