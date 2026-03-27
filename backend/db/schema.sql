@@ -64,6 +64,17 @@ DROP TRIGGER IF EXISTS profiles_updated_at ON profiles;
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TABLE IF NOT EXISTS provider_profiles (
+  user_id     UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  mode        TEXT NOT NULL DEFAULT 'instant' CHECK (mode IN ('instant', 'assisted')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS provider_profiles_updated_at ON provider_profiles;
+CREATE TRIGGER provider_profiles_updated_at BEFORE UPDATE ON provider_profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Auto-create profile on user insert
 CREATE OR REPLACE FUNCTION create_profile_for_user()
 RETURNS TRIGGER AS $$

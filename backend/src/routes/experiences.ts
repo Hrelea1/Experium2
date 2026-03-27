@@ -120,7 +120,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
        LEFT JOIN cities ci ON ci.id = e.city_id
        LEFT JOIN experience_providers ep ON ep.experience_id = e.id
        LEFT JOIN provider_profiles pp ON pp.user_id = ep.provider_user_id
-       WHERE e.id = $1 AND e.is_active = true`,
+       WHERE e.id = $1`,
       [id]
     );
 
