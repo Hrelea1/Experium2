@@ -138,6 +138,17 @@ const Auth = () => {
               {resetSent ? (
                 <form onSubmit={handleOtpLogin} className="space-y-4">
                   <div className="space-y-2">
+                    <Label htmlFor="otp-email">Email</Label>
+                    <Input
+                      id="otp-email"
+                      type="email"
+                      placeholder="adresa@email.com"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="otp-code">Cod OTP (6 cifre)</Label>
                     <Input
                       id="otp-code"
@@ -147,10 +158,9 @@ const Auth = () => {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                       required
-                      autoFocus
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6}>
+                  <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6 || !resetEmail}>
                     {loading ? 'Se verifică...' : 'Autentifică-te'}
                   </Button>
                   <Button type="button" variant="outline" className="w-full" onClick={() => { setShowResetForm(false); setResetSent(false); }}>
