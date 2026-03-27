@@ -17,7 +17,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ExperienceImage } from "@/components/ExperienceImage";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,14 +45,11 @@ interface Experience {
   avg_rating: number;
   total_reviews: number;
   duration_minutes?: number;
-  categories: { name: string; slug: string } | null;
-  regions: { name: string; slug: string } | null;
-  experience_images: {
-    image_url: string;
-    is_primary: boolean;
-    focal_x: number;
-    focal_y: number;
-  }[];
+  category_name?: string;
+  category_slug?: string;
+  region_name?: string;
+  region_slug?: string;
+  primary_image?: string;
 }
 
 const categoryTitles: Record<string, string> = {
@@ -349,29 +346,14 @@ export default function CategorySearch() {
     const fetchExperiences = async () => {
       setLoading(true);
       try {
-        let query = supabase
-          .from("experiences")
-          .select(
-            `id, title, location_name, price, original_price, avg_rating, total_reviews, duration_minutes,
-             categories (name, slug), regions (name, slug),
-             experience_images (image_url, is_primary, focal_x, focal_y)`
-          )
-          .eq("is_active", true);
-
+        const filters: any = {};
         if (categoryKey && categoryKey !== "toate-categoriile") {
-          query = query.eq("categories.slug", categoryKey);
+          filters.category_slug = categoryKey;
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
+        const { data } = await api.experiences.list(filters);
 
-        let filteredData = data || [];
-        if (categoryKey && categoryKey !== "toate-categoriile") {
-          filteredData = filteredData.filter(
-            (exp) => exp.categories?.slug === categoryKey
-          );
-        }
-        setExperiences(filteredData);
+        setExperiences(data as any[]);
       } catch (error: any) {
         console.error("Error fetching experiences:", error);
         toast({
@@ -398,8 +380,8 @@ export default function CategorySearch() {
     }
     if (selectedRegions.length > 0) {
       result = result.filter((exp) => {
-        const rSlug = exp.regions?.slug?.toLowerCase();
-        const rName = exp.regions?.name?.toLowerCase();
+        const rSlug = exp.region_slug?.toLowerCase();
+        const rName = exp.region_name?.toLowerCase();
         return (
           selectedRegions.includes(rSlug || "") ||
           selectedRegions.includes(rName || "")
@@ -431,11 +413,10 @@ export default function CategorySearch() {
   };
 
   const getExperienceImage = (exp: Experience) => {
-    const primary = exp.experience_images?.find((img) => img.is_primary) || exp.experience_images?.[0];
     return {
-      url: primary?.image_url || "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop",
-      focal_x: primary?.focal_x ?? 50,
-      focal_y: primary?.focal_y ?? 50,
+      url: exp.primary_image || "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop",
+      focal_x: 50,
+      focal_y: 50,
     };
   };
 

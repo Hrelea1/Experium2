@@ -149,6 +149,7 @@ export interface Experience {
   avg_rating: number;
   total_reviews: number;
   is_featured: boolean;
+  is_active?: boolean;
   primary_image?: string;
   images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
 }
@@ -185,6 +186,13 @@ export const experiences = {
 
   async getById(id: string): Promise<Experience> {
     return request(`/experiences/${id}`);
+  },
+
+  async update(id: string, payload: any): Promise<{ message: string }> {
+    return request(`/experiences/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
   },
 };
 

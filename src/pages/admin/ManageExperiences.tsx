@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api, Experience } from '@/lib/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,20 +16,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-interface Experience {
-  id: string;
-  title: string;
-  location_name: string;
-  price: number;
-  is_active: boolean;
-  is_featured: boolean;
-  avg_rating: number;
-  total_reviews: number;
-  categories?: {
-    name: string;
-  };
-}
-
 const ManageExperiences = () => {
   const navigate = useNavigate();
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -42,19 +28,8 @@ const ManageExperiences = () => {
 
   const fetchExperiences = async () => {
     try {
-      const { data, error } = await supabase
-        .from('experiences')
-        .select(`
-          *,
-          categories (
-            name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setExperiences(data || []);
+      const response = await api.experiences.list();
+      setExperiences(response.data || []);
     } catch (error: any) {
       toast({
         title: 'Eroare',
@@ -68,12 +43,7 @@ const ManageExperiences = () => {
 
   const toggleActive = async (id: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('experiences')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.experiences.update(id, { is_active: !currentStatus });
 
       toast({
         title: 'Succes',
@@ -92,12 +62,7 @@ const ManageExperiences = () => {
 
   const toggleFeatured = async (id: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('experiences')
-        .update({ is_featured: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.experiences.update(id, { is_featured: !currentStatus });
 
       toast({
         title: 'Succes',
@@ -158,7 +123,7 @@ const ManageExperiences = () => {
                       <TableCell className="font-medium">{exp.title}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {exp.categories?.name || 'N/A'}
+                          {exp.category_name || 'N/A'}
                         </Badge>
                       </TableCell>
                       <TableCell>

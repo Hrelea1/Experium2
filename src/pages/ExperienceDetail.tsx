@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { 
@@ -28,7 +28,7 @@ interface RecommendedExperience {
   location_name: string;
   price: number;
   avg_rating: number;
-  experience_images: { image_url: string; is_primary: boolean; focal_x: number; focal_y: number }[];
+  primary_image?: string;
 }
 
 type GalleryImage = { url: string; focal_x: number; focal_y: number };
@@ -176,27 +176,16 @@ export default function ExperienceDetail() {
       if (!id) return;
       
       try {
-        const { data, error } = await supabase
-          .from('experiences')
-          .select(`
-            *,
-            categories(name),
-             experience_images(image_url, is_primary, display_order, focal_x, focal_y)
-          `)
-          .eq('id', id)
-          .eq('is_active', true)
-          .single();
-
-        if (error) throw error;
+        const data = await api.experiences.getById(id);
 
         if (data) {
           // Transform database data to match expected format
-          const images = data.experience_images
+          const images = data.images
             ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
             .map((img: any) => ({
               url: img.image_url,
-              focal_x: img.focal_x ?? 50,
-              focal_y: img.focal_y ?? 50,
+              focal_x: 50,
+              focal_y: 50,
             })) || [];
 
           setExperience({
@@ -227,7 +216,7 @@ export default function ExperienceDetail() {
                     },
                   ] as GalleryImage[])),
             description: data.description,
-            includes: Array.isArray(data.includes) ? data.includes : [],
+            includes: Array.isArray((data as any).includes) ? (data as any).includes : [],
             maxParticipants: data.max_participants || 10,
           });
         }
@@ -245,22 +234,9 @@ export default function ExperienceDetail() {
 
     const fetchRecommended = async () => {
       try {
-        const { data, error } = await supabase
-          .from('experiences')
-          .select(`
-            id,
-            title,
-            location_name,
-            price,
-            avg_rating,
-             experience_images (image_url, is_primary, focal_x, focal_y)
-          `)
-          .eq('is_active', true)
-          .neq('id', id)
-          .limit(4);
-
-        if (error) throw error;
-        setRecommendedExperiences(data || []);
+        const response = await api.experiences.list({ limit: 5 });
+        const filtered = response.data.filter((e: any) => e.id !== id).slice(0, 4);
+        setRecommendedExperiences(filtered);
       } catch (error) {
         console.error('Error fetching recommended:', error);
       }
@@ -478,12 +454,11 @@ export default function ExperienceDetail() {
               </h2>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {recommendedExperiences.map((rec) => {
-                  const primary = rec.experience_images?.find((img) => img.is_primary) || rec.experience_images?.[0];
                   const imageUrl =
-                    primary?.image_url ||
+                    rec.primary_image ||
                     "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop";
-                  const focalX = primary?.focal_x ?? 50;
-                  const focalY = primary?.focal_y ?? 50;
+                  const focalX = 50;
+                  const focalY = 50;
                   
                   return (
                     <Link
