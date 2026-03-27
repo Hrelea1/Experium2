@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -321,9 +321,7 @@ const ExperienceBuilder = () => {
 
             {/* Category */}
             <div className="space-y-2">
-              <div className="bg-red-50 p-2 rounded border border-red-200 text-xs font-mono text-red-800 my-2">
-                DEBUG NETWORK: Cat: {categories.length}, Reg: {regions.length}, Prov: {providers.length} | API: {import.meta.env.VITE_API_URL ?? 'http://localhost:3001'} | Err: {debugLog || 'None'}
-              </div>
+
               <Label htmlFor="category">Categorie *</Label>
               <select
                 id="category"

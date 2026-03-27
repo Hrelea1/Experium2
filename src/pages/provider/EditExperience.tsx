@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { uploadExperienceImageFile } from "@/lib/experienceImages";
-import { FocalPointPicker } from "@/components/admin/FocalPointPicker";
+
 import { ExperienceImage } from "@/components/ExperienceImage";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -58,8 +58,6 @@ type ExperienceImageRow = {
   image_url: string;
   is_primary: boolean | null;
   display_order: number | null;
-  focal_x: number;
-  focal_y: number;
 };
 
 type ExperienceServiceRow = {
@@ -78,8 +76,6 @@ type ImageDraft = {
   clientId: string;
   image_url: string;
   is_primary: boolean;
-  focal_x: number;
-  focal_y: number;
 };
 
 type ServiceDraft = {
@@ -247,8 +243,6 @@ export default function EditExperience() {
           clientId: i.id,
           image_url: i.image_url,
           is_primary: Boolean(i.is_primary),
-          focal_x: (i as any).focal_x ?? 50,
-          focal_y: (i as any).focal_y ?? 50,
         }));
         if (draftImages.length > 0 && !draftImages.some((x) => x.is_primary)) {
           draftImages[0].is_primary = true;
@@ -301,8 +295,6 @@ export default function EditExperience() {
           clientId: newClientId(),
           image_url: "",
           is_primary: prev.length === 0,
-          focal_x: 50,
-          focal_y: 50,
         },
       ];
       return next;
@@ -437,8 +429,6 @@ export default function EditExperience() {
         image_url: img.image_url,
         is_primary: img.is_primary,
         display_order: idx,
-        focal_x: img.focal_x,
-        focal_y: img.focal_y,
       }));
 
       patch.services = cleanServices.map((s, idx) => ({
@@ -764,8 +754,6 @@ export default function EditExperience() {
                               <ExperienceImage
                                 src={img.image_url}
                                 alt={`Thumbnail ${idx + 1}`}
-                                focalX={img.focal_x}
-                                focalY={img.focal_y}
                                 className="h-full w-full"
                               />
 
@@ -861,24 +849,7 @@ export default function EditExperience() {
                               </span>
                             </div>
 
-                            <div className="space-y-2">
-                              <Label>Punct de focus (încadrare)</Label>
-                              <FocalPointPicker
-                                src={img.image_url}
-                                alt={`Imagine ${idx + 1}`}
-                                focalX={img.focal_x}
-                                focalY={img.focal_y}
-                                onChange={({ focalX, focalY }) =>
-                                  setImages((prev) =>
-                                    prev.map((x) =>
-                                      x.clientId === img.clientId
-                                        ? { ...x, focal_x: focalX, focal_y: focalY }
-                                        : x
-                                    )
-                                  )
-                                }
-                              />
-                            </div>
+
                           </div>
                           <div className="flex items-end">
                             <Button

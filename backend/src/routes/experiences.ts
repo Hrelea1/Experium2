@@ -65,7 +65,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       `SELECT
         e.id, e.title, e.short_description, e.price, e.original_price,
         e.location_name, e.duration_minutes, e.max_participants,
-        e.avg_rating, e.total_reviews, e.is_featured, e.created_at,
+        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
@@ -315,9 +315,9 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
           const img = fields.images[i];
           if (!img.image_url) continue;
           await client.query(
-            `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order, focal_x, focal_y)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [id, img.image_url, img.is_primary || i === 0, img.display_order || i, img.focal_x ?? 50, img.focal_y ?? 50]
+            `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order)
+             VALUES ($1, $2, $3, $4)`,
+            [id, img.image_url, img.is_primary || i === 0, img.display_order || i]
           );
         }
       }
