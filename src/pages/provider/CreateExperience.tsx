@@ -271,15 +271,16 @@ export default function CreateExperience() {
                   <div className="space-y-2">
                     <Label>Categorie *</Label>
                     {categories.length > 0 ? (
-                      <Select value={categoryId} onValueChange={setCategoryId}>
-                        <SelectTrigger><SelectValue placeholder="Selectează" /></SelectTrigger>
-                        <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                          <SelectItem value="none">Selectează</SelectItem>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="none" disabled>Selectează o categorie...</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
                     ) : (
                       <Input disabled placeholder="Se încarcă..." />
                     )}
@@ -287,15 +288,16 @@ export default function CreateExperience() {
                   <div className="space-y-2">
                     <Label>Regiune *</Label>
                     {regions.length > 0 ? (
-                      <Select value={regionId} onValueChange={setRegionId}>
-                        <SelectTrigger><SelectValue placeholder="Selectează" /></SelectTrigger>
-                        <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                          <SelectItem value="none">Selectează</SelectItem>
-                          {regions.map((r) => (
-                            <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={regionId}
+                        onChange={(e) => setRegionId(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="none" disabled>Selectează o regiune...</option>
+                        {regions.map((r) => (
+                          <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                      </select>
                     ) : (
                       <Input disabled placeholder="Se încarcă..." />
                     )}
