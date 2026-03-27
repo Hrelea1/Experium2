@@ -9,8 +9,7 @@
  *   const data = await api.auth.login('email', 'password');
  */
 
-const BASE_URL = 'http://localhost:3001';
-// const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 // ─── Token Storage ────────────────────────────────────────────────────────────
 export const tokenStore = {
