@@ -57,7 +57,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const {
       experience_id, booking_date, participants = 1,
-      total_price, payment_method = 'card', special_requests, voucher_id,
+      total_price, payment_method = 'card', special_requests, voucher_id, status = 'confirmed',
     } = req.body;
 
     if (!experience_id || !booking_date || !total_price) {
@@ -67,13 +67,14 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const booking = await queryOne<{ id: string }>(
       `INSERT INTO bookings
         (user_id, experience_id, booking_date, participants, total_price, payment_method, special_requests, voucher_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'confirmed')
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
       [req.user!.userId, experience_id, booking_date, participants, total_price,
-       payment_method, special_requests ?? null, voucher_id ?? null]
+       payment_method, special_requests ?? null, voucher_id ?? null, status]
     );
 
-    // Send confirmation email asynchronously (non-blocking)
+    if (status === 'confirmed') {
+      // Send confirmation email asynchronously (non-blocking)
     queryOne<{ email: string; full_name: string; title: string }>(
       `SELECT u.email, p.full_name, e.title
        FROM users u
@@ -94,8 +95,9 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
         });
       }
     }).catch(console.error);
+    }
 
-    res.status(201).json({ id: booking!.id, message: 'Booking confirmed' });
+    res.status(201).json({ id: booking!.id, message: 'Booking created' });
   } catch (err) {
     console.error('[bookings POST]', err);
     res.status(500).json({ error: 'Failed to create booking' });

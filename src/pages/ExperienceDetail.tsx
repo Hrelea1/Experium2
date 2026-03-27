@@ -218,6 +218,7 @@ export default function ExperienceDetail() {
             description: data.description,
             includes: Array.isArray((data as any).includes) ? (data as any).includes : [],
             maxParticipants: data.max_participants || 10,
+            is_assisted: (data as any).is_assisted || false,
           });
         }
       } catch (error: any) {
@@ -435,7 +436,8 @@ export default function ExperienceDetail() {
               <BookingForm 
                 experience={{
                   ...experience,
-                  image: experience.gallery?.[0] || experience.image
+                  image: experience.gallery?.[0] || experience.image,
+                  isAssisted: experience.is_assisted
                 }}
               />
             </motion.div>

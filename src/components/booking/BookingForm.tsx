@@ -11,7 +11,7 @@ import { ServiceSelector, SelectedService } from "./ServiceSelector";
 import { SlotPicker } from "./SlotPicker";
 import { AvailabilitySlot } from "@/hooks/useAvailabilitySlots";
 import { AvailabilityInfoModal } from "./AvailabilityInfoModal";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 interface BookingFormProps {
   experience: {
@@ -22,6 +22,7 @@ interface BookingFormProps {
     originalPrice?: number;
     maxParticipants: number;
     image?: string;
+    isAssisted?: boolean;
   };
 }
 
@@ -36,9 +37,10 @@ export function BookingForm({ experience }: BookingFormProps) {
   const [servicesTotal, setServicesTotal] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [isAssisted, setIsAssisted] = useState(false);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
+
+  const isAssisted = experience.isAssisted || false;
 
   const totalPrice = (experience.price * participants) + servicesTotal;
   const savings = experience.originalPrice 
@@ -59,36 +61,6 @@ export function BookingForm({ experience }: BookingFormProps) {
     setAddedToCart(false);
   }, []);
 
-  useEffect(() => {
-    const checkProviderMode = async () => {
-      try {
-        const { data: providerLink } = await supabase
-          .from('experience_providers')
-          .select('provider_user_id')
-          .eq('experience_id', experience.id)
-          .eq('is_active', true)
-          .limit(1)
-          .maybeSingle();
-
-        if (providerLink) {
-          const { data: profile } = await supabase
-            .from('provider_profiles')
-            .select('mode')
-            .eq('user_id', providerLink.provider_user_id)
-            .maybeSingle();
-          
-          if (profile?.mode === 'assisted') {
-            setIsAssisted(true);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking provider mode:', error);
-      }
-    };
-
-    checkProviderMode();
-  }, [experience.id]);
-
   const handleInitiateCheck = async () => {
     if (!user) {
       toast({ title: "Autentificare necesară", description: "Trebuie să fii autentificat.", variant: "destructive" });
@@ -98,32 +70,21 @@ export function BookingForm({ experience }: BookingFormProps) {
     
     setCheckingAvailability(true);
     try {
-      // 1. Create a pending booking
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert({
-          user_id: user.id,
-          experience_id: experience.id,
-          booking_date: `${selectedSlot?.slot_date}T${selectedSlot?.start_time}`,
-          participants,
-          total_price: totalPrice,
-          status: 'pending' as any, // Use type casting if necessary
-        })
-        .select()
-        .single();
-
-      if (bookingError) throw bookingError;
-
-      // 2. Call initiate-availability-check edge function
-      const { error: initiateError } = await supabase.functions.invoke('initiate-availability-check', {
-        body: { booking_id: booking.id }
+      // 1. Create a pending booking via Node API
+      const { id: bookingId } = await api.bookings.create({
+        experience_id: experience.id,
+        booking_date: `${selectedSlot?.slot_date}T${selectedSlot?.start_time}`,
+        participants,
+        total_price: totalPrice,
+        status: 'pending',
       });
 
-      if (initiateError) throw initiateError;
+      // 2. Call initiate availability check via Node API
+      await api.availability.check(bookingId);
 
       toast({
         title: "Cerere trimisă! ⌛",
-        description: "Vom notifica furnizorul. Vei primi un SMS în max. 15 minute.",
+        description: "Vom notifica furnizorul. Vei primi un SMS în curând.",
       });
       
       setShowAvailabilityModal(false);
@@ -131,7 +92,7 @@ export function BookingForm({ experience }: BookingFormProps) {
       console.error('Error initiating check:', error);
       toast({
         title: "Eroare",
-        description: "Nu am putut iniția verificarea. Te rugăm să încerci mai târziu.",
+        description: error.message || "Nu am putut iniția verificarea. Te rugăm să încerci mai târziu.",
         variant: "destructive"
       });
     } finally {

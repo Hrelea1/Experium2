@@ -222,6 +222,7 @@ export const bookings = {
     booking_date: string;
     participants?: number;
     total_price: number;
+    status?: string;
     payment_method?: string;
     special_requests?: string;
   }): Promise<{ id: string }> {
@@ -299,6 +300,16 @@ export const categories = {
   },
 };
 
+// ─── Availability ─────────────────────────────────────────────────────────────
+export const availability = {
+  async check(bookingId: string) {
+    return request<{ message: string }>('/availability/check', {
+      method: 'POST',
+      body: JSON.stringify({ booking_id: bookingId }),
+    });
+  },
+};
+
 // ─── Admin ────────────────────────────────────────────────────────────────────
 export const admin = {
   async getStats() {
@@ -329,6 +340,7 @@ export const api = {
   regions,
   categories,
   admin,
+  availability,
 };
 
 export default api;

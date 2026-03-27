@@ -111,13 +111,15 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         co.name AS county_name,
-        ci.name AS city_name
+        ci.name AS city_name,
+        (pp.mode = 'assisted') AS is_assisted
        FROM experiences e
        JOIN categories cat ON cat.id = e.category_id
        JOIN regions r ON r.id = e.region_id
        LEFT JOIN counties co ON co.id = e.county_id
        LEFT JOIN cities ci ON ci.id = e.city_id
        LEFT JOIN experience_providers ep ON ep.experience_id = e.id
+       LEFT JOIN provider_profiles pp ON pp.user_id = ep.provider_user_id
        WHERE e.id = $1 AND e.is_active = true`,
       [id]
     );
@@ -136,6 +138,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       original_price: experience.original_price ? Number(experience.original_price) : null,
       avg_rating: Number(experience.avg_rating),
       total_reviews: Number(experience.total_reviews),
+      is_assisted: Boolean(experience.is_assisted),
     };
 
     res.json({ ...formattedExperience, images });
