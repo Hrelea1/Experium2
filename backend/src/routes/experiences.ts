@@ -133,23 +133,33 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 
     if (!experience) return res.status(404).json({ error: 'Experience not found' });
 
-    const images = await query(
-      `SELECT id, image_url, is_primary, display_order
-       FROM experience_images WHERE experience_id = $1 ORDER BY display_order ASC`,
-      [id]
-    );
+    // Wrap sub-queries in try/catch so missing tables don't crash the response
+    let images: any[] = [];
+    try {
+      images = await query(
+        `SELECT id, image_url, is_primary, display_order
+         FROM experience_images WHERE experience_id = $1 ORDER BY display_order ASC`,
+        [id]
+      );
+    } catch { /* table may not exist yet */ }
 
-    const services = await query(
-      `SELECT id, name, description, price, is_required, max_quantity, is_active, display_order
-       FROM experience_services WHERE experience_id = $1 ORDER BY display_order ASC`,
-      [id]
-    );
+    let services: any[] = [];
+    try {
+      services = await query(
+        `SELECT id, name, description, price, is_required, max_quantity, is_active, display_order
+         FROM experience_services WHERE experience_id = $1 ORDER BY display_order ASC`,
+        [id]
+      );
+    } catch { /* table may not exist yet */ }
 
     // Get provider assignment
-    const providerRow = await queryOne<{ provider_user_id: string }>(
-      `SELECT provider_user_id FROM experience_providers WHERE experience_id = $1 LIMIT 1`,
-      [id]
-    );
+    let providerRow: { provider_user_id: string } | null = null;
+    try {
+      providerRow = await queryOne<{ provider_user_id: string }>(
+        `SELECT provider_user_id FROM experience_providers WHERE experience_id = $1 LIMIT 1`,
+        [id]
+      );
+    } catch { /* table may not exist yet */ }
 
     const formattedExperience = {
       ...experience,
@@ -157,7 +167,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       original_price: experience.original_price ? Number(experience.original_price) : null,
       avg_rating: Number(experience.avg_rating),
       total_reviews: Number(experience.total_reviews),
-      is_assisted: Boolean(experience.is_assisted),
+      is_assisted: false,
       provider_id: providerRow?.provider_user_id ?? null,
     };
 

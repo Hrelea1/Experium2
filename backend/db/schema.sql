@@ -274,10 +274,18 @@ CREATE INDEX IF NOT EXISTS idx_bookings_experience  ON bookings(experience_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_status      ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_date        ON bookings(booking_date);
 
--- Now add the FK for availability_requests
-ALTER TABLE availability_requests
-  ADD CONSTRAINT fk_avail_req_booking
-  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE;
+-- Now add the FK for availability_requests (IF NOT EXISTS)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'fk_avail_req_booking' AND table_name = 'availability_requests'
+  ) THEN
+    ALTER TABLE availability_requests
+      ADD CONSTRAINT fk_avail_req_booking
+      FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- VOUCHERS
@@ -309,10 +317,18 @@ CREATE INDEX IF NOT EXISTS idx_vouchers_user   ON vouchers(user_id);
 CREATE INDEX IF NOT EXISTS idx_vouchers_code   ON vouchers(code);
 CREATE INDEX IF NOT EXISTS idx_vouchers_status ON vouchers(status);
 
--- Now add FK from bookings to vouchers
-ALTER TABLE bookings
-  ADD CONSTRAINT fk_bookings_voucher
-  FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE SET NULL;
+-- Now add FK from bookings to vouchers (IF NOT EXISTS)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'fk_bookings_voucher' AND table_name = 'bookings'
+  ) THEN
+    ALTER TABLE bookings
+      ADD CONSTRAINT fk_bookings_voucher
+      FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- =============================================================================
 -- CART
