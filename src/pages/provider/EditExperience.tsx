@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -191,80 +191,56 @@ export default function EditExperience() {
     const load = async () => {
       setLoading(true);
       try {
-        const [expRes, imgRes, svcRes, catRes, regRes] = await Promise.all([
-          supabase
-            .from("experiences")
-            .select(
-              "id,title,description,short_description,includes,location_name,price,original_price,category_id,region_id,duration_minutes,max_participants,min_age,is_active,is_featured"
-            )
-            .eq("id", id)
-            .maybeSingle(),
-          supabase
-            .from("experience_images")
-            .select("id,image_url,is_primary,display_order,focal_x,focal_y")
-            .eq("experience_id", id)
-            .order("display_order", { ascending: true }),
-          supabase
-            .from("experience_services")
-            .select(
-              "id,name,description,price,is_required,max_quantity,is_active,display_order"
-            )
-            .eq("experience_id", id)
-            .order("display_order", { ascending: true }),
-          supabase
-            .from("categories")
-            .select("id,name")
-            .order("display_order", { ascending: true }),
-          supabase
-            .from("regions")
-            .select("id,name")
-            .order("display_order", { ascending: true }),
+        // Fetch all data from Express API in parallel
+        const [expData, catData, regData] = await Promise.all([
+          api.experiences.getById(id),
+          api.categories.list(),
+          api.regions.list(),
         ]);
 
-        if (expRes.error) throw expRes.error;
-        if (!expRes.data) throw new Error("Experiența nu a fost găsită");
-        
-        // Verify provider assignment
-        const { data: assignment, error: assignmentError } = await supabase
-          .from("provider_experiences")
-          .select("id")
-          .eq("experience_id", id)
-          .eq("user_id", user.id)
-          .maybeSingle();
-          
-        if (assignmentError || !assignment) {
-          throw new Error("Nu ai permisiunea de a edita această experiență");
-        }
-        if (imgRes.error) throw imgRes.error;
-        if (svcRes.error) throw svcRes.error;
-        if (catRes.error) throw catRes.error;
-        if (regRes.error) throw regRes.error;
+        const exp = expData as any;
+        const imgs = (exp.images ?? []) as unknown as ExperienceImageRow[];
+        const svcs = (exp.services ?? []) as unknown as ExperienceServiceRow[];
 
-        const exp = expRes.data as ExperienceRow;
-        const imgs = (imgRes.data ?? []) as unknown as ExperienceImageRow[];
-        const svcs = (svcRes.data ?? []) as unknown as ExperienceServiceRow[];
+        const expRow: ExperienceRow = {
+          id: exp.id,
+          title: exp.title,
+          description: exp.description,
+          short_description: exp.short_description,
+          includes: exp.includes ?? [],
+          location_name: exp.location_name,
+          price: Number(exp.price),
+          original_price: exp.original_price ? Number(exp.original_price) : null,
+          category_id: exp.category_id,
+          region_id: exp.region_id,
+          duration_minutes: exp.duration_minutes ? Number(exp.duration_minutes) : null,
+          max_participants: exp.max_participants ? Number(exp.max_participants) : null,
+          min_age: exp.min_age ? Number(exp.min_age) : null,
+          is_active: exp.is_active ?? true,
+          is_featured: exp.is_featured ?? false,
+        };
 
-        setOriginalExperience(exp);
+        setOriginalExperience(expRow);
         setOriginalImages(imgs);
         setOriginalServices(svcs);
-        setCategories((catRes.data ?? []) as CategoryOption[]);
-        setRegions((regRes.data ?? []) as RegionOption[]);
+        setCategories(Array.isArray(catData) ? catData as CategoryOption[] : []);
+        setRegions(Array.isArray(regData) ? regData as RegionOption[] : []);
 
         // hydrate form state
-        setTitle(exp.title ?? "");
-        setShortDescription(exp.short_description ?? "");
-        setDescription(exp.description ?? "");
-        setIncludes(Array.isArray(exp.includes) ? exp.includes : []);
-        setLocationName(exp.location_name ?? "");
-        setCategoryId(exp.category_id ?? "");
-        setRegionId(exp.region_id ?? "");
-        setPrice(exp.price?.toString?.() ?? "");
-        setOriginalPrice(exp.original_price?.toString?.() ?? "");
-        setDurationMinutes(exp.duration_minutes?.toString?.() ?? "");
-        setMaxParticipants(exp.max_participants?.toString?.() ?? "");
-        setMinAge(exp.min_age?.toString?.() ?? "");
-        setIsActive(exp.is_active ?? true);
-        setIsFeatured(exp.is_featured ?? false);
+        setTitle(expRow.title ?? "");
+        setShortDescription(expRow.short_description ?? "");
+        setDescription(expRow.description ?? "");
+        setIncludes(Array.isArray(expRow.includes) ? expRow.includes : []);
+        setLocationName(expRow.location_name ?? "");
+        setCategoryId(expRow.category_id ?? "");
+        setRegionId(expRow.region_id ?? "");
+        setPrice(expRow.price?.toString?.() ?? "");
+        setOriginalPrice(expRow.original_price?.toString?.() ?? "");
+        setDurationMinutes(expRow.duration_minutes?.toString?.() ?? "");
+        setMaxParticipants(expRow.max_participants?.toString?.() ?? "");
+        setMinAge(expRow.min_age?.toString?.() ?? "");
+        setIsActive(expRow.is_active ?? true);
+        setIsFeatured(expRow.is_featured ?? false);
 
         const draftImages: ImageDraft[] = imgs.map((i) => ({
           id: i.id,
@@ -274,7 +250,6 @@ export default function EditExperience() {
           focal_x: (i as any).focal_x ?? 50,
           focal_y: (i as any).focal_y ?? 50,
         }));
-        // Ensure exactly one primary (if any images exist)
         if (draftImages.length > 0 && !draftImages.some((x) => x.is_primary)) {
           draftImages[0].is_primary = true;
         }
@@ -285,9 +260,9 @@ export default function EditExperience() {
           clientId: s.id,
           name: s.name,
           description: s.description ?? "",
-          price: s.price?.toString?.() ?? "0",
+          price: Number(s.price)?.toString?.() ?? "0",
           is_required: s.is_required,
-          max_quantity: s.max_quantity?.toString?.() ?? "1",
+          max_quantity: Number(s.max_quantity)?.toString?.() ?? "1",
           is_active: s.is_active,
         }));
         setServices(draftServices);
@@ -338,7 +313,7 @@ export default function EditExperience() {
     if (!id) return;
     try {
       setSaving(true);
-      const url = await uploadExperienceImageFile({ experienceId: id, file });
+      const url = await uploadExperienceImageFile({ file });
       setImages((prev) =>
         prev.map((x) => (x.clientId === clientId ? { ...x, image_url: url } : x))
       );
