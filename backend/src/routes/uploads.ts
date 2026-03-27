@@ -37,7 +37,7 @@ router.post('/experience-image', requireRole('admin', 'provider', 'moderator'), 
       if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
 
       const baseUrl = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
-      const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
+      const imageUrl = `${baseUrl}/static/${req.file.filename}`;
 
       // Decoupled from DB: Just return the URL to the frontend
       res.status(201).json({ image_url: imageUrl });
@@ -54,7 +54,7 @@ router.post('/avatar', requireAuth, upload.single('image'), async (req: Request,
     if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
 
     const baseUrl = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 3001}`;
-    const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
+    const avatarUrl = `${baseUrl}/static/${req.file.filename}`;
 
     await query('UPDATE profiles SET avatar_url = $1 WHERE id = $2', [avatarUrl, req.user!.userId]);
 

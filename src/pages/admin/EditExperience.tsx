@@ -18,7 +18,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { uploadExperienceImageFile } from "@/lib/experienceImages";
 import { api } from "@/lib/api";
-import { FocalPointPicker } from "@/components/admin/FocalPointPicker";
 import { ExperienceImage } from "@/components/ExperienceImage";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -58,8 +57,6 @@ type ExperienceImageRow = {
   image_url: string;
   is_primary: boolean | null;
   display_order: number | null;
-  focal_x: number;
-  focal_y: number;
 };
 
 type ExperienceServiceRow = {
@@ -78,8 +75,6 @@ type ImageDraft = {
   clientId: string;
   image_url: string;
   is_primary: boolean;
-  focal_x: number;
-  focal_y: number;
 };
 
 type ServiceDraft = {
@@ -203,7 +198,7 @@ export default function EditExperience() {
             .maybeSingle(),
           supabase
             .from("experience_images")
-            .select("id,image_url,is_primary,display_order,focal_x,focal_y")
+            .select("id,image_url,is_primary,display_order")
             .eq("experience_id", id)
             .order("display_order", { ascending: true }),
           supabase
@@ -271,8 +266,6 @@ export default function EditExperience() {
           clientId: i.id,
           image_url: i.image_url,
           is_primary: Boolean(i.is_primary),
-          focal_x: (i as any).focal_x ?? 50,
-          focal_y: (i as any).focal_y ?? 50,
         }));
         // Ensure exactly one primary (if any images exist)
         if (draftImages.length > 0 && !draftImages.some((x) => x.is_primary)) {
@@ -326,8 +319,6 @@ export default function EditExperience() {
           clientId: newClientId(),
           image_url: "",
           is_primary: prev.length === 0,
-          focal_x: 50,
-          focal_y: 50,
         },
       ];
       return next;
@@ -489,14 +480,10 @@ export default function EditExperience() {
             if (!o) return false;
             const oPrimary = Boolean(o.is_primary);
             const oOrder = o.display_order ?? 0;
-             const oFocalX = (o as any).focal_x ?? 50;
-             const oFocalY = (o as any).focal_y ?? 50;
             return (
               o.image_url !== img.image_url ||
               oPrimary !== img.is_primary ||
-               oOrder !== img.display_order ||
-               oFocalX !== img.focal_x ||
-               oFocalY !== img.focal_y
+               oOrder !== img.display_order
             );
           })
           .map((img) => ({
@@ -504,8 +491,6 @@ export default function EditExperience() {
             image_url: img.image_url,
             is_primary: img.is_primary,
             display_order: img.display_order,
-            focal_x: img.focal_x,
-            focal_y: img.focal_y,
           }));
 
         const inserts = cleanImages
@@ -516,8 +501,6 @@ export default function EditExperience() {
             image_url: img.image_url,
             is_primary: img.is_primary,
             display_order: img.display_order,
-            focal_x: img.focal_x,
-            focal_y: img.focal_y,
           }));
 
         if (toDelete.length > 0) {
@@ -537,8 +520,6 @@ export default function EditExperience() {
                   image_url: u.image_url,
                   is_primary: u.is_primary,
                   display_order: u.display_order,
-                  focal_x: u.focal_x,
-                  focal_y: u.focal_y,
                 })
                 .eq("id", u.id)
             )
@@ -979,8 +960,6 @@ export default function EditExperience() {
                               <ExperienceImage
                                 src={img.image_url}
                                 alt={`Thumbnail ${idx + 1}`}
-                                focalX={img.focal_x}
-                                focalY={img.focal_y}
                                 className="h-full w-full"
                               />
 
@@ -1076,24 +1055,7 @@ export default function EditExperience() {
                               </span>
                             </div>
 
-                            <div className="space-y-2">
-                              <Label>Punct de focus (încadrare)</Label>
-                              <FocalPointPicker
-                                src={img.image_url}
-                                alt={`Imagine ${idx + 1}`}
-                                focalX={img.focal_x}
-                                focalY={img.focal_y}
-                                onChange={({ focalX, focalY }) =>
-                                  setImages((prev) =>
-                                    prev.map((x) =>
-                                      x.clientId === img.clientId
-                                        ? { ...x, focal_x: focalX, focal_y: focalY }
-                                        : x
-                                    )
-                                  )
-                                }
-                              />
-                            </div>
+
                           </div>
                           <div className="flex items-end">
                             <Button

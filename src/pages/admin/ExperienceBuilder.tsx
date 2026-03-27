@@ -406,18 +406,30 @@ const ExperienceBuilder = () => {
               {images.map((img, index) => (
                 <div key={index} className="flex gap-2">
                   <Input
-                    value={img.url}
+                    value={img.file ? img.file.name : img.url}
                     onChange={(e) => updateImageUrl(index, e.target.value)}
                     placeholder="URL imagine (ex: https://...)"
+                    readOnly={!!img.file}
                   />
 
                   <div className="flex items-center gap-2">
+                    {img.file && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="px-2"
+                        onClick={() => updateImageFile(index, null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Label
                       className="inline-flex items-center gap-2 cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-accent"
                       htmlFor={`img-file-${index}`}
                     >
                       <Upload className="h-4 w-4" />
-                      Încarcă
+                      {img.file ? 'Schimbă' : 'Încarcă'}
                     </Label>
                     <input
                       id={`img-file-${index}`}
