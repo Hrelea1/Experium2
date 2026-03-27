@@ -162,9 +162,9 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
     };
 
     res.json({ ...formattedExperience, images, services });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[experiences GET /:id]', err);
-    res.status(500).json({ error: 'Failed to fetch experience' });
+    res.status(500).json({ error: 'Failed to fetch experience', detail: err?.message || String(err) });
   }
 });
 
