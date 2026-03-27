@@ -67,12 +67,16 @@ export default function CreateExperience() {
   }, []);
 
   const fetchFormData = async () => {
-    const [catRes, regRes] = await Promise.all([
-      supabase.from('categories').select('id, name').order('name'),
-      supabase.from('regions').select('id, name').order('name'),
-    ]);
-    if (catRes.data) setCategories(catRes.data);
-    if (regRes.data) setRegions(regRes.data);
+    try {
+      const [catData, regData] = await Promise.all([
+        api.categories.list(),
+        api.regions.list(),
+      ]);
+      setCategories(Array.isArray(catData) ? catData : []);
+      setRegions(Array.isArray(regData) ? regData : []);
+    } catch (e) {
+      console.error('Failed to fetch categories or regions', e);
+    }
   };
 
   // Image helpers

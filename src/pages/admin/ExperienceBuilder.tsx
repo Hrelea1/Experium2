@@ -49,7 +49,6 @@ const ExperienceBuilder = () => {
   const [shortDescription, setShortDescription] = useState('');
   const [locationName, setLocationName] = useState('');
   const [price, setPrice] = useState('');
-  const [originalPrice, setOriginalPrice] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [regionId, setRegionId] = useState('');
   const [duration, setDuration] = useState('');
@@ -79,23 +78,16 @@ const ExperienceBuilder = () => {
 
   const fetchCategories = async () => {
     try {
-      const { data } = await supabase.from('categories').select('id, name').order('name');
-      setCategories(data || []);
-    } catch (e) {}
+      const cat = await api.categories.list();
+      setCategories(Array.isArray(cat) ? cat : []);
+    } catch (e) { console.error('Failed to fetch categories', e); }
   };
 
   const fetchRegions = async () => {
     try {
-      // Using the backend route directly
       const reg = await api.regions.list();
       setRegions(Array.isArray(reg) ? reg : []);
-    } catch (e) {
-      // Fallback
-      if (regions.length === 0) {
-        const { data } = await supabase.from('regions').select('id, name').order('name');
-        setRegions(data || []);
-      }
-    }
+    } catch (e) { console.error('Failed to fetch regions', e); }
   };
 
   const addImageField = () => {
@@ -181,7 +173,6 @@ const ExperienceBuilder = () => {
         short_description: shortDescription || null,
         location_name: locationName,
         price: parseFloat(price),
-        original_price: originalPrice ? parseFloat(originalPrice) : null,
         category_id: categoryId,
         region_id: regionId,
         provider_id: providerId,  // Admin provider assignment
@@ -345,17 +336,6 @@ const ExperienceBuilder = () => {
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
                   placeholder="299"
-                  step="0.01"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="original-price">Preț Original (RON)</Label>
-                <Input
-                  id="original-price"
-                  type="number"
-                  value={originalPrice}
-                  onChange={(e) => setOriginalPrice(e.target.value)}
-                  placeholder="399"
                   step="0.01"
                 />
               </div>

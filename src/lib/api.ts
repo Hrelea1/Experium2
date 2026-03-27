@@ -280,7 +280,13 @@ export const cart = {
 // ─── Regions / Categories ─────────────────────────────────────────────────────
 export const regions = {
   async list() {
-    return request('/experiences/../regions');
+    return request('/regions');
+  },
+};
+
+export const categories = {
+  async list() {
+    return request('/categories');
   },
 };
 
@@ -312,6 +318,7 @@ export const api = {
   vouchers,
   cart,
   regions,
+  categories,
   admin,
 };
 

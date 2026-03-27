@@ -13,6 +13,7 @@ import availabilityRoutes from './routes/availability';
 import adminRoutes from './routes/admin';
 import uploadRoutes from './routes/uploads';
 import regionRoutes from './routes/regions';
+import categoryRoutes from './routes/categories';
 import homepageContentRoutes from './routes/homepageContent';
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/availability', availabilityRoutes);
 app.use('/admin', adminRoutes);
 app.use('/admin/regions', regionRoutes);
 app.use('/regions', regionRoutes);
+app.use('/categories', categoryRoutes);
 app.use('/uploads', uploadRoutes);
 app.use('/homepage-content', homepageContentRoutes);
 
