@@ -60,6 +60,7 @@ const ExperienceBuilder = () => {
   const [services, setServices] = useState<ServiceInput[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
   const [providerId, setProviderId] = useState('none');
+  const [debugLog, setDebugLog] = useState<string>('');
 
   useEffect(() => {
     fetchCategories();
@@ -72,6 +73,7 @@ const ExperienceBuilder = () => {
       const users = await api.admin.getUsers({ role: 'provider' });
       setProviders(Array.isArray(users) ? users : []);
     } catch (e) {
+      setDebugLog(prev => prev + ' | ProvErr: ' + (e instanceof Error ? e.message : String(e)));
       console.error(e);
     }
   };
@@ -80,14 +82,20 @@ const ExperienceBuilder = () => {
     try {
       const cat = await api.categories.list();
       setCategories(Array.isArray(cat) ? cat : []);
-    } catch (e) { console.error('Failed to fetch categories', e); }
+    } catch (e) {
+      setDebugLog(prev => prev + ' | CatErr: ' + (e instanceof Error ? e.message : String(e)));
+      console.error('Failed to fetch categories', e); 
+    }
   };
 
   const fetchRegions = async () => {
     try {
       const reg = await api.regions.list();
       setRegions(Array.isArray(reg) ? reg : []);
-    } catch (e) { console.error('Failed to fetch regions', e); }
+    } catch (e) {
+      setDebugLog(prev => prev + ' | RegErr: ' + (e instanceof Error ? e.message : String(e)));
+      console.error('Failed to fetch regions', e); 
+    }
   };
 
   const addImageField = () => {
@@ -313,6 +321,9 @@ const ExperienceBuilder = () => {
 
             {/* Category */}
             <div className="space-y-2">
+              <div className="bg-red-50 p-2 rounded border border-red-200 text-xs font-mono text-red-800 my-2">
+                DEBUG NETWORK: Cat: {categories.length}, Reg: {regions.length}, Prov: {providers.length} | API: {import.meta.env.VITE_API_URL ?? 'http://localhost:3001'} | Err: {debugLog || 'None'}
+              </div>
               <Label htmlFor="category">Categorie *</Label>
               <select
                 id="category"
