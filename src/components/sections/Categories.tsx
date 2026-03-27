@@ -3,40 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useHomepageContent } from "@/hooks/useHomepageContent";
 
-const categories = [
-  {
-    titleKey: "categories.spa",
-    slug: "spa-relaxare",
-    descKey: "categories.spaDesc",
-    count: 24,
-    color: "from-cyan-500/80 to-blue-500/80",
-    image: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    titleKey: "categories.gastronomy",
-    slug: "gastronomie",
-    descKey: "categories.gastronomyDesc",
-    count: 18,
-    color: "from-amber-500/80 to-orange-500/80",
-    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    titleKey: "categories.adventure",
-    slug: "aventura",
-    descKey: "categories.adventureDesc",
-    count: 32,
-    color: "from-orange-500/80 to-red-500/80",
-    image: "https://images.unsplash.com/photo-1530866495561-507c9faab2ed?q=80&w=800&auto=format&fit=crop"
-  },
-  {
-    titleKey: "categories.nature",
-    slug: "natura",
-    descKey: "categories.natureDesc",
-    count: 45,
-    color: "from-teal-500/80 to-green-500/80",
-    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop"
-  }
-];
+import { useCategories } from "@/hooks/useCategories";
+
+// Mapping defaults for generic categories if missing from content
+const resolveImage = (slug: string, index: number) => {
+  const defaults = [
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1530866495561-507c9faab2ed?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506929562872-bb421503ef21?q=80&w=800&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1517400508447-f8dd518b86e0?q=80&w=800&auto=format&fit=crop",
+  ];
+  return defaults[index % defaults.length];
+};
+
+const resolveColor = (index: number) => {
+  const colors = [
+    "from-cyan-500/80 to-blue-500/80",
+    "from-amber-500/80 to-orange-500/80",
+    "from-orange-500/80 to-red-500/80",
+    "from-teal-500/80 to-green-500/80",
+    "from-purple-500/80 to-indigo-500/80",
+    "from-pink-500/80 to-rose-500/80",
+  ];
+  return colors[index % colors.length];
+};
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -63,6 +55,7 @@ export function Categories() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { data: content } = useHomepageContent("categories");
+  const { data: dynamicCategories } = useCategories();
   
   const sectionContent = content?.content || {
     badge: "Categorii",
@@ -98,9 +91,9 @@ export function Categories() {
           viewport={{ once: true }}
           className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {categories.map((category) => (
+          {(dynamicCategories || []).map((category, idx) => (
             <motion.div
-              key={category.titleKey}
+              key={category.id}
               onClick={() => navigate(`/category/${category.slug}`)}
               variants={itemVariants}
               whileHover={{ scale: 1.03, y: -4 }}
@@ -109,23 +102,23 @@ export function Categories() {
             >
               {/* Background Image */}
               <img 
-                src={category.image} 
-                alt={t(category.titleKey)} 
+                src={category.image_url || resolveImage(category.slug, idx)} 
+                alt={category.name} 
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
               
               {/* Overlay Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-t ${category.color} opacity-80 group-hover:opacity-90 transition-opacity duration-300`} />
+              <div className={`absolute inset-0 bg-gradient-to-t ${resolveColor(idx)} opacity-80 group-hover:opacity-90 transition-opacity duration-300`} />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent" />
 
               {/* Content Box */}
               <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
                 <h3 className="text-2xl font-bold mb-2 group-hover:text-primary-100 transition-colors drop-shadow-md">
-                  {t(category.titleKey)}
+                  {category.name}
                 </h3>
                 
                 <p className="text-white/80 text-sm mb-4 line-clamp-2">
-                  {t(category.descKey)}
+                  {category.description || 'Descoperă experiențe de neuitat în această categorie.'}
                 </p>
 
                 {/* Count Badge */}

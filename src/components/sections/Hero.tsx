@@ -7,32 +7,26 @@ import { createPortal } from "react-dom";
 import heroBg from "@/assets/hero-bg.jpg";
 import { useHomepageContent } from "@/hooks/useHomepageContent";
 
-const categories = [
-  "hero.allCategories",
-  "categories.spa",
-  "categories.gastronomy",
-  "categories.nature",
-  "categories.adventure",
-];
-
-// Map translation keys to URL slugs
-const categorySlugMap: Record<string, string> = {
-  "hero.allCategories": "toate-categoriile",
-  "categories.spa": "spa-relaxare",
-  "categories.gastronomy": "gastronomie",
-  "categories.nature": "natura",
-  "categories.adventure": "aventura",
-};
+import { useCategories } from "@/hooks/useCategories";
 
 export function Hero() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [selectedCategory, setSelectedCategory] = useState("hero.allCategories");
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState("toate-categoriile");
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const { data: content } = useHomepageContent("hero");
+  const { data: dynamicCategories } = useCategories();
+  
+  const allCategories = [
+    { slug: "toate-categoriile", name: t("hero.allCategories") },
+    ...(dynamicCategories || []).map(c => ({ slug: c.slug, name: c.name }))
+  ];
+  
+  const selectedName = allCategories.find(c => c.slug === selectedCategorySlug)?.name || t("hero.allCategories");
+
   
   const heroContent = {
     title: content?.content?.title || "Oferă Momente",
@@ -49,8 +43,7 @@ export function Hero() {
   const backgroundImage = heroContent.backgroundImage || heroBg;
 
   const handleSearch = () => {
-    const slug = categorySlugMap[selectedCategory];
-    navigate(`/category/${slug}`);
+    navigate(`/category/${selectedCategorySlug}`);
   };
 
   const updateDropdownPosition = () => {
@@ -147,7 +140,7 @@ export function Hero() {
                   onClick={handleToggleDropdown}
                   className="w-full flex items-center justify-between gap-2 px-6 py-3 bg-slate-100 rounded-xl md:rounded-full text-left hover:bg-slate-200 transition-colors h-12"
                 >
-                  <span className="text-slate-700 font-medium">{t(selectedCategory)}</span>
+                  <span className="text-slate-700 font-medium">{selectedName}</span>
                   <span className={`text-slate-400 text-[10px] transition-transform ${isCategoryOpen ? "rotate-180" : ""}`}>▼</span>
                 </button>
                 {isCategoryOpen && createPortal(
@@ -164,16 +157,16 @@ export function Hero() {
                         width: dropdownPosition.width,
                       }}
                     >
-                      {categories.map((category) => (
+                      {allCategories.map((category) => (
                         <button
-                          key={category}
+                          key={category.slug}
                           onClick={() => {
-                            setSelectedCategory(category);
+                            setSelectedCategorySlug(category.slug);
                             setIsCategoryOpen(false);
                           }}
                           className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors first:rounded-t-xl last:rounded-b-xl text-slate-700"
                         >
-                          {t(category)}
+                          {category.name}
                         </button>
                       ))}
                     </div>
