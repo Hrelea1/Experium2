@@ -11,11 +11,15 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const {
       category_slug, region_id, county_id,
       min_price, max_price, search,
-      is_featured, limit = '20', offset = '0',
+      is_featured, include_inactive, limit = '20', offset = '0',
       sort = 'created_at', order = 'DESC',
     } = req.query as Record<string, string>;
 
-    const conditions: string[] = ['e.is_active = true'];
+    // Admins can pass include_inactive=true to see all experiences
+    const isAdmin = (req as any).user?.role === 'admin';
+    const skipActiveFilter = isAdmin && include_inactive === 'true';
+
+    const conditions: string[] = skipActiveFilter ? [] : ['e.is_active = true'];
     const params: unknown[] = [];
     let paramIdx = 1;
 
