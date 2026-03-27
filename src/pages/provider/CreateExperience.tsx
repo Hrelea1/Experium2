@@ -51,8 +51,8 @@ export default function CreateExperience() {
   const [providerType, setProviderType] = useState<'accommodation' | 'service'>('service');
   const [durationMinutes, setDurationMinutes] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
-  const [categoryId, setCategoryId] = useState('');
-  const [regionId, setRegionId] = useState('');
+  const [categoryId, setCategoryId] = useState('none');
+  const [regionId, setRegionId] = useState('none');
   const [locationName, setLocationName] = useState('');
   const [cancellationPolicy, setCancellationPolicy] = useState('');
 
@@ -100,7 +100,7 @@ export default function CreateExperience() {
     e.preventDefault();
     if (!user) return;
 
-    if (!title || !description || !price || !categoryId || !regionId || !locationName) {
+    if (!title || !description || !price || categoryId === 'none' || regionId === 'none' || !locationName) {
       toast({ title: 'Date incomplete', description: 'Completează toate câmpurile obligatorii', variant: 'destructive' });
       return;
     }
@@ -271,9 +271,10 @@ export default function CreateExperience() {
                   <div className="space-y-2">
                     <Label>Categorie *</Label>
                     {categories.length > 0 ? (
-                      <Select value={categoryId || undefined} onValueChange={setCategoryId}>
+                      <Select value={categoryId} onValueChange={setCategoryId}>
                         <SelectTrigger><SelectValue placeholder="Selectează" /></SelectTrigger>
                         <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                          <SelectItem value="none" disabled>Selectează</SelectItem>
                           {categories.map((c) => (
                             <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                           ))}
@@ -286,9 +287,10 @@ export default function CreateExperience() {
                   <div className="space-y-2">
                     <Label>Regiune *</Label>
                     {regions.length > 0 ? (
-                      <Select value={regionId || undefined} onValueChange={setRegionId}>
+                      <Select value={regionId} onValueChange={setRegionId}>
                         <SelectTrigger><SelectValue placeholder="Selectează" /></SelectTrigger>
                         <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                          <SelectItem value="none" disabled>Selectează</SelectItem>
                           {regions.map((r) => (
                             <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                           ))}

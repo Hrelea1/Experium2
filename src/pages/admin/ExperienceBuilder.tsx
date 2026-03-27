@@ -49,8 +49,8 @@ const ExperienceBuilder = () => {
   const [shortDescription, setShortDescription] = useState('');
   const [locationName, setLocationName] = useState('');
   const [price, setPrice] = useState('');
-  const [categoryId, setCategoryId] = useState('');
-  const [regionId, setRegionId] = useState('');
+  const [categoryId, setCategoryId] = useState('none');
+  const [regionId, setRegionId] = useState('none');
   const [duration, setDuration] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [minAge, setMinAge] = useState('');
@@ -59,7 +59,7 @@ const ExperienceBuilder = () => {
   ]);
   const [services, setServices] = useState<ServiceInput[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
-  const [providerId, setProviderId] = useState('');
+  const [providerId, setProviderId] = useState('none');
 
   useEffect(() => {
     fetchCategories();
@@ -124,10 +124,10 @@ const ExperienceBuilder = () => {
   };
 
   const createExperience = async () => {
-    if (!title || !description || !locationName || !price || !categoryId || !regionId || !providerId) {
+    if (!title || !description || !locationName || !price || categoryId === 'none' || regionId === 'none' || providerId === 'none') {
       toast({
         title: 'Eroare',
-        description: 'Completează toate câmpurile obligatorii, inclusiv furnizorul',
+        description: 'Completează toate câmpurile obligatorii, inclusiv furnizorul, categoria și regiunea',
         variant: 'destructive',
       });
       return;
@@ -234,11 +234,12 @@ const ExperienceBuilder = () => {
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="provider">Furnizor (Provider) *</Label>
-              <Select value={providerId || undefined} onValueChange={setProviderId}>
+              <Select value={providerId} onValueChange={setProviderId}>
                 <SelectTrigger id="provider" className="bg-background">
                   <SelectValue placeholder="Selectează Furnizorul de experiență" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                  <SelectItem value="none" disabled>Selectează...</SelectItem>
                   {providers.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.full_name || p.email}
@@ -294,11 +295,12 @@ const ExperienceBuilder = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="region">Regiune *</Label>
-                <Select value={regionId || undefined} onValueChange={setRegionId}>
+                <Select value={regionId} onValueChange={setRegionId}>
                   <SelectTrigger id="region" className="bg-background">
                     <SelectValue placeholder="Selectează regiune" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                    <SelectItem value="none" disabled>Selectează o regiune...</SelectItem>
                     {regions.map((region) => (
                       <SelectItem key={region.id} value={region.id}>
                         {region.name}
@@ -312,11 +314,12 @@ const ExperienceBuilder = () => {
             {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">Categorie *</Label>
-              <Select value={categoryId || undefined} onValueChange={setCategoryId}>
+              <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger id="category" className="bg-background">
                   <SelectValue placeholder="Selectează categorie" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                  <SelectItem value="none" disabled>Selectează o categorie...</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
