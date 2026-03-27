@@ -273,7 +273,7 @@ export default function CreateExperience() {
                     {categories.length > 0 ? (
                       <Select value={categoryId || undefined} onValueChange={setCategoryId}>
                         <SelectTrigger><SelectValue placeholder="Selectează" /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
                           {categories.map((c) => (
                             <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                           ))}
@@ -288,7 +288,7 @@ export default function CreateExperience() {
                     {regions.length > 0 ? (
                       <Select value={regionId || undefined} onValueChange={setRegionId}>
                         <SelectTrigger><SelectValue placeholder="Selectează" /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
                           {regions.map((r) => (
                             <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                           ))}

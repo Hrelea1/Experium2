@@ -234,11 +234,11 @@ const ExperienceBuilder = () => {
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="provider">Furnizor (Provider) *</Label>
-              <Select value={providerId} onValueChange={setProviderId}>
+              <Select value={providerId || undefined} onValueChange={setProviderId}>
                 <SelectTrigger id="provider" className="bg-background">
                   <SelectValue placeholder="Selectează Furnizorul de experiență" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
                   {providers.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.full_name || p.email}
@@ -294,11 +294,11 @@ const ExperienceBuilder = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="region">Regiune *</Label>
-                <Select value={regionId} onValueChange={setRegionId}>
+                <Select value={regionId || undefined} onValueChange={setRegionId}>
                   <SelectTrigger id="region" className="bg-background">
                     <SelectValue placeholder="Selectează regiune" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover z-[100]">
+                  <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
                     {regions.map((region) => (
                       <SelectItem key={region.id} value={region.id}>
                         {region.name}
@@ -312,11 +312,11 @@ const ExperienceBuilder = () => {
             {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">Categorie *</Label>
-              <Select value={categoryId} onValueChange={setCategoryId}>
+              <Select value={categoryId || undefined} onValueChange={setCategoryId}>
                 <SelectTrigger id="category" className="bg-background">
                   <SelectValue placeholder="Selectează categorie" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
