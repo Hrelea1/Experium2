@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, UserPlus, Trash2, Mail, TrendingUp } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Mail } from 'lucide-react';
+import { api } from '@/lib/api';
 import {
   Table,
   TableBody,
@@ -36,146 +34,44 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-interface UserRole {
-  id: string;
-  user_id: string;
-  role: string;
-  created_at: string;
-}
-
-interface Profile {
+interface UserData {
   id: string;
   email: string;
-  full_name: string | null;
+  role: string;
+  is_verified: boolean;
   created_at: string;
+  full_name: string | null;
 }
 
 const ManageRoles = () => {
   const { user } = useAuth();
-  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [newUserRole, setNewUserRole] = useState<'admin' | 'moderator' | 'provider' | 'ambassador'>('moderator');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'moderator' | 'provider' | 'user'>('moderator');
   const [granting, setGranting] = useState(false);
-  const [isPrimaryAdmin, setIsPrimaryAdmin] = useState(false);
-  const [ambassadorStats, setAmbassadorStats] = useState<Record<string, any>>({});
-  const [providerStats, setProviderStats] = useState<Record<string, { experienceCount: number; totalRevenue: number; totalSales: number }>>({});
-  const [providerModes, setProviderModes] = useState<Record<string, 'independent' | 'assisted'>>({});
-  const [selectedProviderMode, setSelectedProviderMode] = useState<'independent' | 'assisted'>('independent');
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    checkPrimaryAdmin();
-  }, [user]);
+  const isPrimaryAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (isPrimaryAdmin) {
       fetchData();
+    } else {
+      setLoading(false);
     }
   }, [isPrimaryAdmin]);
-
-  const checkPrimaryAdmin = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase.rpc('is_primary_admin', {
-        _user_id: user.id,
-      });
-
-      if (error) throw error;
-      setIsPrimaryAdmin(data);
-    } catch (error) {
-      console.error('Error checking primary admin:', error);
-    } finally {
-      if (!isPrimaryAdmin) setLoading(false);
-    }
-  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch all profiles
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name, created_at')
-        .order('created_at', { ascending: false });
-
-      if (profilesError) throw profilesError;
-      setAllProfiles(profilesData || []);
-
-      // Fetch all user roles
-      const { data: rolesData, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (rolesError) throw rolesError;
-      setUserRoles(rolesData || []);
-
-      // Fetch ambassador stats for users with ambassador role
-      const ambassadorRoles = rolesData?.filter(r => r.role === 'ambassador') || [];
-      const statsMap: Record<string, any> = {};
-      
-      for (const role of ambassadorRoles) {
-        const { data: stats } = await supabase
-          .rpc('get_ambassador_stats', { ambassador_user_id: role.user_id });
-        if (stats && stats.length > 0) {
-          statsMap[role.user_id] = stats[0];
-        }
-      }
-      setAmbassadorStats(statsMap);
-
-      // Fetch provider stats
-      const providerRoles = rolesData?.filter(r => r.role === 'provider') || [];
-      const pStatsMap: Record<string, { experienceCount: number; totalRevenue: number; totalSales: number }> = {};
-      
-      for (const role of providerRoles) {
-        const { count: expCount } = await supabase
-          .from('experience_providers')
-          .select('*', { count: 'exact', head: true })
-          .eq('provider_user_id', role.user_id)
-          .eq('is_active', true);
-
-        // Get experience IDs for this provider
-        const { data: provExps } = await supabase
-          .from('experience_providers')
-          .select('experience_id')
-          .eq('provider_user_id', role.user_id)
-          .eq('is_active', true);
-
-        let totalRevenue = 0;
-        let totalSales = 0;
-        if (provExps && provExps.length > 0) {
-          const expIds = provExps.map(e => e.experience_id);
-          const { data: bookings } = await supabase
-            .from('bookings')
-            .select('total_price')
-            .in('experience_id', expIds)
-            .in('status', ['confirmed', 'completed']);
-          totalSales = bookings?.length || 0;
-          totalRevenue = bookings?.reduce((sum, b) => sum + (b.total_price || 0), 0) || 0;
-        }
-
-        pStatsMap[role.user_id] = { experienceCount: expCount || 0, totalRevenue, totalSales };
-      }
-      setProviderStats(pStatsMap);
-
-      // Fetch provider modes
-      const { data: modesData } = await supabase
-        .from('provider_profiles')
-        .select('user_id, mode');
-      
-      const modesMap: Record<string, 'independent' | 'assisted'> = {};
-      modesData?.forEach(m => {
-        modesMap[m.user_id] = m.mode;
-      });
-      setProviderModes(modesMap);
+      const data = await api.admin.getUsers({ limit: 500 }); // Fetch generous amount
+      setUsers(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast({
         title: 'Eroare',
-        description: 'Nu am putut încărca datele',
+        description: 'Nu am putut încărca utilizatorii',
         variant: 'destructive',
       });
     } finally {
@@ -183,73 +79,29 @@ const ManageRoles = () => {
     }
   };
 
-  const getUserRoles = (userId: string): string[] => {
-    return userRoles.filter(r => r.user_id === userId).map(r => r.role);
-  };
-
-  const grantRole = async () => {
-    if (!selectedUserId) {
-      toast({
-        title: 'Eroare',
-        description: 'Selectează un utilizator',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const changeRole = async (userId: string, role: string, isRevoke = false) => {
     if (!isPrimaryAdmin) {
       toast({
         title: 'Acces Interzis',
-        description: 'Doar administratorul principal poate acorda roluri',
+        description: 'Doar administratorii pot gestiona rolurile',
         variant: 'destructive',
       });
       return;
     }
 
     setGranting(true);
-
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: selectedUserId,
-          role: newUserRole,
-        });
-
-      if (error) {
-        if (error.code === '23505') {
-          toast({
-            title: 'Rol Existent',
-            description: 'Acest utilizator are deja acest rol',
-          });
-        } else {
-          throw error;
-        }
-      } else {
-        // If provider, also update/insert provider_profile mode
-        if (newUserRole === 'provider') {
-          const { error: modeError } = await supabase
-            .from('provider_profiles')
-            .upsert({
-              user_id: selectedUserId,
-              mode: selectedProviderMode,
-            });
-          
-          if (modeError) console.error('Error saving provider mode:', modeError);
-        }
-
-        toast({
-          title: 'Succes!',
-          description: `Rolul ${newUserRole} a fost acordat${newUserRole === 'provider' ? ` (${selectedProviderMode})` : ''}`,
-        });
-
-        setSelectedUserId('');
-        fetchData();
-      }
+      await api.admin.setUserRole(userId, role);
+      toast({
+        title: 'Succes!',
+        description: isRevoke ? 'Rolul a fost revocat' : `Rolul a fost setat la ${role}`,
+      });
+      setSelectedUserId('');
+      fetchData();
     } catch (error: any) {
       toast({
         title: 'Eroare',
-        description: error.message || 'Nu am putut acorda rolul',
+        description: error.message || 'Nu am putut modifica rolul',
         variant: 'destructive',
       });
     } finally {
@@ -257,68 +109,7 @@ const ManageRoles = () => {
     }
   };
 
-  const revokeRole = async (roleId: string, userId: string) => {
-    // Check if user is primary admin via server-side function
-    const { data: isTargetPrimaryAdmin } = await supabase.rpc('is_primary_admin', {
-      _user_id: userId,
-    });
-    
-    if (isTargetPrimaryAdmin) {
-      toast({
-        title: 'Acțiune Interzisă',
-        description: 'Nu poți revoca rolul administratorului principal',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!isPrimaryAdmin) {
-      toast({
-        title: 'Acces Interzis',
-        description: 'Doar administratorul principal poate revoca roluri',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('id', roleId);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Succes',
-        description: 'Rolul a fost revocat',
-      });
-
-      fetchData();
-    } catch (error: any) {
-      toast({
-        title: 'Eroare',
-        description: error.message || 'Nu am putut revoca rolul',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const deleteUser = async (userId: string) => {
-    // Check if user is primary admin via server-side function
-    const { data: isTargetPrimaryAdmin } = await supabase.rpc('is_primary_admin', {
-      _user_id: userId,
-    });
-    
-    if (isTargetPrimaryAdmin) {
-      toast({
-        title: 'Acțiune Interzisă',
-        description: 'Nu poți șterge contul administratorului principal',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (!isPrimaryAdmin) {
       toast({
         title: 'Acces Interzis',
@@ -329,21 +120,15 @@ const ManageRoles = () => {
     }
 
     setDeletingUserId(userId);
-
     try {
-      const { error } = await supabase.functions.invoke('send-notification', {
-        body: { event_type: 'delete_user', target_user_id: userId }
-      });
-
-      if (error) throw error;
-
+      await api.admin.deleteUser(userId);
       toast({
         title: 'Succes',
         description: 'Contul a fost șters definitiv',
       });
-
       fetchData();
     } catch (error: any) {
+      // Check if it's the primary admin block
       toast({
         title: 'Eroare',
         description: error.message || 'Nu am putut șterge utilizatorul',
@@ -354,28 +139,16 @@ const ManageRoles = () => {
     }
   };
 
-  const getProfileById = (userId: string): Profile | undefined => {
-    return allProfiles.find(p => p.id === userId);
-  };
-
   const getRoleBadge = (role: string) => {
     const variants: Record<string, any> = {
       admin: { variant: 'default', label: 'Admin' },
       moderator: { variant: 'secondary', label: 'Moderator' },
       provider: { variant: 'outline', label: 'Furnizor', className: 'border-blue-500 text-blue-500' },
-      ambassador: { variant: 'outline', label: 'Ambasador', className: 'border-green-500 text-green-500' },
       user: { variant: 'outline', label: 'User' },
     };
     const config = variants[role] || variants.user;
     return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
-
-  const ambassadorUsers = userRoles.filter(r => r.role === 'ambassador');
-  const providerUsers = userRoles.filter(r => r.role === 'provider');
-  const customerProfiles = allProfiles.filter(p => {
-    const roles = getUserRoles(p.id);
-    return roles.length === 0;
-  });
 
   if (!isPrimaryAdmin) {
     return (
@@ -385,7 +158,7 @@ const ManageRoles = () => {
             <CardContent className="pt-6 text-center">
               <Shield className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
-                Doar administratorul principal poate gestiona rolurile
+                Doar administratorii pot gestiona rolurile
               </p>
             </CardContent>
           </Card>
@@ -394,22 +167,25 @@ const ManageRoles = () => {
     );
   }
 
+  const usersWithRoles = users.filter(u => u.role !== 'user');
+  const normalUsers = users.filter(u => u.role === 'user');
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold">Gestionare Roluri</h2>
           <p className="text-muted-foreground">
-            Acordă și gestionează rolurile utilizatorilor
+            Acordă și gestionează rolurile utilizatorilor. Platforma a fost migrată la controlul nativ al rolurilor.
           </p>
         </div>
 
         {/* All Users List */}
         <Card>
           <CardHeader>
-            <CardTitle>Toți Utilizatorii ({allProfiles.length})</CardTitle>
+            <CardTitle>Toți Utilizatorii ({users.length})</CardTitle>
             <CardDescription>
-              Selectează un utilizator pentru a-i acorda un rol
+              Selectează un utilizator pentru a-i modifica rolul
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -423,87 +199,66 @@ const ManageRoles = () => {
                   <TableRow>
                     <TableHead>Nume</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Roluri Actuale</TableHead>
+                    <TableHead>Rol Curent</TableHead>
                     <TableHead>Înregistrat</TableHead>
-                    <TableHead className="text-right">Acordă Rol</TableHead>
+                    <TableHead className="text-right">Acțiuni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allProfiles.map((profile) => {
-                    const roles = getUserRoles(profile.id);
-                    // Check if this user has admin role (primary admin is the first admin)
-                    const hasAdminRole = roles.includes('admin');
+                  {users.map((u) => {
+                    const isCurrentUser = user.id === u.id;
                     return (
-                      <TableRow key={profile.id}>
+                      <TableRow key={u.id}>
                         <TableCell className="font-medium">
-                          {profile.full_name || 'N/A'}
+                          {u.full_name || 'N/A'} {isCurrentUser && <Badge variant="secondary" className="ml-2">Tu</Badge>}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 text-muted-foreground" />
-                            {profile.email}
-                            {hasAdminRole && (
-                              <Badge variant="outline" className="ml-2">Admin</Badge>
-                            )}
+                            {u.email}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1 flex-wrap">
-                            {roles.length > 0 ? (
-                              roles.map(role => (
-                                <span key={role}>{getRoleBadge(role)}</span>
-                              ))
-                            ) : (
-                              <Badge variant="outline">User</Badge>
-                            )}
-                          </div>
+                          {getRoleBadge(u.role)}
                         </TableCell>
                         <TableCell>
-                          {new Date(profile.created_at).toLocaleDateString('ro-RO')}
+                          {new Date(u.created_at).toLocaleDateString('ro-RO')}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
                               <Select 
-                                value={selectedUserId === profile.id ? newUserRole : ''} 
-                                onValueChange={(v: 'admin' | 'moderator' | 'provider' | 'ambassador') => {
-                                  setSelectedUserId(profile.id);
+                                value={selectedUserId === u.id ? newUserRole : ''} 
+                                onValueChange={(v: 'admin' | 'moderator' | 'provider' | 'user') => {
+                                  setSelectedUserId(u.id);
                                   setNewUserRole(v);
                                 }}
+                                disabled={isCurrentUser}
                               >
                                 <SelectTrigger className="w-32">
-                                  <SelectValue placeholder="Rol" />
+                                  <SelectValue placeholder="Modifică" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="admin" disabled={roles.includes('admin')}>
-                                    Admin
-                                  </SelectItem>
-                                  <SelectItem value="moderator" disabled={roles.includes('moderator')}>
-                                    Moderator
-                                  </SelectItem>
-                                  <SelectItem value="provider" disabled={roles.includes('provider')}>
-                                    Furnizor
-                                  </SelectItem>
-                                  <SelectItem value="ambassador" disabled={roles.includes('ambassador')}>
-                                    Ambasador
-                                  </SelectItem>
+                                  <SelectItem value="admin" disabled={u.role === 'admin'}>Admin</SelectItem>
+                                  <SelectItem value="moderator" disabled={u.role === 'moderator'}>Moderator</SelectItem>
+                                  <SelectItem value="provider" disabled={u.role === 'provider'}>Furnizor</SelectItem>
+                                  <SelectItem value="user" disabled={u.role === 'user'}>User (Revocă)</SelectItem>
                                 </SelectContent>
                               </Select>
                               <Button 
                                 size="sm" 
                                 onClick={() => {
-                                  if (selectedUserId === profile.id) {
-                                    grantRole();
+                                  if (selectedUserId === u.id) {
+                                    changeRole(u.id, newUserRole, newUserRole === 'user');
                                   } else {
-                                    setSelectedUserId(profile.id);
                                     toast({
                                       title: 'Selectează un rol',
                                       description: 'Alege mai întâi rolul din dropdown',
                                     });
                                   }
                                 }}
-                              disabled={granting || selectedUserId !== profile.id}
+                              disabled={granting || selectedUserId !== u.id || isCurrentUser}
                             >
-                              <UserPlus className="h-4 w-4" />
+                              {newUserRole === 'user' ? <Trash2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                             </Button>
 
                             <AlertDialog>
@@ -512,7 +267,7 @@ const ManageRoles = () => {
                                   variant="destructive" 
                                   size="sm" 
                                   title="Șterge utilizator"
-                                  disabled={deletingUserId === profile.id}
+                                  disabled={deletingUserId === u.id || isCurrentUser}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -521,14 +276,14 @@ const ManageRoles = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Ești complet sigur?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Această acțiune va șterge definitiv contul <strong>{profile.email}</strong>, inclusiv profilul, rolurile și datele asociate. Acțiunea este ireversibilă.
+                                    Această acțiune va șterge definitiv contul <strong>{u.email}</strong>, inclusiv profilul, rolurile și datele asociate. Acțiunea este ireversibilă.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Anulează</AlertDialogCancel>
                                   <AlertDialogAction
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() => deleteUser(profile.id)}
+                                    onClick={() => deleteUser(u.id)}
                                   >
                                     Șterge Ireversibil
                                   </AlertDialogAction>
@@ -536,22 +291,6 @@ const ManageRoles = () => {
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
-                          {selectedUserId === profile.id && newUserRole === 'provider' && (
-                            <div className="mt-2 flex justify-end">
-                              <Select 
-                                value={selectedProviderMode} 
-                                onValueChange={(v: 'independent' | 'assisted') => setSelectedProviderMode(v)}
-                              >
-                                <SelectTrigger className="w-32 h-8 text-xs">
-                                  <SelectValue placeholder="Mod" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="independent">Independent</SelectItem>
-                                  <SelectItem value="assisted">Asistat</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
                         </TableCell>
                       </TableRow>
                     );
@@ -559,211 +298,6 @@ const ManageRoles = () => {
                 </TableBody>
               </Table>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Users with Roles - Quick Management */}
-        {userRoles.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Roluri Acordate ({userRoles.length})</CardTitle>
-              <CardDescription>
-                Gestionează rolurile existente
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Utilizator</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Data Acordării</TableHead>
-                    <TableHead className="text-right">Acțiuni</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {userRoles.map((userRole) => {
-                    const profile = getProfileById(userRole.user_id);
-                    return (
-                      <TableRow key={userRole.id}>
-                        <TableCell className="font-medium">
-                          {profile?.full_name || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            {profile?.email || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{getRoleBadge(userRole.role)}</TableCell>
-                        <TableCell>
-                          {new Date(userRole.created_at).toLocaleDateString('ro-RO')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Ești sigur?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Această acțiune va revoca rolul de {userRole.role} pentru{' '}
-                                    {profile?.email}.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Anulează</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => revokeRole(userRole.id, userRole.user_id)}
-                                  >
-                                    Revocă Rol
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Ambassador List with Stats */}
-        {ambassadorUsers.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                🏆 Ambasadori ({ambassadorUsers.length})
-              </CardTitle>
-              <CardDescription>
-                Statistici vânzări per ambasador
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ambasador</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Experiențe Active</TableHead>
-                    <TableHead>Vânzări</TableHead>
-                    <TableHead>Venituri Totale</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ambassadorUsers.map((role) => {
-                    const profile = getProfileById(role.user_id);
-                    const stats = ambassadorStats[role.user_id];
-                    return (
-                      <TableRow key={role.id}>
-                        <TableCell className="font-medium">
-                          {profile?.full_name || 'N/A'}
-                        </TableCell>
-                        <TableCell>{profile?.email || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {stats?.active_experiences_count || 0} experiențe
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {stats?.total_sales || 0} vânzări
-                        </TableCell>
-                        <TableCell className="font-semibold text-green-600">
-                          {stats?.total_revenue?.toLocaleString() || 0} Lei
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Providers Table */}
-        {providerUsers.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Furnizori ({providerUsers.length})
-              </CardTitle>
-              <CardDescription>Statistici per furnizor</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Furnizor</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Experiențe Listate</TableHead>
-                    <TableHead>Total Vânzări</TableHead>
-                    <TableHead>Venit Generat</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {providerUsers.map((role) => {
-                    const profile = getProfileById(role.user_id);
-                    const pStats = providerStats[role.user_id];
-                    return (
-                      <TableRow key={role.id}>
-                        <TableCell className="font-medium">{profile?.full_name || 'N/A'}</TableCell>
-                        <TableCell>{profile?.email || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{pStats?.experienceCount || 0}</Badge>
-                        </TableCell>
-                        <TableCell>{pStats?.totalSales || 0}</TableCell>
-                        <TableCell className="font-semibold">{pStats?.totalRevenue?.toLocaleString() || 0} Lei</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="default">Activ</Badge>
-                            <Badge variant="outline" className="text-[10px] uppercase">
-                              {providerModes[role.user_id] === 'assisted' ? 'Asistat (SMS)' : 'Independent'}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Customers Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Clienți ({customerProfiles.length})</CardTitle>
-            <CardDescription>Utilizatori fără rol special</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nume</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Înregistrat</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customerProfiles.slice(0, 50).map((profile) => (
-                  <TableRow key={profile.id}>
-                    <TableCell className="font-medium">{profile.full_name || 'N/A'}</TableCell>
-                    <TableCell>{profile.email}</TableCell>
-                    <TableCell>{new Date(profile.created_at).toLocaleDateString('ro-RO')}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
       </div>
