@@ -239,7 +239,7 @@ const ExperienceBuilder = () => {
                   <SelectValue placeholder="Selectează Furnizorul de experiență" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                  <SelectItem value="none" disabled>Selectează...</SelectItem>
+                  <SelectItem value="none">Selectează...</SelectItem>
                   {providers.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.full_name || p.email}
@@ -300,7 +300,7 @@ const ExperienceBuilder = () => {
                     <SelectValue placeholder="Selectează regiune" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                    <SelectItem value="none" disabled>Selectează o regiune...</SelectItem>
+                    <SelectItem value="none">Selectează o regiune...</SelectItem>
                     {regions.map((region) => (
                       <SelectItem key={region.id} value={region.id}>
                         {region.name}
@@ -319,7 +319,7 @@ const ExperienceBuilder = () => {
                   <SelectValue placeholder="Selectează categorie" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                  <SelectItem value="none" disabled>Selectează o categorie...</SelectItem>
+                  <SelectItem value="none">Selectează o categorie...</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.name}
