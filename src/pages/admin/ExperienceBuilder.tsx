@@ -132,10 +132,10 @@ const ExperienceBuilder = () => {
   };
 
   const createExperience = async () => {
-    if (!title || !description || !locationName || !price || categoryId === 'none' || regionId === 'none' || providerId === 'none') {
+    if (!title || !description || !locationName || !price || categoryId === 'none' || regionId === 'none') {
       toast({
         title: 'Eroare',
-        description: 'Completează toate câmpurile obligatorii, inclusiv furnizorul, categoria și regiunea',
+        description: 'Completează toate câmpurile obligatorii, inclusiv categoria și regiunea',
         variant: 'destructive',
       });
       return;
@@ -248,7 +248,7 @@ const ExperienceBuilder = () => {
                 onChange={(e) => setProviderId(e.target.value)}
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="none" disabled>Selectează Furnizorul de experiență</option>
+                <option value="none">Atribuie mai târziu (Assign Later)</option>
                 {providers.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.full_name || p.email}

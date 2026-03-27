@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { uploadExperienceImageFile } from "@/lib/experienceImages";
+import { api } from "@/lib/api";
 import { FocalPointPicker } from "@/components/admin/FocalPointPicker";
 import { ExperienceImage } from "@/components/ExperienceImage";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -49,6 +50,7 @@ type ExperienceRow = {
   min_age: number | null;
   is_active: boolean | null;
   is_featured: boolean | null;
+  provider_id: string | null;
 };
 
 type ExperienceImageRow = {
@@ -131,6 +133,7 @@ export default function EditExperience() {
 
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [regions, setRegions] = useState<RegionOption[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
 
   const [originalExperience, setOriginalExperience] = useState<ExperienceRow | null>(null);
   const [originalImages, setOriginalImages] = useState<ExperienceImageRow[]>([]);
@@ -143,6 +146,7 @@ export default function EditExperience() {
   const [locationName, setLocationName] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [regionId, setRegionId] = useState<string>("");
+  const [providerId, setProviderId] = useState<string>("none");
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
@@ -188,7 +192,8 @@ export default function EditExperience() {
     const load = async () => {
       setLoading(true);
       try {
-        const [expRes, imgRes, svcRes, catRes, regRes] = await Promise.all([
+        // Fetch providers in parallel too
+        const [expRes, imgRes, svcRes, catRes, regRes, currentProvRes] = await Promise.all([
           supabase
             .from("experiences")
             .select(
@@ -216,6 +221,11 @@ export default function EditExperience() {
             .from("regions")
             .select("id,name")
             .order("display_order", { ascending: true }),
+          supabase
+            .from("experience_providers")
+            .select("provider_user_id")
+            .eq("experience_id", id)
+            .maybeSingle(),
         ]);
 
         if (expRes.error) throw expRes.error;
@@ -225,7 +235,11 @@ export default function EditExperience() {
         if (catRes.error) throw catRes.error;
         if (regRes.error) throw regRes.error;
 
+        const allProviders = await api.admin.getUsers({ role: 'provider' }).catch(() => []);
+        setProviders(Array.isArray(allProviders) ? allProviders : []);
+
         const exp = expRes.data as ExperienceRow;
+        exp.provider_id = currentProvRes?.data?.provider_user_id ?? "none";
         const imgs = (imgRes.data ?? []) as unknown as ExperienceImageRow[];
         const svcs = (svcRes.data ?? []) as unknown as ExperienceServiceRow[];
 
@@ -243,6 +257,7 @@ export default function EditExperience() {
         setLocationName(exp.location_name ?? "");
         setCategoryId(exp.category_id ?? "");
         setRegionId(exp.region_id ?? "");
+        setProviderId(exp.provider_id ?? "none");
         setPrice(exp.price?.toString?.() ?? "");
         setOriginalPrice(exp.original_price?.toString?.() ?? "");
         setDurationMinutes(exp.duration_minutes?.toString?.() ?? "");
@@ -323,7 +338,7 @@ export default function EditExperience() {
     if (!id) return;
     try {
       setSaving(true);
-      const url = await uploadExperienceImageFile({ experienceId: id, file });
+      const url = await uploadExperienceImageFile({ file });
       setImages((prev) =>
         prev.map((x) => (x.clientId === clientId ? { ...x, image_url: url } : x))
       );
@@ -411,6 +426,12 @@ export default function EditExperience() {
 
     if ((originalExperience.is_active ?? true) !== isActive) patch.is_active = isActive;
     if ((originalExperience.is_featured ?? false) !== isFeatured) patch.is_featured = isFeatured;
+
+    if (providerId !== "none" || (providerId === "none" && originalExperience.provider_id && originalExperience.provider_id !== "none")) {
+        if (providerId !== originalExperience.provider_id) {
+            patch.provider_id = providerId === "none" ? "none" : providerId;
+        }
+    }
 
     return patch;
   };
@@ -681,6 +702,23 @@ export default function EditExperience() {
                 <CardTitle>Detalii de bază</CardTitle>
               </CardHeader>
               <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="provider">Furnizor (Provider) *</Label>
+                  <select
+                    id="provider"
+                    value={providerId}
+                    onChange={(e) => setProviderId(e.target.value)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="none">Atribuie mai târziu (Assign Later)</option>
+                    {providers.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name || p.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="title">Titlu *</Label>

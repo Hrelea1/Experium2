@@ -99,6 +99,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
     const experience = await queryOne(
       `SELECT
         e.*,
+        ep.provider_user_id AS provider_id,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         co.name AS county_name,
@@ -108,6 +109,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
        JOIN regions r ON r.id = e.region_id
        LEFT JOIN counties co ON co.id = e.county_id
        LEFT JOIN cities ci ON ci.id = e.city_id
+       LEFT JOIN experience_providers ep ON ep.experience_id = e.id
        WHERE e.id = $1 AND e.is_active = true`,
       [id]
     );
@@ -138,8 +140,15 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
       provider_id, images, services
     } = req.body;
 
-    // Determine provider ID
-    const actualProviderId = (req.user!.role === 'admin' && provider_id) ? provider_id : req.user!.userId;
+    // Determine provider ID (if explicitly set to "none" or null, keep it null)
+    let actualProviderId = null;
+    if (req.user!.role === 'admin') {
+      if (provider_id && provider_id !== 'none') {
+        actualProviderId = provider_id;
+      }
+    } else {
+      actualProviderId = req.user!.userId;
+    }
 
     await client.query('BEGIN');
 
@@ -157,10 +166,12 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
     const experienceId = expRes.rows[0].id;
 
     // 2. Insert provider mapping
-    await client.query(
-      `INSERT INTO experience_providers (experience_id, provider_user_id) VALUES ($1, $2)`,
-      [experienceId, actualProviderId]
-    );
+    if (actualProviderId) {
+      await client.query(
+        `INSERT INTO experience_providers (experience_id, provider_user_id) VALUES ($1, $2)`,
+        [experienceId, actualProviderId]
+      );
+    }
 
     // 3. Insert images
     if (Array.isArray(images) && images.length > 0) {
@@ -209,26 +220,55 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
       'category_id','region_id','county_id','city_id','location_name',
       'duration_minutes','max_participants','min_age','is_featured','is_active'];
 
-    const updates: string[] = [];
-    const params: unknown[] = [];
-    let idx = 1;
+    const client = await pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+      const updates: string[] = [];
+      const params: unknown[] = [];
+      let idx = 1;
 
-    for (const key of allowed) {
-      if (key in fields) {
-        updates.push(`${key} = $${idx++}`);
-        params.push(fields[key]);
+      for (const key of allowed) {
+        if (key in fields) {
+          updates.push(`${key} = $${idx++}`);
+          params.push(fields[key]);
+        }
       }
+
+      if (updates.length > 0) {
+        updates.push(`updated_at = now()`);
+        params.push(id);
+
+        await client.query(
+          `UPDATE experiences SET ${updates.join(', ')} WHERE id = $${idx}`,
+          params
+        );
+      }
+
+      // Handle provider mapping
+      if ('provider_id' in fields) {
+        const providerId = fields.provider_id;
+        
+        // Remove existing mapping
+        await client.query(`DELETE FROM experience_providers WHERE experience_id = $1`, [id]);
+        
+        // Insert new if not none
+        if (providerId && providerId !== 'none') {
+          await client.query(
+            `INSERT INTO experience_providers (experience_id, provider_user_id) VALUES ($1, $2)`,
+            [id, providerId]
+          );
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ message: 'Experience updated' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    if (!updates.length) return res.status(400).json({ error: 'No valid fields to update' });
-    updates.push(`updated_at = now()`);
-    params.push(id);
-
-    await query(
-      `UPDATE experiences SET ${updates.join(', ')} WHERE id = $${idx}`,
-      params
-    );
-    res.json({ message: 'Experience updated' });
   } catch (err) {
     console.error('[experiences PUT /:id]', err);
     res.status(500).json({ error: 'Failed to update experience' });
