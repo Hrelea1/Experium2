@@ -58,6 +58,19 @@ app.post('/ping', (_req, res) => {
   res.json({ pong: true, received: new Date().toISOString() });
 });
 
+// ─── Temporary DB Seed Endpoint ─────────────────────────────
+app.get('/trigger-temp-seed', async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    exec('node dist/scripts/seed_romania.js', (err: any, stdout: string, stderr: string) => {
+      if (err) return res.status(500).json({ error: err.message, stderr });
+      res.json({ success: true, stdout });
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ error: `Route ${req.method} ${req.path} not found` });
