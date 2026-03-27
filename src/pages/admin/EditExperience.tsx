@@ -453,186 +453,25 @@ export default function EditExperience() {
 
     setSaving(true);
     try {
-      // 1) Experience details patch
-      const patch = buildExperiencePatch();
-      if (patch && Object.keys(patch).length > 0) {
-        const { error } = await supabase.from("experiences").update(patch).eq("id", id);
-        if (error) throw error;
-      }
+      const patch = buildExperiencePatch() || {};
+      
+      patch.images = cleanImages.map((img, idx) => ({
+        image_url: img.image_url,
+        is_primary: img.is_primary,
+        display_order: idx
+      }));
 
-      // 2) Images incremental sync
-      {
-        const currentById = new Map(cleanImages.filter((x) => x.id).map((x) => [x.id!, x]));
-        const originalIds = new Set(originalImages.map((x) => x.id));
+      patch.services = cleanServices.map((s, idx) => ({
+        name: s.name,
+        description: s.description || null,
+        price: normalizeNumberInput(s.price) ?? 0,
+        is_required: s.is_required,
+        max_quantity: normalizeNumberInput(s.max_quantity) ?? 1,
+        is_active: s.is_active,
+        display_order: idx,
+      }));
 
-        const toDelete = originalImages
-          .filter((o) => !currentById.has(o.id))
-          .map((o) => o.id);
-
-        const updates = cleanImages
-          .map((img, idx) => ({
-            ...img,
-            display_order: idx,
-          }))
-          .filter((img): img is ImageDraft & { id: string; display_order: number } => Boolean(img.id))
-          .filter((img) => {
-            const o = originalImages.find((x) => x.id === img.id);
-            if (!o) return false;
-            const oPrimary = Boolean(o.is_primary);
-            const oOrder = o.display_order ?? 0;
-            return (
-              o.image_url !== img.image_url ||
-              oPrimary !== img.is_primary ||
-               oOrder !== img.display_order
-            );
-          })
-          .map((img) => ({
-            id: img.id,
-            image_url: img.image_url,
-            is_primary: img.is_primary,
-            display_order: img.display_order,
-          }));
-
-        const inserts = cleanImages
-          .map((img, idx) => ({ ...img, display_order: idx }))
-          .filter((img) => !img.id)
-          .map((img) => ({
-            experience_id: id,
-            image_url: img.image_url,
-            is_primary: img.is_primary,
-            display_order: img.display_order,
-          }));
-
-        if (toDelete.length > 0) {
-          const { error } = await supabase
-            .from("experience_images")
-            .delete()
-            .in("id", toDelete);
-          if (error) throw error;
-        }
-
-        if (updates.length > 0) {
-          const results = await Promise.all(
-            updates.map((u) =>
-              supabase
-                .from("experience_images")
-                .update({
-                  image_url: u.image_url,
-                  is_primary: u.is_primary,
-                  display_order: u.display_order,
-                })
-                .eq("id", u.id)
-            )
-          );
-          const firstError = results.find((r) => r.error)?.error;
-          if (firstError) throw firstError;
-        }
-
-        if (inserts.length > 0) {
-          const { error } = await supabase.from("experience_images").insert(inserts);
-          if (error) throw error;
-        }
-
-        // If we deleted all original images and user kept none, that's OK.
-        // But if we still have images, ensure we have exactly one primary.
-        if (cleanImages.length > 0) {
-          const primaryCount = cleanImages.filter((i) => i.is_primary).length;
-          if (primaryCount !== 1) {
-            // Best effort fix: force the first one as primary.
-            const first = cleanImages[0];
-            if (first.id && originalIds.has(first.id)) {
-              await supabase
-                .from("experience_images")
-                .update({ is_primary: true })
-                .eq("id", first.id);
-            }
-          }
-        }
-      }
-
-      // 3) Services incremental sync
-      {
-        const curr = cleanServices.map((s, idx) => ({ ...s, display_order: idx }));
-        const currentById = new Map(curr.filter((x) => x.id).map((x) => [x.id!, x]));
-        const toDelete = originalServices
-          .filter((o) => !currentById.has(o.id))
-          .map((o) => o.id);
-
-        const updates = curr
-          .filter((s): s is ServiceDraft & { id: string; display_order: number } => Boolean(s.id))
-          .filter((s) => {
-            const o = originalServices.find((x) => x.id === s.id);
-            if (!o) return false;
-            const nextPrice = normalizeNumberInput(s.price) ?? 0;
-            const nextMax = normalizeNumberInput(s.max_quantity) ?? 1;
-            return (
-              o.name !== s.name ||
-              (o.description ?? "") !== s.description ||
-              o.price !== nextPrice ||
-              o.is_required !== s.is_required ||
-              o.max_quantity !== nextMax ||
-              o.is_active !== s.is_active ||
-              o.display_order !== s.display_order
-            );
-          })
-          .map((s) => ({
-            id: s.id,
-            name: s.name,
-            description: s.description || null,
-            price: normalizeNumberInput(s.price) ?? 0,
-            is_required: s.is_required,
-            max_quantity: normalizeNumberInput(s.max_quantity) ?? 1,
-            is_active: s.is_active,
-            display_order: s.display_order,
-          }));
-
-        const inserts = curr
-          .filter((s) => !s.id)
-          .map((s) => ({
-            experience_id: id,
-            name: s.name,
-            description: s.description || null,
-            price: normalizeNumberInput(s.price) ?? 0,
-            is_required: s.is_required,
-            max_quantity: normalizeNumberInput(s.max_quantity) ?? 1,
-            is_active: s.is_active,
-            display_order: s.display_order,
-          }));
-
-        if (toDelete.length > 0) {
-          const { error } = await supabase
-            .from("experience_services")
-            .delete()
-            .in("id", toDelete);
-          if (error) throw error;
-        }
-
-        if (updates.length > 0) {
-          const results = await Promise.all(
-            updates.map((u) =>
-              supabase
-                .from("experience_services")
-                .update({
-                  name: u.name,
-                  description: u.description,
-                  price: u.price,
-                  is_required: u.is_required,
-                  max_quantity: u.max_quantity,
-                  is_active: u.is_active,
-                  display_order: u.display_order,
-                })
-                .eq("id", u.id)
-            )
-          );
-          const firstError = results.find((r) => r.error)?.error;
-          if (firstError) throw firstError;
-        }
-
-        if (inserts.length > 0) {
-          const { error } = await supabase.from("experience_services").insert(inserts);
-          if (error) throw error;
-        }
-      }
+      await api.experiences.update(id, patch);
 
       toast({ title: "Salvat", description: "Experiența a fost actualizată." });
       navigate("/admin/experiences");

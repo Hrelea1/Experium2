@@ -230,8 +230,8 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
   }
 });
 
-// ─── PUT /experiences/:id (Admin only) ───────────────────────────────────────
-router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
+// ─── PUT /experiences/:id (Admin/Provider) ───────────────────────────────────
+router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const fields = req.body;
@@ -243,6 +243,18 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
     
     try {
       await client.query('BEGIN');
+
+      if (req.user!.role !== 'admin') {
+        const checkOwnership = await client.query(
+          'SELECT 1 FROM experience_providers WHERE experience_id = $1 AND provider_user_id = $2',
+          [id, req.user!.userId]
+        );
+        if (checkOwnership.rows.length === 0) {
+          await client.query('ROLLBACK');
+          client.release();
+          return res.status(403).json({ error: 'Not authorized to edit this experience' });
+        }
+      }
       const updates: string[] = [];
       const params: unknown[] = [];
       let idx = 1;
@@ -265,7 +277,7 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
       }
 
       // Handle provider mapping
-      if ('provider_id' in fields) {
+      if ('provider_id' in fields && req.user!.role === 'admin') {
         const providerId = fields.provider_id;
         
         // Remove existing mapping
@@ -276,6 +288,35 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
           await client.query(
             `INSERT INTO experience_providers (experience_id, provider_user_id) VALUES ($1, $2)`,
             [id, providerId]
+          );
+        }
+      }
+
+      // 2. Sync Images
+      if ('images' in fields && Array.isArray(fields.images)) {
+        await client.query(`DELETE FROM experience_images WHERE experience_id = $1`, [id]);
+        for (let i = 0; i < fields.images.length; i++) {
+          const img = fields.images[i];
+          if (!img.image_url) continue;
+          await client.query(
+            `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order, focal_x, focal_y)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [id, img.image_url, img.is_primary || i === 0, img.display_order || i, img.focal_x ?? 50, img.focal_y ?? 50]
+          );
+        }
+      }
+
+      // 3. Sync Services
+      if ('services' in fields && Array.isArray(fields.services)) {
+        await client.query(`DELETE FROM experience_services WHERE experience_id = $1`, [id]);
+        for (let i = 0; i < fields.services.length; i++) {
+          const svc = fields.services[i];
+          if (!svc.name || !svc.price) continue;
+          await client.query(
+            `INSERT INTO experience_services
+              (experience_id, name, description, price, max_quantity, is_required, display_order)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [id, svc.name, svc.description || null, svc.price, svc.max_quantity || 1, svc.is_required || false, svc.display_order || i]
           );
         }
       }
