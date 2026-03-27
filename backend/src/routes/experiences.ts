@@ -84,7 +84,15 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       countParams
     );
 
-    res.json({ data: rows, total: parseInt(countResult?.count ?? '0', 10) });
+    const formattedRows = rows.map(r => ({
+      ...r,
+      price: Number(r.price),
+      original_price: r.original_price ? Number(r.original_price) : null,
+      avg_rating: Number(r.avg_rating),
+      total_reviews: Number(r.total_reviews),
+    }));
+
+    res.json({ data: formattedRows, total: parseInt(countResult?.count ?? '0', 10) });
   } catch (err) {
     console.error('[experiences GET /]', err);
     res.status(500).json({ error: 'Failed to fetch experiences' });
@@ -122,7 +130,15 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       [id]
     );
 
-    res.json({ ...experience, images });
+    const formattedExperience = {
+      ...experience,
+      price: Number(experience.price),
+      original_price: experience.original_price ? Number(experience.original_price) : null,
+      avg_rating: Number(experience.avg_rating),
+      total_reviews: Number(experience.total_reviews),
+    };
+
+    res.json({ ...formattedExperience, images });
   } catch (err) {
     console.error('[experiences GET /:id]', err);
     res.status(500).json({ error: 'Failed to fetch experience' });
