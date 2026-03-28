@@ -32,6 +32,28 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /availability ─────────────────────────────────────────────────────────
+// Returns all slots for the logged-in provider
+router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { from } = req.query as { from?: string };
+
+    const rows = await query(
+      `SELECT * FROM availability_slots
+       WHERE provider_user_id = $1
+       ${from ? `AND slot_date >= $2` : ''}
+       ORDER BY slot_date ASC, start_time ASC`,
+      [userId, ...(from ? [from] : [])]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error('[availability GET /]', err);
+    res.status(500).json({ error: 'Failed to fetch provider availability' });
+  }
+});
+
 // ─── POST /availability/slots (Provider/Admin) ────────────────────────────────
 // Create availability slots for an experience
 router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req: Request, res: Response) => {
@@ -52,6 +74,27 @@ router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req:
   } catch (err) {
     console.error('[availability POST /slots]', err);
     res.status(500).json({ error: 'Failed to create slot' });
+  }
+});
+
+// ─── DELETE /availability/slots/:id (Provider/Admin) ──────────────────────────
+router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+    const isAdmin = req.user!.role === 'admin';
+
+    // Verify ownership if not admin
+    if (!isAdmin) {
+      const slot = await queryOne('SELECT 1 FROM availability_slots WHERE id = $1 AND provider_user_id = $2', [id, userId]);
+      if (!slot) return res.status(403).json({ error: 'Not authorized to delete this slot' });
+    }
+
+    await query('DELETE FROM availability_slots WHERE id = $1', [id]);
+    res.json({ message: 'Slot deleted' });
+  } catch (err) {
+    console.error('[availability DELETE /slots/:id]', err);
+    res.status(500).json({ error: 'Failed to delete slot' });
   }
 });
 

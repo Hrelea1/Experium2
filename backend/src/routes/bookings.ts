@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
-import { requireAuth, requireAdmin } from '../middleware/auth';
+import { requireAuth, requireAdmin, requireRole } from '../middleware/auth';
 import { sendBookingConfirmation, sendCancellationConfirmation } from '../services/email';
 
 const router = Router();
@@ -28,6 +28,34 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   } catch (err) {
     console.error('[bookings GET /]', err);
     res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// ─── GET /bookings/provider (Provider/Admin) ──────────────────────────────────
+router.get('/provider', requireRole('provider', 'admin'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const rows = await query(
+      `SELECT
+        b.id, b.booking_date, b.participants, b.status, b.total_price,
+        b.special_requests, b.cancellation_reason, b.rescheduled_count,
+        b.created_at, b.user_id,
+        e.title AS experience_title, e.location_name,
+        p.full_name AS client_name, u.email AS client_email,
+        (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS experience_image
+       FROM bookings b
+       JOIN experiences e ON e.id = b.experience_id
+       JOIN experience_providers ep ON ep.experience_id = e.id
+       JOIN users u ON u.id = b.user_id
+       LEFT JOIN profiles p ON p.id = b.user_id
+       WHERE ep.provider_user_id = $1 AND ep.is_active = true
+       ORDER BY b.booking_date DESC`,
+      [userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[bookings GET /provider]', err);
+    res.status(500).json({ error: 'Failed to fetch provider bookings' });
   }
 });
 
@@ -184,6 +212,48 @@ router.post('/:id/reschedule', requireAuth, async (req: Request, res: Response) 
   } catch (err) {
     console.error('[bookings reschedule]', err);
     res.status(500).json({ error: 'Failed to reschedule booking' });
+  }
+});
+
+// ─── PATCH /bookings/:id/status (Provider/Admin) ──────────────────────────────
+router.patch('/:id/status', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user!.userId;
+    const isAdmin = req.user!.role === 'admin';
+
+    if (!['confirmed', 'cancelled', 'completed', 'pending', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Verify ownership/assignment
+    if (!isAdmin) {
+      const assignment = await queryOne(
+        `SELECT 1 FROM bookings b
+         JOIN experience_providers ep ON ep.experience_id = b.experience_id
+         WHERE b.id = $1 AND ep.provider_user_id = $2 AND ep.is_active = true`,
+        [id, userId]
+      );
+      if (!assignment) return res.status(403).json({ error: 'Not authorized to update this booking' });
+    }
+
+    // If declining, we might want to map 'declined' to 'cancelled' in the database 
+    // or keep 'declined' if the schema supports it. 
+    // The previous logic used 'cancelled' with a reason.
+    const dbStatus = status === 'declined' ? 'cancelled' : status;
+    const reason = status === 'declined' ? 'Provider declined' : null;
+
+    await query(
+      `UPDATE bookings SET status = $1, cancellation_reason = COALESCE($2, cancellation_reason), updated_at = now()
+       WHERE id = $3`,
+      [dbStatus, reason, id]
+    );
+
+    res.json({ success: true, status: dbStatus });
+  } catch (err) {
+    console.error('[bookings PATCH /status]', err);
+    res.status(500).json({ error: 'Failed to update booking status' });
   }
 });
 

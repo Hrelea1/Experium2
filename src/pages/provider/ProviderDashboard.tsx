@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -161,28 +161,12 @@ function ExperienceDetailView({
   // Fetch images, full details, and services
   useEffect(() => {
     const fetchPreviewData = async () => {
-      const [imagesRes, expRes, servicesRes] = await Promise.all([
-        supabase
-          .from('experience_images')
-          .select('id, image_url, is_primary, focal_x, focal_y')
-          .eq('experience_id', experience.experience_id)
-          .order('display_order'),
-        supabase
-          .from('experiences')
-          .select('description, short_description, includes, avg_rating, total_reviews, max_participants, min_age, cancellation_policy, original_price, address, categories(name)')
-          .eq('id', experience.experience_id)
-          .single(),
-        supabase
-          .from('experience_services')
-          .select('id, name, price, is_required')
-          .eq('experience_id', experience.experience_id)
-          .eq('is_active', true)
-          .order('display_order'),
-      ]);
-
-      if (imagesRes.data) setImages(imagesRes.data);
-      if (expRes.data) {
-        const d = expRes.data as any;
+      try {
+        const fullExp = await api.experiences.getById(experience.experience_id);
+        
+        if (fullExp.images) setImages(fullExp.images as any);
+        
+        const d = fullExp as any;
         setFullExperience({
           description: d.description,
           short_description: d.short_description,
@@ -194,10 +178,13 @@ function ExperienceDetailView({
           cancellation_policy: d.cancellation_policy,
           original_price: d.original_price,
           address: d.address,
-          category_name: d.categories?.name || null,
+          category_name: d.category_name || null,
         });
+        
+        if (fullExp.services) setServices(fullExp.services as any);
+      } catch (err) {
+        console.error('Error fetching preview data:', err);
       }
-      if (servicesRes.data) setServices(servicesRes.data);
     };
 
     fetchPreviewData();
@@ -212,17 +199,13 @@ function ExperienceDetailView({
       return;
     }
     try {
-      const { error } = await supabase.from('availability_slots').insert({
+      await api.provider.addAvailabilitySlot({
         experience_id: experience.experience_id,
-        provider_user_id: user.id,
         slot_date: selectedDate.toISOString().split('T')[0],
         start_time: startTime,
         end_time: endTime,
-        max_participants: maxParticipants,
-        is_available: true,
-        slot_type: exp.provider_type || 'service',
+        capacity: maxParticipants,
       });
-      if (error) throw error;
       toast({ title: 'Succes', description: 'Disponibilitatea a fost adăugată' });
       setDialogOpen(false);
       onSlotAdded();
@@ -545,12 +528,8 @@ export default function ProviderDashboard() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel('provider-availability')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'availability_slots' }, () => fetchData())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Note: custom backend doesn't support realtime yet, so we rely on periodic fetch or manual triggers
+    // fetchData(); 
   }, [user]);
 
   const fetchData = async () => {
@@ -558,38 +537,14 @@ export default function ProviderDashboard() {
     setLoading(true);
 
     try {
-      const { data: expData, error: expError } = await supabase
-        .from('experience_providers')
-        .select(`
-          id, experience_id,
-          experience:experiences (id, title, location_name, price, provider_type, duration_minutes, is_active)
-        `)
-        .eq('provider_user_id', user.id)
-        .eq('is_active', true);
-
-      if (expError) throw expError;
+      const expData = await api.provider.getAssignedExperiences();
       setAssignedExperiences(expData || []);
 
-      const { data: slotsData, error: slotsError } = await supabase
-        .from('availability_slots')
-        .select('*')
-        .eq('provider_user_id', user.id)
-        .gte('slot_date', new Date().toISOString().split('T')[0])
-        .order('slot_date', { ascending: true });
-
-      if (slotsError) throw slotsError;
+      const slotsData = await api.provider.getAvailabilitySlots(new Date().toISOString().split('T')[0]);
       setAvailabilitySlots(slotsData || []);
 
-      const experienceIds = (expData || []).map(e => e.experience_id);
-      if (experienceIds.length > 0) {
-        const { data: bookingsData } = await supabase
-          .from('bookings')
-          .select('id, booking_date, participants, total_price, status, created_at, user_id, experiences(title, location_name)')
-          .in('experience_id', experienceIds)
-          .order('booking_date', { ascending: false })
-          .limit(100);
-
-        const bData = bookingsData || [];
+      if (expData && expData.length > 0) {
+        const bData = await api.provider.getBookings();
         setSalesBookings(bData as SalesBooking[]);
 
         const confirmed = bData.filter(b => b.status === 'confirmed' || b.status === 'completed');
@@ -599,16 +554,12 @@ export default function ProviderDashboard() {
           totalBookings: bData.length,
         });
 
-        const clientIds = [...new Set(bData.map(b => b.user_id))];
-        if (clientIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, email')
-            .in('id', clientIds);
-          const map: Record<string, string> = {};
-          (profiles || []).forEach(p => { map[p.id] = p.full_name || p.email; });
-          setUserProfiles(map);
-        }
+        // Clients are already included in the new backend route
+        const map: Record<string, string> = {};
+        bData.forEach(b => { 
+          if (b.user_id) map[b.user_id] = b.client_name || b.client_email || 'N/A'; 
+        });
+        setUserProfiles(map);
       }
     } catch (error: any) {
       toast({ title: 'Eroare', description: 'Nu am putut încărca datele', variant: 'destructive' });
@@ -619,8 +570,7 @@ export default function ProviderDashboard() {
 
   const deleteSlot = async (slotId: string) => {
     try {
-      const { error } = await supabase.from('availability_slots').delete().eq('id', slotId);
-      if (error) throw error;
+      await api.provider.deleteAvailabilitySlot(slotId);
       toast({ title: 'Șters', description: 'Disponibilitatea a fost ștearsă' });
       fetchData();
     } catch (error: any) {
@@ -631,10 +581,7 @@ export default function ProviderDashboard() {
   const handleBookingAction = async (bookingId: string, action: 'confirm' | 'decline') => {
     setActionLoading(bookingId);
     try {
-      const { error } = await supabase.functions.invoke('process-availability-response', {
-        body: { booking_id: bookingId, action }
-      });
-      if (error) throw error;
+      await api.bookings.updateStatus(bookingId, action === 'confirm' ? 'confirmed' : 'declined');
       
       toast({ 
         title: "Succes", 

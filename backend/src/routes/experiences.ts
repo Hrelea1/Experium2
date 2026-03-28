@@ -103,6 +103,50 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /experiences/assigned (Provider/Admin) ───────────────────────────────
+// Returns experiences assigned to the logged-in provider
+router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const isAdmin = req.user!.role === 'admin';
+
+    // If admin, we could optionally allow filtering by provider_id, 
+    // but for now let's just return what's assigned to the requester.
+    const rows = await query(
+      `SELECT
+        e.id, e.title, e.short_description, e.price, e.original_price,
+        e.location_name, e.duration_minutes, e.max_participants,
+        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at,
+        e.provider_type,
+        cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
+        r.name AS region_name, r.slug AS region_slug,
+        (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
+       FROM experiences e
+       JOIN experience_providers ep ON ep.experience_id = e.id
+       JOIN categories cat ON cat.id = e.category_id
+       JOIN regions r ON r.id = e.region_id
+       WHERE ep.provider_user_id = $1 AND ep.is_active = true
+       ORDER BY e.created_at DESC`,
+      [userId]
+    );
+
+    const formattedRows = rows.map(r => ({
+      ...r,
+      price: Number(r.price),
+      original_price: r.original_price ? Number(r.original_price) : null,
+      avg_rating: Number(r.avg_rating),
+      total_reviews: Number(r.total_reviews),
+      experience_id: r.id, // For compatibility with dashboard
+      experience: { ...r } // For compatibility with dashboard
+    }));
+
+    res.json(formattedRows);
+  } catch (err) {
+    console.error('[experiences GET /assigned]', err);
+    res.status(500).json({ error: 'Failed to fetch assigned experiences' });
+  }
+});
+
 // ─── GET /experiences/:id ─────────────────────────────────────────────────────
 router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
   try {

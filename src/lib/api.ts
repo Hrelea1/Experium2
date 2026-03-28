@@ -151,7 +151,12 @@ export interface Experience {
   is_featured: boolean;
   is_active?: boolean;
   primary_image?: string;
-  images?: { id: string; image_url: string; is_primary: boolean; display_order: number }[];
+  images?: { id: string; image_url: string; is_primary: boolean; display_order: number; focal_x?: number; focal_y?: number }[];
+  services?: { id: string; name: string; price: number; is_required: boolean; description?: string; max_quantity?: number }[];
+  address?: string;
+  cancellation_policy?: string;
+  includes?: string[];
+  min_age?: number;
 }
 
 export interface ExperienceFilters {
@@ -242,6 +247,13 @@ export const bookings = {
       body: JSON.stringify({ new_booking_date: newDate }),
     });
   },
+
+  async updateStatus(id: string, status: string) {
+    return request(`/bookings/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
 };
 
 // ─── Vouchers ─────────────────────────────────────────────────────────────────
@@ -330,6 +342,42 @@ export const admin = {
   },
 };
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
+export const provider = {
+  async getAssignedExperiences(): Promise<any[]> {
+    return request('/experiences/assigned');
+  },
+
+  async getAvailabilitySlots(from?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    return request(`/availability?${params.toString()}`);
+  },
+
+  async getBookings(): Promise<any[]> {
+    return request('/bookings/provider');
+  },
+
+  async addAvailabilitySlot(data: {
+    experience_id: string;
+    slot_date: string;
+    start_time: string;
+    end_time: string;
+    capacity: number;
+  }) {
+    return request('/availability/slots', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAvailabilitySlot(slotId: string) {
+    return request(`/availability/slots/${slotId}`, { // I need to verify if this route exists
+      method: 'DELETE',
+    });
+  },
+};
+
 // ─── Default export ───────────────────────────────────────────────────────────
 export const api = {
   auth,
@@ -341,6 +389,7 @@ export const api = {
   categories,
   admin,
   availability,
+  provider,
 };
 
 export default api;
