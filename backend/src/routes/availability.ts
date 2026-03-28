@@ -59,15 +59,13 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
 router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req: Request, res: Response) => {
   try {
     const { experience_id, slot_date, start_time, end_time, capacity } = req.body;
-    if (!experience_id || !slot_date || !start_time) {
-      return res.status(400).json({ error: 'experience_id, slot_date, start_time required' });
-    }
+    const userId = req.user!.userId;
 
     const slot = await queryOne<{ id: string }>(
-      `INSERT INTO availability_slots (experience_id, slot_date, start_time, end_time, capacity)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [experience_id, slot_date, start_time, end_time ?? null, capacity ?? 10]
+      [experience_id, userId, slot_date, start_time, end_time ?? null, capacity ?? 10]
     );
 
     res.status(201).json({ id: slot!.id });

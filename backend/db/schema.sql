@@ -219,6 +219,7 @@ CREATE TABLE IF NOT EXISTS experience_providers (
 CREATE TABLE IF NOT EXISTS availability_slots (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  provider_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   slot_date     DATE NOT NULL,
   start_time    TIME NOT NULL,
   end_time      TIME,
