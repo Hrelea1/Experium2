@@ -158,9 +158,9 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
     }));
 
     res.json(formattedRows);
-  } catch (err) {
+  } catch (err: any) {
     console.error('[experiences GET /assigned]', err);
-    res.status(500).json({ error: 'Failed to fetch assigned experiences' });
+    res.status(500).json({ error: 'Failed to fetch assigned experiences (' + (err.message || String(err)) + ')' });
   }
 });
 
