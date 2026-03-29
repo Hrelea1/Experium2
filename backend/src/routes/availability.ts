@@ -76,13 +76,13 @@ router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req:
       `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id`,
-      [experience_id, userId, slot_date, start_time, end_time ?? null, capacity ?? 10]
+      [experience_id, userId, slot_date, start_time, end_time || null, capacity || 10]
     );
 
     res.status(201).json({ id: slot!.id });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[availability POST /slots]', err);
-    res.status(500).json({ error: 'Failed to create slot' });
+    res.status(500).json({ error: 'Failed to create slot (' + (err.message || String(err)) + ')' });
   }
 });
 
