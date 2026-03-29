@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAuth, requireAdmin, requireRole } from '../middleware/auth';
 import { sendBookingConfirmation, sendCancellationConfirmation } from '../services/email';
+import { sendWhatsAppBookingConfirmation, sendWhatsAppBookingCancellation } from '../services/whatsapp';
 
 const router = Router();
 
@@ -102,9 +103,9 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     );
 
     if (status === 'confirmed') {
-      // Send confirmation email asynchronously (non-blocking)
-    queryOne<{ email: string; full_name: string; title: string }>(
-      `SELECT u.email, p.full_name, e.title
+      // Send confirmation email and WhatsApp asynchronously (non-blocking)
+    queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
+      `SELECT u.email, p.full_name, p.phone, e.title
        FROM users u
        LEFT JOIN profiles p ON p.id = u.id
        JOIN experiences e ON e.id = $2
@@ -121,6 +122,16 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
           totalPrice: Number(total_price),
           bookingId: booking!.id,
         });
+
+        if (info.phone) {
+          await sendWhatsAppBookingConfirmation({
+            phone: info.phone,
+            clientName: info.full_name ?? 'Client',
+            experienceTitle: info.title,
+            bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
+            totalPrice: Number(total_price)
+          });
+        }
       }
     }).catch(console.error);
     }
@@ -158,9 +169,9 @@ router.post('/:id/cancel', requireAuth, async (req: Request, res: Response) => {
       [cancellation_reason ?? null, req.params.id]
     );
 
-    // Send email async
-    queryOne<{ email: string; full_name: string; title: string }>(
-      `SELECT u.email, p.full_name, e.title FROM users u
+    // Send email/WhatsApp async
+    queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
+      `SELECT u.email, p.full_name, p.phone, e.title FROM users u
        LEFT JOIN profiles p ON p.id = u.id
        JOIN experiences e ON e.id = $2 WHERE u.id = $1`,
       [req.user!.userId, booking.experience_id]
@@ -168,11 +179,20 @@ router.post('/:id/cancel', requireAuth, async (req: Request, res: Response) => {
       if (info) {
         await sendCancellationConfirmation({
           email: info.email,
-          name: info.full_name,
+          name: info.full_name ?? 'Client',
           experienceTitle: info.title,
           bookingId: req.params.id,
           refundEligible,
         });
+
+        if (info.phone) {
+          await sendWhatsAppBookingCancellation({
+            phone: info.phone,
+            clientName: info.full_name ?? 'Client',
+            experienceTitle: info.title,
+            refundEligible
+          });
+        }
       }
     }).catch(console.error);
 

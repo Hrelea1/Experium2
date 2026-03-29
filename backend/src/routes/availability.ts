@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { sendAvailabilityRequest } from '../services/email';
+import { sendWhatsAppProviderAlert } from '../services/whatsapp';
 import crypto from 'crypto';
 
 const router = Router();
@@ -182,11 +183,12 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
     // Fetch booking + experience + provider info
     const info = await queryOne<{
       experience_id: string; experience_title: string;
-      booking_date: string; provider_email: string; provider_name: string;
+      booking_date: string; participants: number; provider_email: string; provider_name: string;
+      provider_phone: string | null;
     }>(
       `SELECT e.id AS experience_id, e.title AS experience_title,
-        b.booking_date,
-        pu.email AS provider_email, pp.full_name AS provider_name
+        b.booking_date, b.participants,
+        pu.email AS provider_email, pp.full_name AS provider_name, pp.phone AS provider_phone
        FROM bookings b
        JOIN experiences e ON e.id = b.experience_id
        JOIN experience_providers ep ON ep.experience_id = e.id AND ep.is_active = true
@@ -217,6 +219,15 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
       confirmUrl: `${appUrl}/api/availability/respond?token=${confirmToken}&action=confirm`,
       declineUrl: `${appUrl}/api/availability/respond?token=${declineToken}&action=decline`,
     });
+
+    if (info.provider_phone) {
+      await sendWhatsAppProviderAlert({
+        phone: info.provider_phone,
+        experienceTitle: info.experience_title,
+        bookingDate: new Date(info.booking_date).toLocaleString('ro-RO'),
+        participants: info.participants,
+      });
+    }
 
     res.json({ message: 'Availability request sent to provider' });
   } catch (err) {

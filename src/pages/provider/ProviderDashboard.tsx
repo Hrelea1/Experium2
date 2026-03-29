@@ -565,7 +565,8 @@ export default function ProviderDashboard() {
         setUserProfiles(map);
       }
     } catch (error: any) {
-      toast({ title: 'Eroare', description: 'Nu am putut încărca datele', variant: 'destructive' });
+      console.error("[ProviderDashboard] Eroare la inarcarea datelor:", error);
+      toast({ title: 'Eroare', description: `Nu am putut încărca datele: ${error.message}`, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
