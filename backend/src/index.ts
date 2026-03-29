@@ -83,6 +83,11 @@ async function migrate() {
     const sql = fs.readFileSync(schemaPath, 'utf8');
     await pool.query(sql);
     console.log('[DB] ✅ Schema applied (auto-migrate)');
+    
+    // Run the ALTER TABLE commands for existing tables
+    const { testConnection } = require('./db');
+    await testConnection();
+    
   } catch (err: any) {
     console.error('[DB] ⚠️ Auto-migrate error:', err.message);
   }
