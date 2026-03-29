@@ -33,21 +33,31 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
 });
 
 // ─── GET /availability ─────────────────────────────────────────────────────────
-// Returns all slots for the logged-in provider
+// Returns all slots for the logged-in provider (normalized for dashboard)
 router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
     const { from } = req.query as { from?: string };
 
     const rows = await query(
-      `SELECT * FROM availability_slots
+      `SELECT id, experience_id, slot_date, start_time, end_time,
+              capacity, booked_count, is_locked, locked_by, locked_until
+       FROM availability_slots
        WHERE provider_user_id = $1
        ${from ? `AND slot_date >= $2` : ''}
        ORDER BY slot_date ASC, start_time ASC`,
       [userId, ...(from ? [from] : [])]
     );
 
-    res.json(rows);
+    // Normalize to shape expected by ProviderDashboard
+    const normalised = rows.map((s: any) => ({
+      ...s,
+      max_participants: s.capacity,
+      booked_participants: s.booked_count,
+      is_available: !s.is_locked && (s.capacity - s.booked_count) > 0,
+    }));
+
+    res.json(normalised);
   } catch (err) {
     console.error('[availability GET /]', err);
     res.status(500).json({ error: 'Failed to fetch provider availability' });
@@ -93,6 +103,71 @@ router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Reques
   } catch (err) {
     console.error('[availability DELETE /slots/:id]', err);
     res.status(500).json({ error: 'Failed to delete slot' });
+  }
+});
+
+// ─── POST /availability/slots/:id/lock ────────────────────────────────────────
+// Temporarily lock a slot for a user (5-minute hold during checkout)
+router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+
+    // Check slot exists and isn't already locked by someone else
+    const slot = await queryOne<{
+      id: string; is_locked: boolean; locked_by: string | null;
+      locked_until: string | null; capacity: number; booked_count: number;
+    }>(
+      'SELECT id, is_locked, locked_by, locked_until, capacity, booked_count FROM availability_slots WHERE id = $1',
+      [id]
+    );
+
+    if (!slot) return res.status(404).json({ error: 'Slot not found' });
+
+    // Check if slot has capacity
+    if (slot.capacity - slot.booked_count <= 0) {
+      return res.json([{ success: false, error_message: 'Slotul este plin.' }]);
+    }
+
+    // Check if locked by another user and lock hasn't expired
+    if (slot.is_locked && slot.locked_by !== userId) {
+      const lockExpiry = slot.locked_until ? new Date(slot.locked_until) : new Date(0);
+      if (lockExpiry > new Date()) {
+        return res.json([{ success: false, error_message: 'Slotul este blocat de alt utilizator.' }]);
+      }
+    }
+
+    // Lock the slot for 5 minutes
+    const lockedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    await query(
+      `UPDATE availability_slots SET is_locked = true, locked_by = $1, locked_until = $2 WHERE id = $3`,
+      [userId, lockedUntil, id]
+    );
+
+    res.json([{ success: true }]);
+  } catch (err) {
+    console.error('[availability POST /slots/:id/lock]', err);
+    res.status(500).json({ error: 'Failed to lock slot' });
+  }
+});
+
+// ─── POST /availability/slots/:id/unlock ──────────────────────────────────────
+// Release a slot lock
+router.post('/slots/:id/unlock', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.userId;
+
+    await query(
+      `UPDATE availability_slots SET is_locked = false, locked_by = NULL, locked_until = NULL
+       WHERE id = $1 AND locked_by = $2`,
+      [id, userId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[availability POST /slots/:id/unlock]', err);
+    res.status(500).json({ error: 'Failed to unlock slot' });
   }
 });
 

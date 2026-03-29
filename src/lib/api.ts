@@ -206,10 +206,13 @@ export interface Booking {
   id: string;
   experience_id: string;
   experience_title: string;
+  location_name: string;
+  experience_image?: string;
   booking_date: string;
   participants: number;
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   total_price: number;
+  rescheduled_count: number;
   created_at: string;
 }
 
@@ -319,6 +322,14 @@ export const availability = {
       method: 'POST',
       body: JSON.stringify({ booking_id: bookingId }),
     });
+  },
+
+  async lockSlot(slotId: string): Promise<[{ success: boolean; error_message?: string }]> {
+    return request(`/availability/slots/${slotId}/lock`, { method: 'POST' });
+  },
+
+  async unlockSlot(slotId: string): Promise<{ success: boolean }> {
+    return request(`/availability/slots/${slotId}/unlock`, { method: 'POST' });
   },
 };
 

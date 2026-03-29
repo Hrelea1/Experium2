@@ -57,7 +57,10 @@ interface SalesBooking {
   total_price: number;
   status: string;
   created_at: string;
-  experiences?: { title: string; location_name: string };
+  experience_title?: string;
+  location_name?: string;
+  client_name?: string;
+  client_email?: string;
   user_id: string;
 }
 
@@ -708,7 +711,7 @@ export default function ProviderDashboard() {
                       <TableBody>
                         {salesBookings.map((b) => (
                           <TableRow key={b.id}>
-                            <TableCell className="font-medium">{b.experiences?.title || 'N/A'}</TableCell>
+                            <TableCell className="font-medium">{b.experience_title || 'N/A'}</TableCell>
                             <TableCell>{format(new Date(b.booking_date), 'dd MMM yyyy', { locale: ro })}</TableCell>
                             <TableCell>{userProfiles[b.user_id] || 'N/A'}</TableCell>
                             <TableCell>

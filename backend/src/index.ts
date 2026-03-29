@@ -15,6 +15,7 @@ import uploadRoutes from './routes/uploads';
 import regionRoutes from './routes/regions';
 import categoryRoutes from './routes/categories';
 import homepageContentRoutes from './routes/homepageContent';
+import notificationRoutes from './routes/notifications';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -47,6 +48,7 @@ app.use('/regions', regionRoutes);
 app.use('/categories', categoryRoutes);
 app.use('/uploads', uploadRoutes);
 app.use('/homepage-content', homepageContentRoutes);
+app.use('/notifications', notificationRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

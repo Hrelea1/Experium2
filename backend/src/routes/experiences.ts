@@ -108,21 +108,20 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
 router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const isAdmin = req.user!.role === 'admin';
 
-    // If admin, we could optionally allow filtering by provider_id, 
-    // but for now let's just return what's assigned to the requester.
     const rows = await query(
       `SELECT
-        e.id, e.title, e.short_description, e.price, e.original_price,
+        ep.id,
+        ep.experience_id,
+        e.title, e.short_description, e.price, e.original_price,
         e.location_name, e.duration_minutes, e.max_participants,
         e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at,
         e.provider_type,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
-       FROM experiences e
-       JOIN experience_providers ep ON ep.experience_id = e.id
+       FROM experience_providers ep
+       JOIN experiences e ON e.id = ep.experience_id
        JOIN categories cat ON cat.id = e.category_id
        JOIN regions r ON r.id = e.region_id
        WHERE ep.provider_user_id = $1 AND ep.is_active = true
@@ -130,14 +129,32 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
       [userId]
     );
 
+    // Return shape expected by ProviderDashboard: { id, experience_id, experience: { ... } }
     const formattedRows = rows.map(r => ({
-      ...r,
-      price: Number(r.price),
-      original_price: r.original_price ? Number(r.original_price) : null,
-      avg_rating: Number(r.avg_rating),
-      total_reviews: Number(r.total_reviews),
-      experience_id: r.id, // For compatibility with dashboard
-      experience: { ...r } // For compatibility with dashboard
+      id: r.id,                      // experience_providers.id
+      experience_id: r.experience_id, // the actual experience UUID
+      experience: {
+        id: r.experience_id,
+        title: r.title,
+        short_description: r.short_description,
+        location_name: r.location_name,
+        price: Number(r.price),
+        original_price: r.original_price ? Number(r.original_price) : null,
+        provider_type: r.provider_type,
+        duration_minutes: r.duration_minutes,
+        max_participants: r.max_participants,
+        avg_rating: Number(r.avg_rating),
+        total_reviews: Number(r.total_reviews),
+        is_featured: r.is_featured,
+        is_active: r.is_active,
+        created_at: r.created_at,
+        category_name: r.category_name,
+        category_slug: r.category_slug,
+        category_icon: r.category_icon,
+        region_name: r.region_name,
+        region_slug: r.region_slug,
+        primary_image: r.primary_image,
+      },
     }));
 
     res.json(formattedRows);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,8 +23,6 @@ import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useTranslation } from 'react-i18next';
 
-// Voucher interface removed - direct booking model
-
 interface Booking {
   id: string;
   booking_date: string;
@@ -32,10 +30,9 @@ interface Booking {
   participants: number;
   total_price: number;
   rescheduled_count: number;
-  experiences: {
-    title: string;
-    location_name: string;
-  };
+  experience_title: string;
+  location_name: string;
+  experience_image?: string;
 }
 
 interface Profile {
@@ -50,7 +47,6 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
-  // vouchers state removed - direct booking model
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [profile, setProfile] = useState<Profile>({ full_name: '', email: '', phone: '' });
   const [updatingProfile, setUpdatingProfile] = useState(false);
@@ -80,34 +76,19 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch bookings
-      const { data: bookingsData } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          booking_date,
-          status,
-          participants,
-          total_price,
-          rescheduled_count,
-          experiences (
-            title,
-            location_name
-          )
-        `)
-        .eq('user_id', user?.id)
-        .order('booking_date', { ascending: false });
+      // Fetch bookings from Express API
+      const bookingsData = await api.bookings.list();
+      setBookings(Array.isArray(bookingsData) ? bookingsData as Booking[] : []);
 
-      if (bookingsData) setBookings(bookingsData);
-
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('full_name, email, phone')
-        .eq('id', user?.id)
-        .single();
-
-      if (profileData) setProfile(profileData);
+      // Fetch profile from Express API (via /auth/me)
+      const userData = await api.auth.getUser();
+      if (userData) {
+        setProfile({
+          full_name: userData.full_name || '',
+          email: userData.email || user?.email || '',
+          phone: userData.phone || '',
+        });
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -119,84 +100,51 @@ const Dashboard = () => {
     e.preventDefault();
     setUpdatingProfile(true);
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
+    try {
+      await api.auth.updateProfile({
         full_name: profile.full_name,
         phone: profile.phone,
-      })
-      .eq('id', user?.id);
-
-    setUpdatingProfile(false);
-
-    if (error) {
-      toast({
-        title: t('common.error'),
-        description: t('dashboard.profileUpdateError'),
-        variant: 'destructive',
       });
-    } else {
       toast({
         title: t('common.save'),
         description: t('dashboard.profileUpdateSuccess'),
       });
+    } catch (error: any) {
+      toast({
+        title: t('common.error'),
+        description: error.message || t('dashboard.profileUpdateError'),
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingProfile(false);
     }
   };
 
   const handleCancelBooking = async () => {
     setCancelling(true);
 
-    const { data, error } = await supabase.rpc('cancel_booking', {
-      p_booking_id: selectedBookingId,
-      p_cancellation_reason: cancellationReason,
-    });
-
-    if (error || !data || data.length === 0) {
-      setCancelling(false);
-      toast({
-        title: t('common.error'),
-        description: error?.message || t('common.error'),
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const result = data[0];
-    
-    if (!result.success) {
-      setCancelling(false);
-      toast({
-        title: t('common.error'),
-        description: result.error_message,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Send cancellation notifications to client + provider
     try {
-      await supabase.functions.invoke('send-notification', {
-        body: {
-          event_type: 'booking_cancelled',
-          booking_id: selectedBookingId,
-          refund_eligible: result.refund_eligible,
-        },
+      const result = await api.bookings.cancel(selectedBookingId, cancellationReason) as any;
+
+      toast({
+        title: t('dashboard.bookingCancelled'),
+        description: result.refund_eligible 
+          ? t('dashboard.bookingCancelledRefund')
+          : t('dashboard.bookingCancelledNoRefund'),
       });
-    } catch (emailError) {
-      console.error('Failed to send cancellation notifications:', emailError);
+
+      setCancelDialogOpen(false);
+      setCancellationReason('');
+      fetchDashboardData();
+    } catch (error: any) {
+      toast({
+        title: t('common.error'),
+        description: error.message || t('common.error'),
+        variant: 'destructive',
+      });
+    } finally {
+      setCancelling(false);
     }
-
-    setCancelling(false);
-    toast({
-      title: t('dashboard.bookingCancelled'),
-      description: result.refund_eligible 
-        ? t('dashboard.bookingCancelledRefund')
-        : t('dashboard.bookingCancelledNoRefund'),
-    });
-
-    setCancelDialogOpen(false);
-    setCancellationReason('');
-    fetchDashboardData();
   };
 
   const handleRescheduleBooking = async () => {
@@ -211,41 +159,26 @@ const Dashboard = () => {
 
     setRescheduling(true);
 
-    const { data, error } = await supabase.rpc('reschedule_booking', {
-      p_booking_id: selectedBookingId,
-      p_new_booking_date: new Date(newBookingDate).toISOString(),
-    });
+    try {
+      await api.bookings.reschedule(selectedBookingId, new Date(newBookingDate).toISOString());
 
-    setRescheduling(false);
+      toast({
+        title: t('dashboard.bookingRescheduled'),
+        description: t('dashboard.bookingRescheduledSuccess'),
+      });
 
-    if (error || !data || data.length === 0) {
+      setRescheduleDialogOpen(false);
+      setNewBookingDate('');
+      fetchDashboardData();
+    } catch (error: any) {
       toast({
         title: t('common.error'),
-        description: error?.message || t('common.error'),
+        description: error.message || t('common.error'),
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setRescheduling(false);
     }
-
-    const result = data[0];
-    
-    if (!result.success) {
-      toast({
-        title: t('common.error'),
-        description: result.error_message,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    toast({
-      title: t('dashboard.bookingRescheduled'),
-      description: t('dashboard.bookingRescheduledSuccess'),
-    });
-
-    setRescheduleDialogOpen(false);
-    setNewBookingDate('');
-    fetchDashboardData();
   };
 
   const openCancelDialog = (bookingId: string) => {
@@ -380,10 +313,10 @@ const Dashboard = () => {
                             <div className="flex-1 space-y-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-lg truncate">{booking.experiences?.title}</h3>
+                                  <h3 className="font-semibold text-lg truncate">{booking.experience_title}</h3>
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                     <MapPin className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{booking.experiences?.location_name}</span>
+                                    <span className="truncate">{booking.location_name}</span>
                                   </div>
                                 </div>
                                 {getStatusBadge(booking.status)}

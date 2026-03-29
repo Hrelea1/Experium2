@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Users, Lock, Loader2, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useAvailabilitySlots, AvailabilitySlot } from "@/hooks/useAvailabilitySlots";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -30,10 +30,7 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
   useEffect(() => {
     return () => {
       if (selectedSlot && user) {
-        supabase.rpc("unlock_availability_slot", {
-          p_slot_id: selectedSlot.id,
-          p_user_id: user.id,
-        });
+        api.availability.unlockSlot(selectedSlot.id).catch(() => {});
       }
     };
   }, [selectedSlot, user]);
@@ -60,31 +57,32 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
 
     // Unlock previous slot
     if (selectedSlot && selectedSlot.id !== slot.id) {
-      await supabase.rpc("unlock_availability_slot", {
-        p_slot_id: selectedSlot.id,
-        p_user_id: user.id,
-      });
+      await api.availability.unlockSlot(selectedSlot.id).catch(() => {});
     }
 
     setLocking(true);
-    const { data, error } = await supabase.rpc("lock_availability_slot", {
-      p_slot_id: slot.id,
-      p_user_id: user.id,
-    });
 
-    setLocking(false);
+    try {
+      const data = await api.availability.lockSlot(slot.id);
 
-    if (error || !data || !data[0]?.success) {
-      const msg = data?.[0]?.error_message || error?.message || "Nu s-a putut rezerva slotul.";
-      toast({ title: "Slot indisponibil", description: msg, variant: "destructive" });
+      if (!data || !data[0]?.success) {
+        const msg = data?.[0]?.error_message || "Nu s-a putut rezerva slotul.";
+        toast({ title: "Slot indisponibil", description: msg, variant: "destructive" });
+        setSelectedSlot(null);
+        onSlotSelected(null);
+        return;
+      }
+
+      setSelectedSlot(slot);
+      onSlotSelected(slot);
+      toast({ title: "Slot blocat", description: "Ai 5 minute pentru a finaliza rezervarea." });
+    } catch (error: any) {
+      toast({ title: "Slot indisponibil", description: error.message || "Nu s-a putut rezerva slotul.", variant: "destructive" });
       setSelectedSlot(null);
       onSlotSelected(null);
-      return;
+    } finally {
+      setLocking(false);
     }
-
-    setSelectedSlot(slot);
-    onSlotSelected(slot);
-    toast({ title: "Slot blocat", description: "Ai 5 minute pentru a finaliza rezervarea." });
   };
 
   // Dates that have available slots

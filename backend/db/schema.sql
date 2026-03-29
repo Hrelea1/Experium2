@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS experiences (
   total_reviews     INTEGER DEFAULT 0,
   is_active         BOOLEAN DEFAULT true,
   is_featured       BOOLEAN DEFAULT false,
+  provider_type     TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),
   created_at        TIMESTAMPTZ DEFAULT now(),
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
