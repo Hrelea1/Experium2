@@ -75,6 +75,15 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS locked_by TEXT;
     `);
+    
+    // Fix existing slots with NULL values that prevent them from showing up
+    await pool.query(`
+      UPDATE availability_slots
+      SET is_locked = false WHERE is_locked IS NULL;
+      
+      UPDATE availability_slots
+      SET booked_count = 0 WHERE booked_count IS NULL;
+    `);
     console.log('[DB] ✅ Migrations completed');
 
   } catch (err) {

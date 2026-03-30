@@ -15,16 +15,19 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
     const { from, to } = req.query as { from?: string; to?: string };
 
     const rows = await query(
-      `SELECT id, slot_date, start_time, end_time, capacity, booked_count,
-        (capacity - booked_count) AS available_spots, is_locked
+      `SELECT id, experience_id, slot_date, start_time,
+        COALESCE(end_time, start_time + interval '1 hour') AS end_time,
+        capacity, booked_count,
+        (capacity - booked_count) AS available_spots,
+        COALESCE(is_locked, false) AS is_locked
        FROM availability_slots
        WHERE experience_id = $1
-         AND NOT is_locked
+         AND COALESCE(is_locked, false) = false
          AND (capacity - booked_count) > 0
-         ${from ? `AND slot_date >= $2` : ''}
-         ${to ? `AND slot_date <= $${from ? 3 : 2}` : ''}
+         AND slot_date >= COALESCE($2::date, CURRENT_DATE)
+         ${to ? `AND slot_date <= $3` : ''}
        ORDER BY slot_date ASC, start_time ASC`,
-      [experience_id, ...(from ? [from] : []), ...(to ? [to] : [])]
+      [experience_id, from || null, ...(to ? [to] : [])]
     );
     res.json(rows);
   } catch (err) {
@@ -41,8 +44,10 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
     const { from } = req.query as { from?: string };
 
     const rows = await query(
-      `SELECT id, experience_id, slot_date, start_time, end_time,
-              capacity, booked_count, is_locked, locked_by, locked_until
+      `SELECT id, experience_id, slot_date, start_time,
+              COALESCE(end_time, start_time + interval '1 hour') AS end_time,
+              capacity, booked_count,
+              COALESCE(is_locked, false) AS is_locked, locked_by, locked_until
        FROM availability_slots
        WHERE provider_user_id = $1
        ${from ? `AND slot_date >= $2` : ''}
@@ -73,8 +78,8 @@ router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req:
     const userId = req.user!.userId;
 
     const slot = await queryOne<{ id: string }>(
-      `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity, booked_count, is_locked)
+       VALUES ($1, $2, $3, $4, $5, $6, 0, false)
        RETURNING id`,
       [experience_id, userId, slot_date, start_time, end_time || null, capacity || 10]
     );

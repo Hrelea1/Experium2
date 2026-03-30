@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS availability_slots (
   end_time      TIME,
   capacity      INTEGER NOT NULL DEFAULT 10,
   booked_count  INTEGER NOT NULL DEFAULT 0,
-  is_locked     BOOLEAN DEFAULT false,
+  is_locked     BOOLEAN NOT NULL DEFAULT false,
   locked_until  TIMESTAMPTZ,
   locked_by     TEXT,
   created_at    TIMESTAMPTZ DEFAULT now()

@@ -3,7 +3,9 @@ import { tokenStore } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const isProd = import.meta.env.PROD;
+const defaultApiUrl = isProd ? 'https://experium2-production.up.railway.app' : 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? defaultApiUrl;
 
 interface CheckoutItem {
   experienceId: string;
