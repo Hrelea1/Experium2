@@ -14,7 +14,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     const rows = await query(
       `SELECT
-        b.id, b.booking_date, b.participants, b.status, b.total_price,
+        b.id, b.booking_date, b.participants, b.participant_details, b.status, b.total_price,
         b.special_requests, b.cancellation_reason, b.rescheduled_count,
         b.created_at,
         e.title AS experience_title, e.location_name,
@@ -38,7 +38,7 @@ router.get('/provider', requireRole('provider', 'admin'), async (req: Request, r
     const userId = req.user!.userId;
     const rows = await query(
       `SELECT
-        b.id, b.booking_date, b.participants, b.status, b.total_price,
+        b.id, b.booking_date, b.participants, b.participant_details, b.status, b.total_price,
         b.special_requests, b.cancellation_reason, b.rescheduled_count,
         b.created_at, b.user_id,
         e.title AS experience_title, e.location_name,
@@ -85,7 +85,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const {
-      experience_id, booking_date, participants = 1,
+      experience_id, booking_date, participants = 1, participant_details = [],
       total_price, payment_method = 'card', special_requests, voucher_id, status = 'confirmed',
     } = req.body;
 
@@ -95,10 +95,10 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
     const booking = await queryOne<{ id: string }>(
       `INSERT INTO bookings
-        (user_id, experience_id, booking_date, participants, total_price, payment_method, special_requests, voucher_id, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (user_id, experience_id, booking_date, participants, participant_details, total_price, payment_method, special_requests, voucher_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id`,
-      [req.user!.userId, experience_id, booking_date, participants, total_price,
+      [req.user!.userId, experience_id, booking_date, participants, JSON.stringify(participant_details), total_price,
        payment_method, special_requests ?? null, voucher_id ?? null, status]
     );
 

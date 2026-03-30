@@ -138,6 +138,7 @@ export interface Experience {
   description: string;
   price: number;
   original_price?: number;
+  pricing_tiers?: { name: string; price: number }[];
   category_name: string;
   category_slug: string;
   category_icon?: string;
@@ -210,6 +211,7 @@ export interface Booking {
   experience_image?: string;
   booking_date: string;
   participants: number;
+  participant_details?: { name: string; price: number; quantity: number }[];
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
   total_price: number;
   rescheduled_count: number;
@@ -229,6 +231,7 @@ export const bookings = {
     experience_id: string;
     booking_date: string;
     participants?: number;
+    participant_details?: { name: string; price: number; quantity: number }[];
     total_price: number;
     status?: string;
     payment_method?: string;

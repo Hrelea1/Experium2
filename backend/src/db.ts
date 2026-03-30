@@ -67,13 +67,20 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS short_description TEXT,
       ADD COLUMN IF NOT EXISTS original_price DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS includes TEXT[] DEFAULT '{}'::text[],
-      ADD COLUMN IF NOT EXISTS provider_type TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service'));
+      ADD COLUMN IF NOT EXISTS provider_type TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),
+      ADD COLUMN IF NOT EXISTS pricing_tiers JSONB DEFAULT '[]'::jsonb;
       
       ALTER TABLE availability_slots 
       ADD COLUMN IF NOT EXISTS provider_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT false,
       ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS locked_by TEXT;
+
+      ALTER TABLE bookings
+      ADD COLUMN IF NOT EXISTS participant_details JSONB DEFAULT '[]'::jsonb;
+
+      ALTER TABLE cart_items
+      ADD COLUMN IF NOT EXISTS selected_tiers JSONB DEFAULT '[]'::jsonb;
     `);
     
     // Fix existing slots with NULL values that prevent them from showing up
