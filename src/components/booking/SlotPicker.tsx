@@ -89,7 +89,7 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
   const enabledDates = availableDates.map((d) => new Date(d + "T00:00:00"));
 
   const isDateAvailable = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = format(date, "yyyy-MM-dd");
     return availableDates.includes(dateStr);
   };
 

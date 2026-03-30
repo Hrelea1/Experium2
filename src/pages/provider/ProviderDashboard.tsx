@@ -204,7 +204,7 @@ function ExperienceDetailView({
     try {
       await api.provider.addAvailabilitySlot({
         experience_id: experience.experience_id,
-        slot_date: selectedDate.toISOString().split('T')[0],
+        slot_date: format(selectedDate, 'yyyy-MM-dd'),
         start_time: startTime,
         end_time: endTime,
         capacity: maxParticipants,
@@ -543,7 +543,7 @@ export default function ProviderDashboard() {
       const expData = await api.provider.getAssignedExperiences();
       setAssignedExperiences(expData || []);
 
-      const slotsData = await api.provider.getAvailabilitySlots(new Date().toISOString().split('T')[0]);
+      const slotsData = await api.provider.getAvailabilitySlots(format(new Date(), 'yyyy-MM-dd'));
       setAvailabilitySlots(slotsData || []);
 
       if (expData && expData.length > 0) {

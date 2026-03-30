@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, RefreshCw, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { format } from 'date-fns';
 
 const DAYS_OF_WEEK = [
   { value: '1', label: 'Luni' },
@@ -114,8 +115,8 @@ export function RecurringAvailability({ experienceId, experienceTitle }: Props) 
     const { data, error } = await supabase.rpc('generate_slots_from_recurring', {
       p_experience_id: experienceId,
       p_provider_user_id: user.id,
-      p_start_date: startDate.toISOString().split('T')[0],
-      p_end_date: endDate.toISOString().split('T')[0],
+      p_start_date: format(startDate, 'yyyy-MM-dd'),
+      p_end_date: format(endDate, 'yyyy-MM-dd'),
     });
 
     if (error) {

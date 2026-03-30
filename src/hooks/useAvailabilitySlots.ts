@@ -32,9 +32,11 @@ export function useAvailabilitySlots(experienceId: string) {
     if (!experienceId) return;
     setLoading(true);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const now = new Date();
+      const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
       const res = await fetch(
-        `${API_BASE}/availability/${experienceId}?from=${today}`
+        `${API_BASE}/availability/${experienceId}?from=${localToday}`
       );
       if (!res.ok) throw new Error("Failed to fetch slots");
       const data: any[] = await res.json();
@@ -68,7 +70,10 @@ export function useAvailabilitySlots(experienceId: string) {
   const availableDates = Array.from(new Set(slots.map((s) => s.slot_date)));
 
   const slotsForDate = selectedDate
-    ? slots.filter((s) => s.slot_date === selectedDate.toISOString().split("T")[0])
+    ? slots.filter((s) => {
+        const localDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+        return s.slot_date === localDate;
+      })
     : [];
 
   return { slots, loading, availableDates, selectedDate, setSelectedDate, slotsForDate, refetch: fetchSlots };
