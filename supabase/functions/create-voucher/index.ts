@@ -3,9 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 // Allowed origins for CORS (restrict in production)
 const ALLOWED_ORIGINS = [
-  "https://822cb615-8c38-4524-bedf-f2603ff01820.lovableproject.com",
-  "http://localhost:5173",
-  "http://localhost:3000"
+  "https://experium.ro"
 ];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {

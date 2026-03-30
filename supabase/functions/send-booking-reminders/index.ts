@@ -53,9 +53,7 @@ async function sendSms(to: string, body: string): Promise<boolean> {
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
-  "https://822cb615-8c38-4524-bedf-f2603ff01820.lovableproject.com",
-  "http://localhost:5173",
-  "http://localhost:3000"
+  "https://experium.ro"
 ];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
@@ -261,7 +259,7 @@ const handler = async (req: Request): Promise<Response> => {
                   </ul>
 
                   <div style="text-align: center;">
-                    <a href="https://822cb615-8c38-4524-bedf-f2603ff01820.lovableproject.com/my-bookings" class="button">Vezi detalii rezervare</a>
+                    <a href="https://experium.ro/my-bookings" class="button">Vezi detalii rezervare</a>
                   </div>
 
                   <p style="margin-top: 30px; color: #666;">Ne vedem în curând!</p>

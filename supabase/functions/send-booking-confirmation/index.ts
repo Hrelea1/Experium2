@@ -6,9 +6,7 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
-  "https://822cb615-8c38-4524-bedf-f2603ff01820.lovableproject.com",
-  "http://localhost:5173",
-  "http://localhost:3000"
+  "https://experium.ro"
 ];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
@@ -212,7 +210,7 @@ const handler = async (req: Request): Promise<Response> => {
               <p><strong>Important:</strong> Anularea gratuită este posibilă cu minimum 48 de ore înainte de experiență. Poți reprograma o singură dată, tot cu 48 de ore înainte.</p>
 
               <div style="text-align: center;">
-                <a href="https://822cb615-8c38-4524-bedf-f2603ff01820.lovableproject.com/my-bookings" class="button">Vezi detalii rezervare</a>
+                <a href="https://experium.ro/my-bookings" class="button">Vezi detalii rezervare</a>
               </div>
 
               <div class="footer">

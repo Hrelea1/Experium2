@@ -6,9 +6,7 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
-  "https://822cb615-8c38-4524-bedf-f2603ff01820.lovableproject.com",
-  "http://localhost:5173",
-  "http://localhost:3000"
+  "https://experium.ro"
 ];
 
 function getCorsHeaders(origin: string | null): Record<string, string> {
