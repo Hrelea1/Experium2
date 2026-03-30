@@ -22,42 +22,26 @@ export interface SelectedService {
 }
 
 interface ServiceSelectorProps {
-  experienceId: string;
+  services: ExperienceService[];
   onServicesChange: (services: SelectedService[]) => void;
 }
 
-export function ServiceSelector({ experienceId, onServicesChange }: ServiceSelectorProps) {
+export function ServiceSelector({ services, onServicesChange }: ServiceSelectorProps) {
   const { t } = useTranslation();
-  const [services, setServices] = useState<ExperienceService[]>([]);
   const [selectedIds, setSelectedIds] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchServices = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('experience_services')
-        .select('*')
-        .eq('experience_id', experienceId)
-        .eq('is_active', true)
-        .order('display_order');
-
-      if (!error && data) {
-        setServices(data);
-        // Auto-select required services
-        const initialIds: Record<string, number> = {};
-        data.forEach(service => {
-          if (service.is_required) {
-            initialIds[service.id] = 1;
-          }
-        });
-        setSelectedIds(initialIds);
-      }
-      setLoading(false);
-    };
-
-    fetchServices();
-  }, [experienceId]);
+    // Auto-select required services
+    const initialIds: Record<string, number> = {};
+    if (services && services.length > 0) {
+      services.forEach(service => {
+        if (service.is_required) {
+          initialIds[service.id] = 1;
+        }
+      });
+    }
+    setSelectedIds(initialIds);
+  }, [services]);
 
   // Compute selected services from IDs and services list
   const selectedServices = useMemo(() => {
@@ -109,17 +93,7 @@ export function ServiceSelector({ experienceId, onServicesChange }: ServiceSelec
     0
   );
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
-      </div>
-    );
-  }
-
-  if (services.length === 0) {
+  if (!services || services.length === 0) {
     return null;
   }
 

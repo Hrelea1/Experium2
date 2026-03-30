@@ -220,6 +220,7 @@ export default function ExperienceDetail() {
             maxParticipants: data.max_participants || 10,
             is_assisted: (data as any).is_assisted || false,
             pricingTiers: data.pricing_tiers || [],
+            services: data.services || [],
           });
         }
       } catch (error: any) {

@@ -10,9 +10,12 @@ const API_BASE = import.meta.env.VITE_API_URL ?? defaultApiUrl;
 interface CheckoutItem {
   experienceId: string;
   slotId: string;
+  slotDate: string;
+  startTime: string;
   participants: number;
   totalPrice: number;
   title: string;
+  participantDetails: any[];
 }
 
 /**
@@ -35,8 +38,11 @@ export function useCheckout() {
       const token = tokenStore.get();
       // Create a booking for each cart item
       const results = await Promise.allSettled(
-        items.map((item) =>
-          fetch(`${API_BASE}/bookings`, {
+        items.map((item) => {
+          // Send booking_date as the slot date + time
+          const bookingDate = `${item.slotDate}T${item.startTime}`;
+          
+          return fetch(`${API_BASE}/bookings`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -44,13 +50,14 @@ export function useCheckout() {
             },
             body: JSON.stringify({
               experience_id: item.experienceId,
-              booking_date: new Date().toISOString(),
+              booking_date: bookingDate,
               participants: item.participants,
               total_price: item.totalPrice,
+              participant_details: item.participantDetails,
               payment_method: 'card',
             }),
-          }).then((r) => (r.ok ? r.json() : Promise.reject(r)))
-        )
+          }).then((r) => (r.ok ? r.json() : Promise.reject(r)));
+        })
       );
 
       const failed = results.filter((r) => r.status === 'rejected');

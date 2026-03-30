@@ -24,6 +24,7 @@ interface BookingFormProps {
     image?: string;
     isAssisted?: boolean;
     pricingTiers?: {name: string, price: number}[];
+    services?: any[];
   };
 }
 
@@ -102,14 +103,17 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : undefined;
+        : [];
+        
+      // Combine tiers and services
+      const participantDetailsPayload = [...selectedTiersPayload, ...selectedServicesRef.current];
 
       // 1. Create a pending booking via Node API
       const { id: bookingId } = await api.bookings.create({
         experience_id: experience.id,
         booking_date: `${selectedSlot?.slot_date}T${selectedSlot?.start_time}`,
         participants: totalParticipants,
-        participant_details: selectedTiersPayload,
+        participant_details: participantDetailsPayload,
         total_price: totalPrice,
         status: 'pending',
       });
@@ -298,7 +302,7 @@ export function BookingForm({ experience }: BookingFormProps) {
 
         {/* Service Selector */}
         <ServiceSelector
-          experienceId={experience.id}
+          services={experience.services || []}
           onServicesChange={handleServicesChange}
         />
 

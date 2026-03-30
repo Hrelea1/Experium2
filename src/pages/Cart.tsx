@@ -94,13 +94,26 @@ export default function Cart() {
 
     setShowPhoneDialog(false);
 
-    const checkoutItems = items.map(item => ({
-      experienceId: item.experienceId,
-      slotId: item.slotId,
-      participants: item.participants,
-      totalPrice: item.price * item.participants + item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0),
-      title: item.title,
-    }));
+    const checkoutItems = items.map(item => {
+      const details = [];
+      if (item.selectedTiers) {
+        details.push(...item.selectedTiers);
+      }
+      if (item.services) {
+        details.push(...item.services);
+      }
+      
+      return {
+        experienceId: item.experienceId,
+        slotId: item.slotId,
+        slotDate: item.slotDate,
+        startTime: item.startTime,
+        participants: item.participants,
+        totalPrice: item.price * item.participants + item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0),
+        title: item.title,
+        participantDetails: details,
+      };
+    });
 
     const success = await processCheckout(checkoutItems);
     if (success) {

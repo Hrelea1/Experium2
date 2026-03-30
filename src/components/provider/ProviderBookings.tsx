@@ -13,6 +13,7 @@ interface Booking {
   id: string;
   booking_date: string;
   participants: number;
+  participant_details?: string | any[] | null;
   status: string;
   total_price: number;
   special_requests: string | null;
@@ -112,6 +113,28 @@ export function ProviderBookings() {
                     </span>
                     <span className="font-medium text-primary text-base">{booking.total_price} Lei</span>
                   </div>
+                  
+                  {booking.participant_details && typeof booking.participant_details === 'string' && booking.participant_details !== '[]' && booking.participant_details !== 'null' && (
+                    <div className="mt-3 text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
+                      <span className="font-medium text-foreground block mb-1">Servicii / Categorii Selectate:</span>
+                      <ul className="list-disc list-inside space-y-1">
+                        {JSON.parse(booking.participant_details).map((detail: any, i: number) => (
+                          <li key={i}>{detail.name}: <span className="font-medium">{detail.quantity}x</span> ({detail.price} Lei/buc)</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {booking.participant_details && typeof booking.participant_details === 'object' && Array.isArray(booking.participant_details) && booking.participant_details.length > 0 && (
+                    <div className="mt-3 text-sm text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/50">
+                      <span className="font-medium text-foreground block mb-1">Servicii / Categorii Selectate:</span>
+                      <ul className="list-disc list-inside space-y-1">
+                        {booking.participant_details.map((detail: any, i: number) => (
+                          <li key={i}>{detail.name}: <span className="font-medium">{detail.quantity}x</span> ({detail.price} Lei/buc)</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
                   {booking.special_requests && (
                     <p className="text-sm text-amber-600 mt-2 bg-amber-50 p-2 rounded-md">
                       ⚠️ Cerințe speciale: "{booking.special_requests}"
