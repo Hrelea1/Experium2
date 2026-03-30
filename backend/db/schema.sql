@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS experiences (
   title             TEXT NOT NULL,
   description       TEXT NOT NULL,
   short_description TEXT,
+  includes          TEXT[] DEFAULT '{}'::text[],
   price             DECIMAL(10,2) NOT NULL,
   original_price    DECIMAL(10,2),
   category_id       UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,

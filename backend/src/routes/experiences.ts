@@ -171,7 +171,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 
     const experience = await queryOne(
       `SELECT
-        e.id, e.title, e.description, e.short_description, e.price, e.original_price,
+        e.id, e.title, e.description, e.short_description, e.price, e.original_price, e.includes,
         e.category_id, e.region_id, e.county_id, e.city_id, e.location_name,
         e.duration_minutes, e.max_participants, e.min_age,
         e.avg_rating, e.total_reviews, e.is_active, e.is_featured,
@@ -244,7 +244,7 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
   const client = await pool.connect();
   try {
     const {
-      title, description, short_description, price, original_price,
+      title, description, short_description, price, original_price, includes,
       category_id, region_id, county_id, city_id, location_name,
       duration_minutes, max_participants, min_age, is_featured,
       provider_id, images, services
@@ -265,11 +265,11 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
     // 1. Insert experience
     const expRes = await client.query(
       `INSERT INTO experiences
-        (title, description, short_description, price, original_price, category_id, region_id,
+        (title, description, short_description, price, original_price, includes, category_id, region_id,
          county_id, city_id, location_name, duration_minutes, max_participants, min_age, is_featured)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
        RETURNING id`,
-      [title, description, short_description, price, original_price ?? null, category_id, region_id,
+      [title, description, short_description, price, original_price ?? null, includes ?? [], category_id, region_id,
        county_id ?? null, city_id ?? null, location_name, duration_minutes ?? null,
        max_participants ?? 10, min_age ?? null, is_featured ?? false]
     );
@@ -326,7 +326,7 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
   try {
     const { id } = req.params;
     const fields = req.body;
-    const allowed = ['title','description','short_description','price','original_price',
+    const allowed = ['title','description','short_description','price','original_price','includes',
       'category_id','region_id','county_id','city_id','location_name',
       'duration_minutes','max_participants','min_age','is_featured','is_active'];
 
