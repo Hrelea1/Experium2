@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAuth, requireAdmin, requireRole } from '../middleware/auth';
-import { sendBookingConfirmation, sendCancellationConfirmation } from '../services/email';
+import { sendBookingConfirmation, sendCancellationConfirmation, sendProviderBookingNotification } from '../services/email';
 import { sendWhatsAppBookingConfirmation, sendWhatsAppBookingCancellation } from '../services/whatsapp';
 
 const router = Router();
@@ -132,6 +132,31 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
             totalPrice: Number(total_price)
           });
         }
+
+        // Notify providers
+        query<{ email: string; full_name: string }>(
+          `SELECT u.email, p.full_name
+           FROM experience_providers ep
+           JOIN users u ON u.id = ep.provider_user_id
+           LEFT JOIN profiles p ON p.id = u.id
+           WHERE ep.experience_id = $1 AND ep.is_active = true`,
+          [experience_id]
+        ).then(async (providers) => {
+          for (const provider of providers) {
+            if (provider.email) {
+              await sendProviderBookingNotification({
+                providerEmail: provider.email,
+                providerName: provider.full_name ?? 'Furnizor',
+                experienceTitle: info.title,
+                clientName: info.full_name ?? 'Client',
+                bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
+                participants: Number(participants),
+                totalPrice: Number(total_price),
+                bookingId: booking!.id,
+              });
+            }
+          }
+        }).catch(err => console.error('[Provider Notification]', err));
       }
     }).catch(console.error);
     }

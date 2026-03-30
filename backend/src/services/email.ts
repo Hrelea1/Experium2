@@ -98,6 +98,40 @@ export async function sendBookingConfirmation(params: {
   });
 }
 
+// ─── Provider Booking Notification ──────────────────────────────────────────────
+export async function sendProviderBookingNotification(params: {
+  providerEmail: string;
+  providerName: string;
+  experienceTitle: string;
+  clientName: string;
+  bookingDate: string;
+  participants: number;
+  totalPrice: number;
+  bookingId: string;
+}): Promise<void> {
+  await sendWithTimeout({
+    from: FROM,
+    to: params.providerEmail,
+    subject: `Rezervare nouă — ${params.experienceTitle}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">🎉 Ai o rezervare nouă!</h2>
+        <p>Bună ${params.providerName},</p>
+        <p>A fost efectuată o nouă rezervare pentru experiența <strong>${params.experienceTitle}</strong>.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px; color:#666;">Client:</td><td style="padding:8px;"><strong>${params.clientName}</strong></td></tr>
+          <tr><td style="padding: 8px; color:#666;">Data:</td><td style="padding:8px;"><strong>${params.bookingDate}</strong></td></tr>
+          <tr><td style="padding: 8px; color:#666;">Participanți:</td><td style="padding:8px;"><strong>${params.participants}</strong></td></tr>
+          <tr><td style="padding: 8px; color:#666;">Total:</td><td style="padding:8px;"><strong>${params.totalPrice} RON</strong></td></tr>
+          <tr><td style="padding: 8px; color:#666;">ID rezervare:</td><td style="padding:8px; font-size:12px;">${params.bookingId}</td></tr>
+        </table>
+        <p>Te rugăm să verifici dashboard-ul pentru mai multe detalii.</p>
+        <p style="color:#666; font-size:12px;">Echipa Experium</p>
+      </div>
+    `,
+  });
+}
+
 // ─── Cancellation Confirmation ────────────────────────────────────────────────
 export async function sendCancellationConfirmation(params: {
   email: string;
@@ -171,6 +205,31 @@ export async function sendVoucherExpiryAlert(params: {
         <p>Bună ${params.name},</p>
         <p>Voucherul tău <strong>${params.voucherCode}</strong> pentru <strong>${params.experienceTitle}</strong> expiră pe <strong>${params.expiryDate}</strong>.</p>
         <p>Nu uita să îl folosești!</p>
+      </div>
+    `,
+  });
+}
+
+// ─── Provider Voucher Notification ──────────────────────────────────────────────
+export async function sendProviderVoucherNotification(params: {
+  providerEmail: string;
+  providerName: string;
+  experienceTitle: string;
+  clientName: string;
+  purchasePrice: number;
+}): Promise<void> {
+  await sendWithTimeout({
+    from: FROM,
+    to: params.providerEmail,
+    subject: `Voucher nou achiziționat — ${params.experienceTitle}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">🎟️ Un nou voucher a fost achiziționat!</h2>
+        <p>Bună ${params.providerName},</p>
+        <p>Clientul <strong>${params.clientName}</strong> a achiziționat un voucher pentru experiența <strong>${params.experienceTitle}</strong> în valoare de <strong>${params.purchasePrice} RON</strong>.</p>
+        <p>Voucherul va putea fi folosit ulterior de către client pentru a rezerva o dată la această experiență.</p>
+        <p>Te rugăm să verifici dashboard-ul pentru mai multe detalii.</p>
+        <p style="color:#666; font-size:12px;">Echipa Experium</p>
       </div>
     `,
   });

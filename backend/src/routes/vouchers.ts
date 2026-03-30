@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { generateVoucherCode } from '../services/otp';
+import { sendProviderVoucherNotification, sendBookingConfirmation, sendProviderBookingNotification } from '../services/email';
 
 const router = Router();
 
@@ -42,6 +43,37 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
        RETURNING id, code`,
       [req.user!.userId, experience_id, code, purchase_price, expiryDate.toISOString()]
     );
+
+    // Get client info and notify providers
+    queryOne<{ full_name: string }>(
+      `SELECT full_name FROM profiles WHERE id = $1`,
+      [req.user!.userId]
+    ).then(clientProfile => {
+      const clientName = clientProfile?.full_name ?? 'Client';
+
+      // Notify providers
+      query<{ email: string; full_name: string; title: string }>(
+        `SELECT u.email, p.full_name, e.title
+         FROM experience_providers ep
+         JOIN users u ON u.id = ep.provider_user_id
+         LEFT JOIN profiles p ON p.id = u.id
+         JOIN experiences e ON e.id = ep.experience_id
+         WHERE ep.experience_id = $1 AND ep.is_active = true`,
+        [experience_id]
+      ).then(async (providers) => {
+        for (const provider of providers) {
+          if (provider.email) {
+            await sendProviderVoucherNotification({
+              providerEmail: provider.email,
+              providerName: provider.full_name ?? 'Furnizor',
+              experienceTitle: provider.title,
+              clientName,
+              purchasePrice: Number(purchase_price),
+            });
+          }
+        }
+      }).catch(err => console.error('[Provider Voucher Notification]', err));
+    }).catch(console.error);
 
     res.status(201).json(voucher);
   } catch (err) {
@@ -109,6 +141,53 @@ router.post('/:id/redeem', requireAuth, async (req: Request, res: Response) => {
     );
 
     await query('UPDATE vouchers SET status = $1, redemption_date = now() WHERE id = $2', ['used', voucher.id]);
+
+    // Send emails for the new booking (Client & Provider)
+    queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
+      `SELECT u.email, p.full_name, p.phone, e.title
+       FROM users u
+       LEFT JOIN profiles p ON p.id = u.id
+       JOIN experiences e ON e.id = $2
+       WHERE u.id = $1`,
+      [req.user!.userId, voucher.experience_id]
+    ).then(async (info) => {
+      if (info) {
+        await sendBookingConfirmation({
+          email: info.email,
+          name: info.full_name ?? 'Client',
+          experienceTitle: info.title,
+          bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
+          participants: Number(participants),
+          totalPrice: Number(voucher.purchase_price),
+          bookingId: booking!.id,
+        });
+
+        // Notify providers
+        query<{ email: string; full_name: string }>(
+          `SELECT u.email, p.full_name
+           FROM experience_providers ep
+           JOIN users u ON u.id = ep.provider_user_id
+           LEFT JOIN profiles p ON p.id = u.id
+           WHERE ep.experience_id = $1 AND ep.is_active = true`,
+          [voucher.experience_id]
+        ).then(async (providers) => {
+          for (const provider of providers) {
+            if (provider.email) {
+              await sendProviderBookingNotification({
+                providerEmail: provider.email,
+                providerName: provider.full_name ?? 'Furnizor',
+                experienceTitle: info.title,
+                clientName: info.full_name ?? 'Client',
+                bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
+                participants: Number(participants),
+                totalPrice: Number(voucher.purchase_price),
+                bookingId: booking!.id,
+              });
+            }
+          }
+        }).catch(err => console.error('[Provider Notification]', err));
+      }
+    }).catch(console.error);
 
     res.json({ booking_id: booking!.id, success: true });
   } catch (err) {
