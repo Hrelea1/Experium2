@@ -23,6 +23,7 @@ interface BookingFormProps {
     maxParticipants: number;
     image?: string;
     isAssisted?: boolean;
+    pricingTiers?: {name: string, price: number}[];
   };
 }
 
@@ -41,10 +42,33 @@ export function BookingForm({ experience }: BookingFormProps) {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
 
   const isAssisted = experience.isAssisted || false;
+  const hasTiers = experience.pricingTiers && experience.pricingTiers.length > 0;
 
-  const totalPrice = (experience.price * participants) + servicesTotal;
+  const [tierQuantities, setTierQuantities] = useState<Record<number, number>>(() => {
+    if (hasTiers) {
+      return { 0: 1 };
+    }
+    return {};
+  });
+
+  const getTierQty = (idx: number) => tierQuantities[idx] || 0;
+  const setTierQty = (idx: number, qty: number) => {
+    setTierQuantities(prev => ({ ...prev, [idx]: qty }));
+  };
+
+  const totalParticipants = hasTiers
+    ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
+    : participants;
+
+  const basePrice = hasTiers
+    ? Object.entries(tierQuantities).reduce((sum, [idx, qty]) => {
+        return sum + (experience.pricingTiers![Number(idx)].price * qty);
+      }, 0)
+    : (experience.price * participants);
+
+  const totalPrice = basePrice + servicesTotal;
   const savings = experience.originalPrice 
-    ? (experience.originalPrice - experience.price) * participants 
+    ? (experience.originalPrice - experience.price) * totalParticipants 
     : 0;
 
   // Check if this experience already has an item in cart
@@ -70,11 +94,22 @@ export function BookingForm({ experience }: BookingFormProps) {
     
     setCheckingAvailability(true);
     try {
+      const selectedTiersPayload = hasTiers
+        ? Object.entries(tierQuantities)
+            .filter(([_, qty]) => qty > 0)
+            .map(([idx, qty]) => ({
+              name: experience.pricingTiers![Number(idx)].name,
+              price: experience.pricingTiers![Number(idx)].price,
+              quantity: qty
+            }))
+        : undefined;
+
       // 1. Create a pending booking via Node API
       const { id: bookingId } = await api.bookings.create({
         experience_id: experience.id,
         booking_date: `${selectedSlot?.slot_date}T${selectedSlot?.start_time}`,
-        participants,
+        participants: totalParticipants,
+        participant_details: selectedTiersPayload,
         total_price: totalPrice,
         status: 'pending',
       });
@@ -119,7 +154,16 @@ export function BookingForm({ experience }: BookingFormProps) {
       price: experience.price,
       originalPrice: experience.originalPrice,
       image: experience.image || '/placeholder.svg',
-      participants,
+      participants: totalParticipants,
+      selectedTiers: hasTiers
+        ? Object.entries(tierQuantities)
+            .filter(([_, qty]) => qty > 0)
+            .map(([idx, qty]) => ({
+              name: experience.pricingTiers![Number(idx)].name,
+              price: experience.pricingTiers![Number(idx)].price,
+              quantity: qty
+            }))
+        : undefined,
       slotId: selectedSlot.id,
       slotDate: selectedSlot.slot_date,
       startTime: selectedSlot.start_time,
@@ -154,13 +198,19 @@ export function BookingForm({ experience }: BookingFormProps) {
       {/* Price Header */}
       <div className="bg-gradient-to-r from-primary to-coral-dark p-6 text-primary-foreground">
         <div className="flex items-baseline gap-3">
-          <span className="text-3xl font-bold">{experience.price} {t('common.lei')}</span>
-          {experience.originalPrice && (
-            <span className="text-primary-foreground/70 line-through text-lg">
-              {experience.originalPrice} {t('common.lei')}
-            </span>
+          {hasTiers ? (
+            <span className="text-lg font-medium opacity-90">Preț variabil per participant</span>
+          ) : (
+            <>
+              <span className="text-3xl font-bold">{experience.price} {t('common.lei')}</span>
+              {experience.originalPrice && (
+                <span className="text-primary-foreground/70 line-through text-lg">
+                  {experience.originalPrice} {t('common.lei')}
+                </span>
+              )}
+              <span className="text-primary-foreground/80">/ {t('booking.perPerson')}</span>
+            </>
           )}
-          <span className="text-primary-foreground/80">/ {t('booking.perPerson')}</span>
         </div>
         {savings > 0 && (
           <p className="text-primary-foreground/90 text-sm mt-1">
@@ -173,38 +223,76 @@ export function BookingForm({ experience }: BookingFormProps) {
       <div className="p-6 space-y-5">
         {/* Participants */}
         <div>
-          <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-4">
             <Users className="w-4 h-4 text-primary" />
             {t('booking.participants')}
           </label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setParticipants(Math.max(1, participants - 1))}
-              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
-            >
-              −
-            </button>
-            <span className="w-12 text-center text-lg font-semibold text-foreground">
-              {participants}
-            </span>
-            <button
-              type="button"
-              onClick={() => setParticipants(Math.min(experience.maxParticipants, participants + 1))}
-              className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
-            >
-              +
-            </button>
-            <span className="text-sm text-muted-foreground ml-2">
-              ({t('booking.max')} {experience.maxParticipants})
-            </span>
-          </div>
+          
+          {hasTiers ? (
+            <div className="space-y-3">
+              {experience.pricingTiers!.map((tier, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 border rounded-xl bg-card">
+                  <div>
+                    <h4 className="font-semibold text-sm">{tier.name}</h4>
+                    <p className="text-muted-foreground text-xs">{tier.price} {t('common.lei')}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={getTierQty(idx) <= 0 || (idx === 0 && totalParticipants <= 1)} // require at least 1 global participant
+                      onClick={() => setTierQty(idx, Math.max(0, getTierQty(idx) - 1))}
+                      className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center text-base font-semibold text-foreground">
+                      {getTierQty(idx)}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={totalParticipants >= experience.maxParticipants}
+                      onClick={() => setTierQty(idx, getTierQty(idx) + 1)}
+                      className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="text-xs text-muted-foreground text-right mr-1">
+                Total: {totalParticipants} / {experience.maxParticipants} pers.
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 pl-2">
+              <button
+                type="button"
+                onClick={() => setParticipants(Math.max(1, participants - 1))}
+                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
+              >
+                −
+              </button>
+              <span className="w-12 text-center text-lg font-semibold text-foreground">
+                {participants}
+              </span>
+              <button
+                type="button"
+                onClick={() => setParticipants(Math.min(experience.maxParticipants, participants + 1))}
+                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
+              >
+                +
+              </button>
+              <span className="text-sm text-muted-foreground ml-2">
+                ({t('booking.max')} {experience.maxParticipants})
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Slot Picker */}
         <SlotPicker
           experienceId={experience.id}
-          participants={participants}
+          participants={totalParticipants}
           onSlotSelected={handleSlotSelected}
         />
 

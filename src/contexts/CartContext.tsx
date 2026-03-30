@@ -36,6 +36,7 @@ export interface CartItem {
   originalPrice?: number;
   image: string;
   participants: number;
+  selectedTiers?: { name: string; price: number; quantity: number }[];
   slotId: string;
   slotDate: string;
   startTime: string;
@@ -97,6 +98,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           originalPrice: row.original_price ?? undefined,
           image: row.image ?? "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop",
           participants: row.quantity ?? 1,
+          selectedTiers: row.selected_tiers ?? [],
           slotId: row.id,     // simple cart — no slot lock in custom backend
           slotDate: "",
           startTime: "",
@@ -132,7 +134,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       try {
         await apiRequest("/cart", {
           method: "POST",
-          body: JSON.stringify({ experience_id: item.experienceId, quantity: item.participants }),
+          body: JSON.stringify({ 
+            experience_id: item.experienceId, 
+            quantity: item.participants,
+            selected_tiers: item.selectedTiers || []
+          }),
         });
       } catch (err: any) {
         toast({ title: "Eroare la adăugarea în coș", description: err?.error ?? err?.message, variant: "destructive" });
@@ -165,7 +171,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const totalItems = items.length;
   const subtotal = items.reduce((sum, item) => {
-    const base = item.price * item.participants;
+    let base = 0;
+    if (item.selectedTiers && item.selectedTiers.length > 0) {
+      base = item.selectedTiers.reduce((s, tier) => s + tier.price * tier.quantity, 0);
+    } else {
+      base = item.price * item.participants;
+    }
     const extras = item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0);
     return sum + base + extras;
   }, 0);

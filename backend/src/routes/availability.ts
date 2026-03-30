@@ -15,7 +15,7 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
     const { from, to } = req.query as { from?: string; to?: string };
 
     const rows = await query(
-      `SELECT id, experience_id, slot_date, start_time,
+      `SELECT id, experience_id, TO_CHAR(slot_date, 'YYYY-MM-DD') AS slot_date, start_time,
         COALESCE(end_time, start_time + interval '1 hour') AS end_time,
         capacity, booked_count,
         (capacity - booked_count) AS available_spots,
@@ -44,7 +44,7 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
     const { from } = req.query as { from?: string };
 
     const rows = await query(
-      `SELECT id, experience_id, slot_date, start_time,
+      `SELECT id, experience_id, TO_CHAR(slot_date, 'YYYY-MM-DD') AS slot_date, start_time,
               COALESCE(end_time, start_time + interval '1 hour') AS end_time,
               capacity, booked_count,
               COALESCE(is_locked, false) AS is_locked, locked_by, locked_until

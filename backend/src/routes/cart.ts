@@ -8,7 +8,7 @@ const router = Router();
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const items = await query(
-      `SELECT ci.id, ci.quantity, ci.added_at,
+      `SELECT ci.id, ci.quantity, ci.selected_tiers, ci.added_at,
         e.id AS experience_id, e.title, e.price, e.location_name, e.duration_minutes,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS image
        FROM cart_items ci
@@ -27,16 +27,16 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 // ─── POST /cart ───────────────────────────────────────────────────────────────
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    const { experience_id, quantity = 1 } = req.body;
+    const { experience_id, quantity = 1, selected_tiers = [] } = req.body;
     if (!experience_id) return res.status(400).json({ error: 'experience_id required' });
 
     // Upsert: if already in cart, increase quantity
     await query(
-      `INSERT INTO cart_items (user_id, experience_id, quantity)
-       VALUES ($1, $2, $3)
+      `INSERT INTO cart_items (user_id, experience_id, quantity, selected_tiers)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (user_id, experience_id)
-       DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity, added_at = now()`,
-      [req.user!.userId, experience_id, quantity]
+       DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity, selected_tiers = EXCLUDED.selected_tiers, added_at = now()`,
+      [req.user!.userId, experience_id, quantity, JSON.stringify(selected_tiers)]
     );
 
     res.status(201).json({ message: 'Added to cart' });

@@ -35,6 +35,12 @@ const emptyService: ServiceInput = {
   isRequired: false,
 };
 
+interface PricingTierInput {
+  name: string;
+  price: string;
+}
+const emptyTier: PricingTierInput = { name: '', price: '' };
+
 export default function CreateExperience() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -61,6 +67,9 @@ export default function CreateExperience() {
 
   // Services state
   const [services, setServices] = useState<ServiceInput[]>([]);
+
+  // Tiers state
+  const [pricingTiers, setPricingTiers] = useState<PricingTierInput[]>([]);
 
   useEffect(() => {
     fetchFormData();
@@ -94,6 +103,15 @@ export default function CreateExperience() {
     const updated = [...services];
     updated[index] = { ...updated[index], [field]: value };
     setServices(updated);
+  };
+
+  // Tier helpers
+  const addTier = () => setPricingTiers([...pricingTiers, { ...emptyTier }]);
+  const removeTier = (index: number) => setPricingTiers(pricingTiers.filter((_, i) => i !== index));
+  const updateTier = (index: number, field: keyof PricingTierInput, value: string) => {
+    const updated = [...pricingTiers];
+    updated[index] = { ...updated[index], [field]: value };
+    setPricingTiers(updated);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,7 +153,7 @@ export default function CreateExperience() {
         }
       }
 
-      // 2. Prepare services
+      // 2. Prepare services & tiers
       const validServices = services
         .filter(s => s.name.trim() && s.price)
         .map((s, idx) => ({
@@ -146,6 +164,10 @@ export default function CreateExperience() {
           is_required: s.isRequired,
           display_order: idx
         }));
+
+      const validTiers = pricingTiers
+        .filter(t => t.name.trim() && t.price)
+        .map(t => ({ name: t.name.trim(), price: parseFloat(t.price) }));
 
       // 3. Create experience via Node API (provider id is handled by session)
       const payload = {
@@ -161,6 +183,7 @@ export default function CreateExperience() {
         location_name: locationName,
         cancellation_policy: cancellationPolicy || null,
         is_active: false, // always pending for providers
+        pricing_tiers: validTiers,
         images: finalImagesData,
         services: validServices
       };
@@ -261,10 +284,48 @@ export default function CreateExperience() {
                   <Input id="shortDesc" value={shortDescription} onChange={(e) => setShortDescription(e.target.value)} placeholder="Max 160 caractere" maxLength={160} />
                 </div>
 
-                {/* Price */}
-                <div className="space-y-2">
-                  <Label htmlFor="price">Preț (Lei) *</Label>
-                  <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 250" min={1} step={0.01} />
+                {/* Price & Tiers */}
+                <div className="space-y-4 p-5 border rounded-xl bg-muted/5">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Preț de bază (Lei) *</Label>
+                    <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 250" min={1} step={0.01} />
+                    <p className="text-xs text-muted-foreground">Prețul standard dacă nu adaugi categorii specifice mai jos.</p>
+                  </div>
+
+                  <div className="space-y-3 pt-3 border-t">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold">Categorii de participanți (opțional)</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={addTier}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Adaugă Categorie
+                      </Button>
+                    </div>
+                    {pricingTiers.map((tier, index) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <Input 
+                          placeholder="Nume (ex: Adult, Copil, Student)" 
+                          value={tier.name} 
+                          onChange={(e) => updateTier(index, 'name', e.target.value)}
+                        />
+                        <Input 
+                          type="number" 
+                          placeholder="Preț (Lei)" 
+                          className="w-32" 
+                          value={tier.price} 
+                          onChange={(e) => updateTier(index, 'price', e.target.value)}
+                          step="0.01"
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeTier(index)}>
+                          <X className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                    {pricingTiers.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Clienții vor selecta din aceste categorii la rezervare, ignorând prețul de bază.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

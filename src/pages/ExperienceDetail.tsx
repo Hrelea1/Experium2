@@ -219,6 +219,7 @@ export default function ExperienceDetail() {
             includes: Array.isArray((data as any).includes) ? (data as any).includes : [],
             maxParticipants: data.max_participants || 10,
             is_assisted: (data as any).is_assisted || false,
+            pricingTiers: data.pricing_tiers || [],
           });
         }
       } catch (error: any) {

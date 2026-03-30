@@ -51,6 +51,7 @@ type ExperienceRow = {
   min_age: number | null;
   is_active: boolean | null;
   is_featured: boolean | null;
+  pricing_tiers: { name: string; price: number }[] | null;
 };
 
 type ExperienceImageRow = {
@@ -87,6 +88,12 @@ type ServiceDraft = {
   is_required: boolean;
   max_quantity: string;
   is_active: boolean;
+};
+
+type TierDraft = {
+  clientId: string;
+  name: string;
+  price: string;
 };
 
 const newClientId = () =>
@@ -168,6 +175,7 @@ export default function EditExperience() {
 
   const [images, setImages] = useState<ImageDraft[]>([]);
   const [services, setServices] = useState<ServiceDraft[]>([]);
+  const [pricingTiers, setPricingTiers] = useState<TierDraft[]>([]);
 
   const canSave = useMemo(() => {
     if (!id) return false;
@@ -214,6 +222,7 @@ export default function EditExperience() {
           min_age: exp.min_age ? Number(exp.min_age) : null,
           is_active: exp.is_active ?? true,
           is_featured: exp.is_featured ?? false,
+          pricing_tiers: exp.pricing_tiers ?? [],
         };
 
         setOriginalExperience(expRow);
@@ -260,6 +269,13 @@ export default function EditExperience() {
           is_active: s.is_active,
         }));
         setServices(draftServices);
+
+        const draftTiers: TierDraft[] = (expRow.pricing_tiers ?? []).map((t) => ({
+          clientId: newClientId(),
+          name: t.name,
+          price: t.price.toString(),
+        }));
+        setPricingTiers(draftTiers);
       } catch (e: any) {
         toast({
           title: "Eroare",
@@ -353,6 +369,14 @@ export default function EditExperience() {
     setServices((prev) => prev.filter((s) => s.clientId !== clientId));
   };
 
+  const addTier = () => {
+    setPricingTiers((prev) => [...prev, { clientId: newClientId(), name: "", price: "" }]);
+  };
+
+  const removeTier = (clientId: string) => {
+    setPricingTiers((prev) => prev.filter((t) => t.clientId !== clientId));
+  };
+
   const buildExperiencePatch = () => {
     if (!originalExperience) return null;
     const patch: Record<string, any> = {};
@@ -393,6 +417,12 @@ export default function EditExperience() {
 
     if ((originalExperience.is_active ?? true) !== isActive) patch.is_active = isActive;
     if ((originalExperience.is_featured ?? false) !== isFeatured) patch.is_featured = isFeatured;
+
+    // Pricing tiers are always overwritten as a JSONB array, simple compare or always send
+    const cleanTiers = pricingTiers
+      .filter((t) => t.name.trim() && normalizeNumberInput(t.price) !== null)
+      .map((t) => ({ name: t.name.trim(), price: normalizeNumberInput(t.price)! }));
+    patch.pricing_tiers = cleanTiers;
 
     return patch;
   };
@@ -549,23 +579,63 @@ export default function EditExperience() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Preț (RON) *</Label>
-                    <Input
-                      id="price"
-                      inputMode="decimal"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="original_price">Preț original (promo)</Label>
-                    <Input
-                      id="original_price"
-                      inputMode="decimal"
-                      value={originalPrice}
-                      onChange={(e) => setOriginalPrice(e.target.value)}
-                    />
+                  <div className="space-y-4 p-5 border rounded-xl bg-muted/5 md:col-span-2">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="price">Preț de bază (RON) *</Label>
+                        <Input
+                          id="price"
+                          inputMode="decimal"
+                          value={price}
+                          onChange={(e) => setPrice(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">Prețul standard dacă nu adaugi categorii specifice mai jos.</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="original_price">Preț original (promo)</Label>
+                        <Input
+                          id="original_price"
+                          inputMode="decimal"
+                          value={originalPrice}
+                          onChange={(e) => setOriginalPrice(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-semibold">Categorii de participanți (opțional)</Label>
+                        <Button type="button" variant="outline" size="sm" onClick={addTier}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          Adaugă Categorie
+                        </Button>
+                      </div>
+                      {pricingTiers.map((tier) => (
+                        <div key={tier.clientId} className="flex items-center gap-3">
+                          <Input 
+                            placeholder="Nume (ex: Adult, Copil)" 
+                            value={tier.name} 
+                            onChange={(e) => setPricingTiers(prev => prev.map(t => t.clientId === tier.clientId ? { ...t, name: e.target.value } : t))}
+                          />
+                          <Input 
+                            type="number" 
+                            placeholder="Preț (Lei)" 
+                            className="w-32" 
+                            value={tier.price} 
+                            onChange={(e) => setPricingTiers(prev => prev.map(t => t.clientId === tier.clientId ? { ...t, price: e.target.value } : t))}
+                            step="0.01"
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeTier(tier.clientId)}>
+                            <X className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                      {pricingTiers.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Clienții vor selecta din aceste categorii la rezervare, ignorând prețul de bază.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
