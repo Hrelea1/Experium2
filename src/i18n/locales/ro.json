@@ -365,7 +365,7 @@
     "savings": "Economisești {{amount}} lei la această comandă!",
     "participants": "Număr persoane",
     "max": "max",
-    "securityNote": "Plată securizată • Voucher valabil 12 luni",
+    "securityNote": "Plată securizată prin Stripe",
     "priceIncludesVat": "Preț cu TVA inclus"
   },
   "services": {

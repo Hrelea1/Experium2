@@ -194,6 +194,7 @@ export default function ExperienceDetail() {
             location: data.location_name,
             price: Number(data.price),
             originalPrice: data.original_price ? Number(data.original_price) : undefined,
+            child_price: data.child_price ? Number(data.child_price) : undefined,
             rating: data.avg_rating || 4.5,
             reviews: data.total_reviews || 0,
             duration: data.duration_minutes ? `${Math.floor(data.duration_minutes / 60)} ore` : "Variabil",

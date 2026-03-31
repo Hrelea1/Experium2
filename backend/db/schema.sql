@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS experiences (
   includes          TEXT[] DEFAULT '{}'::text[],
   price             DECIMAL(10,2) NOT NULL,
   original_price    DECIMAL(10,2),
+  child_price       DECIMAL(10,2),
   category_id       UUID NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
   region_id         UUID NOT NULL REFERENCES regions(id) ON DELETE RESTRICT,
   county_id         UUID REFERENCES counties(id) ON DELETE SET NULL,

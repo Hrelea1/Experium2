@@ -364,7 +364,7 @@
     "savings": "You save {{amount}} lei on this order!",
     "participants": "Number of people",
     "max": "max",
-    "securityNote": "Secure payment • Voucher valid for 12 months",
+    "securityNote": "Secure payment via Stripe",
     "priceIncludesVat": "Price includes VAT"
   },
   "services": {

@@ -20,6 +20,7 @@ interface BookingFormProps {
     location: string;
     price: number;
     originalPrice?: number;
+    child_price?: number;
     maxParticipants: number;
     image?: string;
     isAssisted?: boolean;
@@ -34,7 +35,8 @@ export function BookingForm({ experience }: BookingFormProps) {
   const { user } = useAuth();
   const { addItem, items } = useCart();
   const { t } = useTranslation();
-  const [participants, setParticipants] = useState(1);
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
   const selectedServicesRef = useRef<SelectedService[]>([]);
   const [servicesTotal, setServicesTotal] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
@@ -59,13 +61,15 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const totalParticipants = hasTiers
     ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
-    : participants;
+    : adults + children;
+
+  const childPriceToUse = experience.child_price ?? experience.price;
 
   const basePrice = hasTiers
     ? Object.entries(tierQuantities).reduce((sum, [idx, qty]) => {
         return sum + (experience.pricingTiers![Number(idx)].price * qty);
       }, 0)
-    : (experience.price * participants);
+    : (experience.price * adults) + (childPriceToUse * children);
 
   const totalPrice = basePrice + servicesTotal;
   const savings = experience.originalPrice 
@@ -103,7 +107,10 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : [];
+        : [
+            { name: "Adulți", price: experience.price, quantity: adults },
+            ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
+          ];
         
       // Combine tiers and services
       const participantDetailsPayload = [...selectedTiersPayload, ...selectedServicesRef.current];
@@ -167,7 +174,10 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : undefined,
+        : [
+            { name: "Adulți", price: experience.price, quantity: adults },
+            ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
+          ],
       slotId: selectedSlot.id,
       slotDate: selectedSlot.slot_date,
       startTime: selectedSlot.start_time,
@@ -268,27 +278,64 @@ export function BookingForm({ experience }: BookingFormProps) {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 pl-2">
-              <button
-                type="button"
-                onClick={() => setParticipants(Math.max(1, participants - 1))}
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
-              >
-                −
-              </button>
-              <span className="w-12 text-center text-lg font-semibold text-foreground">
-                {participants}
-              </span>
-              <button
-                type="button"
-                onClick={() => setParticipants(Math.min(experience.maxParticipants, participants + 1))}
-                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
-              >
-                +
-              </button>
-              <span className="text-sm text-muted-foreground ml-2">
-                ({t('booking.max')} {experience.maxParticipants})
-              </span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 border rounded-xl bg-card">
+                <div>
+                  <h4 className="font-semibold text-sm">Adulți</h4>
+                  <p className="text-muted-foreground text-xs">{experience.price} {t('common.lei')}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={adults <= 1}
+                    onClick={() => setAdults(Math.max(1, adults - 1))}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center text-base font-semibold text-foreground">
+                    {adults}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={totalParticipants >= experience.maxParticipants}
+                    onClick={() => setAdults(adults + 1)}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-3 border rounded-xl bg-card">
+                <div>
+                  <h4 className="font-semibold text-sm">Copii</h4>
+                  <p className="text-muted-foreground text-xs">{childPriceToUse} {t('common.lei')}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={children <= 0}
+                    onClick={() => setChildren(Math.max(0, children - 1))}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center text-base font-semibold text-foreground">
+                    {children}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={totalParticipants >= experience.maxParticipants}
+                    onClick={() => setChildren(children + 1)}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground text-right mr-1">
+                Total: {totalParticipants} / {experience.maxParticipants} pers.
+              </div>
             </div>
           )}
         </div>

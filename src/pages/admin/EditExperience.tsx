@@ -41,6 +41,7 @@ type ExperienceRow = {
   location_name: string;
   price: number;
   original_price: number | null;
+  child_price: number | null;
   category_id: string;
   region_id: string;
   duration_minutes: number | null;
@@ -143,6 +144,7 @@ export default function EditExperience() {
   const [providerId, setProviderId] = useState<string>("none");
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
+  const [childPrice, setChildPrice] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [minAge, setMinAge] = useState("");
@@ -209,6 +211,7 @@ export default function EditExperience() {
           location_name: exp.location_name,
           price: Number(exp.price),
           original_price: exp.original_price ? Number(exp.original_price) : null,
+          child_price: exp.child_price ? Number(exp.child_price) : null,
           category_id: exp.category_id,
           region_id: exp.region_id,
           duration_minutes: exp.duration_minutes ? Number(exp.duration_minutes) : null,
@@ -236,6 +239,7 @@ export default function EditExperience() {
         setProviderId(expRow.provider_id ?? "none");
         setPrice(expRow.price?.toString?.() ?? "");
         setOriginalPrice(expRow.original_price?.toString?.() ?? "");
+        setChildPrice(expRow.child_price?.toString?.() ?? "");
         setDurationMinutes(expRow.duration_minutes?.toString?.() ?? "");
         setMaxParticipants(expRow.max_participants?.toString?.() ?? "");
         setMinAge(expRow.min_age?.toString?.() ?? "");
@@ -363,6 +367,7 @@ export default function EditExperience() {
 
     const nextPrice = normalizeNumberInput(price);
     const nextOriginalPrice = normalizeNumberInput(originalPrice);
+    const nextChildPrice = normalizeNumberInput(childPrice);
     const nextDuration = normalizeNumberInput(durationMinutes);
     const nextMax = normalizeNumberInput(maxParticipants);
     const nextMinAge = normalizeNumberInput(minAge);
@@ -384,6 +389,9 @@ export default function EditExperience() {
     if (!isEqualNullableNumber(nextPrice, originalExperience.price)) patch.price = nextPrice;
     if (!isEqualNullableNumber(nextOriginalPrice, originalExperience.original_price ?? null)) {
       patch.original_price = nextOriginalPrice;
+    }
+    if (!isEqualNullableNumber(nextChildPrice, originalExperience.child_price ?? null)) {
+      patch.child_price = nextChildPrice;
     }
     if (!isEqualNullableNumber(nextDuration, originalExperience.duration_minutes ?? null)) {
       patch.duration_minutes = nextDuration;
@@ -573,7 +581,7 @@ export default function EditExperience() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="price">Preț (RON) *</Label>
                     <Input
@@ -581,6 +589,16 @@ export default function EditExperience() {
                       inputMode="decimal"
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="child_price">Preț Copii (RON)</Label>
+                    <Input
+                      id="child_price"
+                      inputMode="decimal"
+                      value={childPrice}
+                      onChange={(e) => setChildPrice(e.target.value)}
+                      placeholder="Opțional"
                     />
                   </div>
                   <div className="space-y-2">
