@@ -140,8 +140,8 @@ export function ServiceSelector({ services, onServicesChange }: ServiceSelectorP
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium text-foreground break-words max-w-full">
                       {service.name}
                     </span>
                     <span className="text-primary font-semibold whitespace-nowrap">

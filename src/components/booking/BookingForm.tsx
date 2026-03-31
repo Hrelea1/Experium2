@@ -223,7 +223,7 @@ export function BookingForm({ experience }: BookingFormProps) {
     >
       {/* Price Header */}
       <div className="bg-gradient-to-r from-primary to-coral-dark p-6 text-primary-foreground">
-        <div className="flex items-baseline gap-3">
+        <div className="flex flex-wrap items-baseline gap-3">
           {hasTiers ? (
             <span className="text-lg font-medium opacity-90">Preț variabil per participant</span>
           ) : (
@@ -257,12 +257,12 @@ export function BookingForm({ experience }: BookingFormProps) {
           {hasTiers ? (
             <div className="space-y-3">
               {experience.pricingTiers!.map((tier, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 border rounded-xl bg-card">
-                  <div>
-                    <h4 className="font-semibold text-sm">{tier.name}</h4>
+                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
+                  <div className="pr-2">
+                    <h4 className="font-semibold text-sm break-words">{tier.name}</h4>
                     <p className="text-muted-foreground text-xs">{tier.price} {t('common.lei')}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
                     <button
                       type="button"
                       disabled={getTierQty(idx) <= 0 || (idx === 0 && totalParticipants <= 1)} // require at least 1 global participant
@@ -291,12 +291,12 @@ export function BookingForm({ experience }: BookingFormProps) {
             </div>
           ) : hasDistinctChildPrice ? (
             <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 border rounded-xl bg-card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
                 <div>
                   <h4 className="font-semibold text-sm">Adulți</h4>
                   <p className="text-muted-foreground text-xs">{experience.price} {t('common.lei')}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 self-end sm:self-auto">
                   <button
                     type="button"
                     disabled={adults <= 1}
@@ -318,12 +318,12 @@ export function BookingForm({ experience }: BookingFormProps) {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded-xl bg-card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
                 <div>
                   <h4 className="font-semibold text-sm">Copii</h4>
                   <p className="text-muted-foreground text-xs">{childPriceToUse} {t('common.lei')}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 self-end sm:self-auto">
                   <button
                     type="button"
                     disabled={children <= 0}
@@ -397,7 +397,7 @@ export function BookingForm({ experience }: BookingFormProps) {
 
         {/* Total */}
         <div className="border-t border-border pt-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
             <span className="text-muted-foreground">{t('cart.total')}</span>
             <span className="text-2xl font-bold text-foreground">{totalPrice} {t('common.lei')}</span>
           </div>

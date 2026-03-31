@@ -349,12 +349,12 @@ export default function ExperienceDetail() {
               </div>
 
               {/* Thumbnail Gallery */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x">
                 {experience.gallery.map((img, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`relative rounded-lg overflow-hidden flex-1 h-20 ${
+                    className={`relative rounded-lg overflow-hidden flex-none w-24 h-20 snap-center ${
                       selectedImage === index ? "ring-2 ring-primary" : ""
                     }`}
                   >
@@ -388,7 +388,7 @@ export default function ExperienceDetail() {
                 </div>
 
                 {/* Title */}
-                <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+                <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-4 break-words">
                   {experience.title}
                 </h1>
 
@@ -434,7 +434,7 @@ export default function ExperienceDetail() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="lg:sticky lg:top-24 lg:self-start"
+              className="lg:sticky lg:top-24 lg:self-start w-full max-w-full"
             >
               <BookingForm 
                 experience={{
