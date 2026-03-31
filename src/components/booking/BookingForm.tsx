@@ -37,6 +37,7 @@ export function BookingForm({ experience }: BookingFormProps) {
   const { t } = useTranslation();
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
+  const [participants, setParticipants] = useState(1);
   const selectedServicesRef = useRef<SelectedService[]>([]);
   const [servicesTotal, setServicesTotal] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
@@ -46,6 +47,7 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const isAssisted = experience.isAssisted || false;
   const hasTiers = experience.pricingTiers && experience.pricingTiers.length > 0;
+  const hasDistinctChildPrice = experience.child_price != null && experience.child_price !== experience.price;
 
   const [tierQuantities, setTierQuantities] = useState<Record<number, number>>(() => {
     if (hasTiers) {
@@ -61,7 +63,7 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const totalParticipants = hasTiers
     ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
-    : adults + children;
+    : hasDistinctChildPrice ? adults + children : participants;
 
   const childPriceToUse = experience.child_price ?? experience.price;
 
@@ -69,7 +71,9 @@ export function BookingForm({ experience }: BookingFormProps) {
     ? Object.entries(tierQuantities).reduce((sum, [idx, qty]) => {
         return sum + (experience.pricingTiers![Number(idx)].price * qty);
       }, 0)
-    : (experience.price * adults) + (childPriceToUse * children);
+    : hasDistinctChildPrice 
+      ? (experience.price * adults) + (childPriceToUse * children)
+      : (experience.price * participants);
 
   const totalPrice = basePrice + servicesTotal;
   const savings = experience.originalPrice 
@@ -107,10 +111,14 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : [
-            { name: "Adulți", price: experience.price, quantity: adults },
-            ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
-          ];
+        : (hasDistinctChildPrice
+            ? [
+                { name: "Adulți", price: experience.price, quantity: adults },
+                ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
+              ]
+            : [
+                { name: "Participanți", price: experience.price, quantity: participants }
+              ]);
         
       // Combine tiers and services
       const participantDetailsPayload = [...selectedTiersPayload, ...selectedServicesRef.current];
@@ -174,10 +182,14 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : [
-            { name: "Adulți", price: experience.price, quantity: adults },
-            ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
-          ],
+        : (hasDistinctChildPrice
+            ? [
+                { name: "Adulți", price: experience.price, quantity: adults },
+                ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
+              ]
+            : [
+                { name: "Participanți", price: experience.price, quantity: participants }
+              ]),
       slotId: selectedSlot.id,
       slotDate: selectedSlot.slot_date,
       startTime: selectedSlot.start_time,
@@ -277,7 +289,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                 Total: {totalParticipants} / {experience.maxParticipants} pers.
               </div>
             </div>
-          ) : (
+          ) : hasDistinctChildPrice ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 border rounded-xl bg-card">
                 <div>
@@ -336,6 +348,29 @@ export function BookingForm({ experience }: BookingFormProps) {
               <div className="text-xs text-muted-foreground text-right mr-1">
                 Total: {totalParticipants} / {experience.maxParticipants} pers.
               </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 pl-2">
+              <button
+                type="button"
+                onClick={() => setParticipants(Math.max(1, participants - 1))}
+                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
+              >
+                −
+              </button>
+              <span className="w-12 text-center text-lg font-semibold text-foreground">
+                {participants}
+              </span>
+              <button
+                type="button"
+                onClick={() => setParticipants(Math.min(experience.maxParticipants, participants + 1))}
+                className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
+              >
+                +
+              </button>
+              <span className="text-sm text-muted-foreground ml-2">
+                ({t('booking.max')} {experience.maxParticipants})
+              </span>
             </div>
           )}
         </div>
