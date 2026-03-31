@@ -118,7 +118,12 @@ router.put('/users/:id/star', requireAdmin, async (req: Request, res: Response) 
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.role !== 'provider') return res.status(400).json({ error: 'User is not a provider' });
 
-    await query('UPDATE provider_profiles SET is_starred = $1 WHERE user_id = $2', [is_starred, userId]);
+    // Ensure profile exists, then update
+    await query(`
+      INSERT INTO provider_profiles (user_id, mode, is_starred)
+      VALUES ($1, 'instant', $2)
+      ON CONFLICT (user_id) DO UPDATE SET is_starred = EXCLUDED.is_starred
+    `, [userId, is_starred]);
     res.json({ message: 'Star status updated' });
   } catch (err) {
     console.error('[admin/users/:id/star PUT]', err);
