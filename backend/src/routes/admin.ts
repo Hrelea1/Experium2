@@ -30,9 +30,11 @@ router.get('/users', requireAdmin, async (req: Request, res: Response) => {
 
     const rows = await query(
       `SELECT u.id, u.email, u.role, u.is_verified, u.created_at,
-        p.full_name, p.phone, p.avatar_url
+        p.full_name, p.phone, p.avatar_url,
+        COALESCE(pp.is_starred, false) AS is_starred
        FROM users u
        LEFT JOIN profiles p ON p.id = u.id
+       LEFT JOIN provider_profiles pp ON pp.user_id = u.id
        ${where}
        ORDER BY u.created_at DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
@@ -51,8 +53,11 @@ router.get('/users/:id', requireAdmin, async (req: Request, res: Response) => {
   try {
     const user = await queryOne(
       `SELECT u.id, u.email, u.role, u.is_verified, u.created_at,
-        p.full_name, p.phone, p.avatar_url
-       FROM users u LEFT JOIN profiles p ON p.id = u.id
+        p.full_name, p.phone, p.avatar_url,
+        COALESCE(pp.is_starred, false) AS is_starred
+       FROM users u 
+       LEFT JOIN profiles p ON p.id = u.id
+       LEFT JOIN provider_profiles pp ON pp.user_id = u.id
        WHERE u.id = $1`,
       [req.params.id]
     );
@@ -100,6 +105,24 @@ router.put('/users/:id/role', requireAdmin, async (req: Request, res: Response) 
   } catch (err) {
     console.error('[admin/users/:id/role PUT]', err);
     res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+// ─── PUT /admin/users/:id/star ────────────────────────────────────────────────
+router.put('/users/:id/star', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { is_starred } = req.body;
+    const userId = req.params.id;
+
+    const user = await queryOne<{ role: string }>('SELECT role FROM users WHERE id = $1', [userId]);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.role !== 'provider') return res.status(400).json({ error: 'User is not a provider' });
+
+    await query('UPDATE provider_profiles SET is_starred = $1 WHERE user_id = $2', [is_starred, userId]);
+    res.json({ message: 'Star status updated' });
+  } catch (err) {
+    console.error('[admin/users/:id/star PUT]', err);
+    res.status(500).json({ error: 'Failed to update star status' });
   }
 });
 

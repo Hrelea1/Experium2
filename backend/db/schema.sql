@@ -67,6 +67,7 @@ CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON profiles
 CREATE TABLE IF NOT EXISTS provider_profiles (
   user_id     UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   mode        TEXT NOT NULL DEFAULT 'instant' CHECK (mode IN ('instant', 'assisted')),
+  is_starred  BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

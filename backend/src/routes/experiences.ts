@@ -184,13 +184,14 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
         r.name AS region_name, r.slug AS region_slug,
         co.name AS county_name,
         ci.name AS city_name,
-        false AS is_assisted
+        COALESCE(pp.is_starred, false) AS is_assisted
        FROM experiences e
        JOIN categories cat ON cat.id = e.category_id
        JOIN regions r ON r.id = e.region_id
        LEFT JOIN counties co ON co.id = e.county_id
        LEFT JOIN cities ci ON ci.id = e.city_id
        LEFT JOIN experience_providers ep ON ep.experience_id = e.id
+       LEFT JOIN provider_profiles pp ON pp.user_id = ep.provider_user_id
        WHERE e.id = $1`,
       [id]
     );
@@ -232,7 +233,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       child_price: experience.child_price ? Number(experience.child_price) : null,
       avg_rating: Number(experience.avg_rating),
       total_reviews: Number(experience.total_reviews),
-      is_assisted: false,
+      is_assisted: Boolean(experience.is_assisted),
       provider_id: providerRow?.provider_user_id ?? null,
     };
 

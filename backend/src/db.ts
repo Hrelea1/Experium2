@@ -82,6 +82,9 @@ export async function testConnection(): Promise<void> {
 
       ALTER TABLE cart_items
       ADD COLUMN IF NOT EXISTS selected_tiers JSONB DEFAULT '[]'::jsonb;
+      
+      ALTER TABLE provider_profiles
+      ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false;
     `);
     
     // Fix existing slots with NULL values that prevent them from showing up

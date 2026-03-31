@@ -355,6 +355,10 @@ export const admin = {
   async setUserRole(userId: string, role: string) {
     return request(`/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role }) });
   },
+
+  async setStarStatus(userId: string, is_starred: boolean) {
+    return request(`/admin/users/${userId}/star`, { method: 'PUT', body: JSON.stringify({ is_starred }) });
+  },
 };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

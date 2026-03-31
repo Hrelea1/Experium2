@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, UserPlus, Trash2, Mail } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Mail, Star } from 'lucide-react';
 import { api } from '@/lib/api';
 import {
   Table,
@@ -41,6 +41,7 @@ interface UserData {
   is_verified: boolean;
   created_at: string;
   full_name: string | null;
+  is_starred?: boolean;
 }
 
 const ManageRoles = () => {
@@ -136,6 +137,23 @@ const ManageRoles = () => {
       });
     } finally {
       setDeletingUserId(null);
+    }
+  };
+
+  const toggleStar = async (userId: string, currentStatus: boolean) => {
+    try {
+      await api.admin.setStarStatus(userId, !currentStatus);
+      toast({ 
+        title: 'Succes!', 
+        description: !currentStatus ? 'Furnizorul a primit o stea!' : 'Steaua a fost retrasă.' 
+      });
+      fetchData();
+    } catch (error: any) {
+      toast({ 
+        title: 'Eroare', 
+        description: 'Nu am putut modifica statusul.', 
+        variant: 'destructive' 
+      });
     }
   };
 
@@ -260,6 +278,19 @@ const ManageRoles = () => {
                             >
                               {newUserRole === 'user' ? <Trash2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                             </Button>
+
+                            {u.role === 'provider' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                title="Setează Furnizor Premium"
+                                onClick={() => toggleStar(u.id, !!u.is_starred)}
+                                className={u.is_starred ? 'bg-amber-100 text-amber-600 border-amber-300 hover:bg-amber-200 hover:text-amber-700' : ''}
+                                disabled={isCurrentUser}
+                              >
+                                <Star className={`h-4 w-4 ${u.is_starred ? 'fill-current' : ''}`} />
+                              </Button>
+                            )}
 
                             <AlertDialog>
                               <AlertDialogTrigger asChild>

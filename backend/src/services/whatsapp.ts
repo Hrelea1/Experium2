@@ -177,3 +177,81 @@ export async function sendWhatsAppProviderAlert(data: {
 
   return sendWhatsAppTemplate(data.phone, 'provider_new_booking', 'ro', components);
 }
+
+/**
+ * Provider Confirm Request (to provider, for starred manual validation)
+ * Template: provider_confirm_request
+ */
+export async function sendWhatsAppProviderConfirmRequest(data: {
+  phone: string;
+  experienceTitle: string;
+  bookingDate: string;
+  participants: number;
+  confirmUrl: string;
+  declineUrl: string;
+}) {
+  const components = [
+    {
+      type: 'body',
+      parameters: [
+        { type: "text", text: data.experienceTitle },
+        { type: "text", text: data.bookingDate },
+        { type: "text", text: data.participants.toString() },
+        { type: "text", text: data.confirmUrl },
+        { type: "text", text: data.declineUrl }
+      ]
+    }
+  ];
+
+  return sendWhatsAppTemplate(data.phone, 'provider_confirm_request', 'ro', components);
+}
+
+/**
+ * User Payment Link (to user, after provider confirmed)
+ * Template: user_purchase_link
+ */
+export async function sendWhatsAppUserPaymentLink(data: {
+  phone: string;
+  clientName: string;
+  experienceTitle: string;
+  bookingDate: string;
+  paymentUrl: string;
+}) {
+  const components = [
+    {
+      type: 'body',
+      parameters: [
+        { type: "text", text: data.clientName },
+        { type: "text", text: data.experienceTitle },
+        { type: "text", text: data.bookingDate },
+        { type: "text", text: data.paymentUrl }
+      ]
+    }
+  ];
+
+  return sendWhatsAppTemplate(data.phone, 'user_purchase_link', 'ro', components);
+}
+
+/**
+ * Booking Unavailable Notice (to user, if provider doesn't confirm)
+ * Template: user_booking_unavailable
+ */
+export async function sendWhatsAppBookingUnavailable(data: {
+  phone: string;
+  clientName: string;
+  experienceTitle: string;
+  bookingDate: string;
+}) {
+  const components = [
+    {
+      type: 'body',
+      parameters: [
+        { type: "text", text: data.clientName },
+        { type: "text", text: data.experienceTitle },
+        { type: "text", text: data.bookingDate }
+      ]
+    }
+  ];
+
+  return sendWhatsAppTemplate(data.phone, 'user_booking_unavailable', 'ro', components);
+}

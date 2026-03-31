@@ -14,6 +14,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import MyBookings from "./pages/MyBookings";
 import Cart from "./pages/Cart";
+import CheckoutBooking from "./pages/CheckoutBooking";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import GiftIdeas from "./pages/GiftIdeas";
 import Partners from "./pages/Partners";
@@ -68,6 +69,7 @@ const App = () => (
               <Route path="/map" element={<MapView />} />
               <Route path="/my-bookings" element={<MyBookings />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout/:id" element={<CheckoutBooking />} />
               <Route path="/order-confirmation" element={<OrderConfirmation />} />
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/gift-ideas" element={<GiftIdeas />} />

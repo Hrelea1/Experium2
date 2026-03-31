@@ -2,7 +2,12 @@ import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { sendAvailabilityRequest } from '../services/email';
-import { sendWhatsAppProviderAlert } from '../services/whatsapp';
+import { 
+  sendWhatsAppProviderAlert, 
+  sendWhatsAppProviderConfirmRequest,
+  sendWhatsAppUserPaymentLink,
+  sendWhatsAppBookingUnavailable
+} from '../services/whatsapp';
 import crypto from 'crypto';
 
 const router = Router();
@@ -15,16 +20,25 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
     const { from, to } = req.query as { from?: string; to?: string };
 
     const rows = await query(
-      `SELECT id, experience_id, TO_CHAR(slot_date, 'YYYY-MM-DD') AS slot_date, start_time,
-        COALESCE(end_time, start_time + interval '1 hour') AS end_time,
-        capacity, booked_count,
-        (capacity - booked_count) AS available_spots,
-        COALESCE(is_locked, false) AS is_locked
-       FROM availability_slots
-       WHERE experience_id = $1
-         AND COALESCE(is_locked, false) = false
-         AND (capacity - booked_count) > 0
-         AND slot_date >= COALESCE($2::date, CURRENT_DATE)
+      `SELECT s.id, s.experience_id, TO_CHAR(s.slot_date, 'YYYY-MM-DD') AS slot_date, s.start_time,
+        COALESCE(s.end_time, s.start_time + interval '1 hour') AS end_time,
+        s.capacity, s.booked_count,
+        (s.capacity - s.booked_count - COALESCE(
+          (SELECT SUM(b.participants) 
+           FROM bookings b 
+           JOIN availability_requests ar ON ar.booking_id = b.id 
+           WHERE b.experience_id = s.experience_id 
+             AND b.booking_date::date = s.slot_date 
+             AND b.booking_date::time = s.start_time 
+             AND ar.expires_at > NOW()
+             AND (ar.status = 'pending' OR (ar.status = 'confirmed' AND b.status = 'pending'))
+        )) AS available_spots,
+        COALESCE(s.is_locked, false) AS is_locked
+       FROM availability_slots s
+       WHERE s.experience_id = $1
+         AND COALESCE(s.is_locked, false) = false
+         AND (s.capacity - s.booked_count) > 0
+         AND s.slot_date >= COALESCE($2::date, CURRENT_DATE)
          ${to ? `AND slot_date <= $3` : ''}
        ORDER BY slot_date ASC, start_time ASC`,
       [experience_id, from || null, ...(to ? [to] : [])]
@@ -207,7 +221,7 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
 
     const confirmToken = crypto.randomUUID();
     const declineToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes!
 
     await query(
       `INSERT INTO availability_requests (booking_id, confirm_token, decline_token, status, expires_at)
@@ -216,21 +230,26 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
     );
 
     const appUrl = process.env.APP_URL ?? 'https://experium.ro';
+    const confirmUrl = `${appUrl}/api/availability/respond?token=${confirmToken}&action=confirm`;
+    const declineUrl = `${appUrl}/api/availability/respond?token=${declineToken}&action=decline`;
+
     await sendAvailabilityRequest({
       providerEmail: info.provider_email,
       providerName: info.provider_name ?? 'Provider',
       experienceTitle: info.experience_title,
       bookingDate: new Date(info.booking_date).toLocaleString('ro-RO'),
-      confirmUrl: `${appUrl}/api/availability/respond?token=${confirmToken}&action=confirm`,
-      declineUrl: `${appUrl}/api/availability/respond?token=${declineToken}&action=decline`,
+      confirmUrl,
+      declineUrl,
     });
 
     if (info.provider_phone) {
-      await sendWhatsAppProviderAlert({
+      await sendWhatsAppProviderConfirmRequest({
         phone: info.provider_phone,
         experienceTitle: info.experience_title,
         bookingDate: new Date(info.booking_date).toLocaleString('ro-RO'),
         participants: info.participants,
+        confirmUrl,
+        declineUrl
       });
     }
 
@@ -263,11 +282,42 @@ router.post('/respond', async (req: Request, res: Response) => {
       return res.status(410).json({ error: 'Request expired' });
     }
 
+    // Fetch booking / user details for WhatsApp
+    const bookingInfo = await queryOne<{ user_phone: string; user_name: string; title: string; booking_date: string; }>(
+      `SELECT p.phone AS user_phone, p.full_name AS user_name, e.title, b.booking_date
+       FROM bookings b
+       JOIN profiles p ON p.id = b.user_id
+       JOIN experiences e ON e.id = b.experience_id
+       WHERE b.id = $1`,
+      [request.booking_id]
+    );
+
+    const appUrl = process.env.VITE_APP_URL ?? 'https://experium.ro';
+
     if (action === 'confirm') {
-      await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['confirmed', request.id]);
+      await query("UPDATE availability_requests SET status = $1, expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2", ['confirmed', request.id]);
+      
+      if (bookingInfo && bookingInfo.user_phone) {
+        await sendWhatsAppUserPaymentLink({
+          phone: bookingInfo.user_phone,
+          clientName: bookingInfo.user_name || 'Client',
+          experienceTitle: bookingInfo.title,
+          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+          paymentUrl: `${appUrl}/checkout/${request.booking_id}`
+        });
+      }
     } else {
       await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['declined', request.id]);
       await query(`UPDATE bookings SET status = 'cancelled', cancellation_reason = 'Provider declined availability' WHERE id = $1`, [request.booking_id]);
+
+      if (bookingInfo && bookingInfo.user_phone) {
+        await sendWhatsAppBookingUnavailable({
+          phone: bookingInfo.user_phone,
+          clientName: bookingInfo.user_name || 'Client',
+          experienceTitle: bookingInfo.title,
+          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+        });
+      }
     }
 
     res.json({ success: true, action });
@@ -298,12 +348,43 @@ router.get('/respond', async (req: Request, res: Response) => {
       return res.send('<h2>Cererea a expirat.</h2>');
     }
 
+    // Notification logic
+    const bookingInfo = await queryOne<{ user_phone: string; user_name: string; title: string; booking_date: string; }>(
+      `SELECT p.phone AS user_phone, p.full_name AS user_name, e.title, b.booking_date
+       FROM bookings b
+       JOIN profiles p ON p.id = b.user_id
+       JOIN experiences e ON e.id = b.experience_id
+       WHERE b.id = $1`,
+      [request.booking_id]
+    );
+
+    const appUrl = process.env.VITE_APP_URL ?? 'https://experium.ro';
+
     if (action === 'confirm') {
-      await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['confirmed', request.id]);
-      res.send('<h2 style="color:green">✅ Disponibilitate confirmată! Clientul va fi notificat.</h2>');
+      await query("UPDATE availability_requests SET status = $1, expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2", ['confirmed', request.id]);
+      
+      if (bookingInfo && bookingInfo.user_phone) {
+        await sendWhatsAppUserPaymentLink({
+          phone: bookingInfo.user_phone,
+          clientName: bookingInfo.user_name || 'Client',
+          experienceTitle: bookingInfo.title,
+          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+          paymentUrl: `${appUrl}/checkout/${request.booking_id}`
+        });
+      }
+      res.send('<h2 style="color:green">✅ Disponibilitate confirmată! Clientul va fi notificat prin WhatsApp pentru plată.</h2>');
     } else {
       await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['declined', request.id]);
       await query(`UPDATE bookings SET status = 'cancelled', cancellation_reason = 'Provider declined' WHERE id = $1`, [request.booking_id]);
+      
+      if (bookingInfo && bookingInfo.user_phone) {
+        await sendWhatsAppBookingUnavailable({
+          phone: bookingInfo.user_phone,
+          clientName: bookingInfo.user_name || 'Client',
+          experienceTitle: bookingInfo.title,
+          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+        });
+      }
       res.send('<h2 style="color:red">❌ Disponibilitate refuzată. Clientul va fi notificat.</h2>');
     }
   } catch (err) {
