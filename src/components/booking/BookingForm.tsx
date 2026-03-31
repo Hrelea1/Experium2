@@ -21,6 +21,7 @@ interface BookingFormProps {
     price: number;
     originalPrice?: number;
     child_price?: number;
+    child_price_description?: string;
     maxParticipants: number;
     image?: string;
     isAssisted?: boolean;
@@ -321,7 +322,12 @@ export function BookingForm({ experience }: BookingFormProps) {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
                 <div>
                   <h4 className="font-semibold text-sm">Copii</h4>
-                  <p className="text-muted-foreground text-xs">{childPriceToUse} {t('common.lei')}</p>
+                  <p className="text-muted-foreground text-xs font-medium">{childPriceToUse} {t('common.lei')}</p>
+                  {experience.child_price_description && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight opacity-80 max-w-[180px]">
+                      {experience.child_price_description}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <button

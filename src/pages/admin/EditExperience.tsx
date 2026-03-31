@@ -42,6 +42,7 @@ type ExperienceRow = {
   price: number;
   original_price: number | null;
   child_price: number | null;
+  child_price_description: string | null;
   category_id: string;
   region_id: string;
   duration_minutes: number | null;
@@ -145,6 +146,7 @@ export default function EditExperience() {
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
   const [childPrice, setChildPrice] = useState("");
+  const [childPriceDescription, setChildPriceDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [minAge, setMinAge] = useState("");
@@ -212,6 +214,7 @@ export default function EditExperience() {
           price: Number(exp.price),
           original_price: exp.original_price ? Number(exp.original_price) : null,
           child_price: exp.child_price ? Number(exp.child_price) : null,
+          child_price_description: exp.child_price_description || null,
           category_id: exp.category_id,
           region_id: exp.region_id,
           duration_minutes: exp.duration_minutes ? Number(exp.duration_minutes) : null,
@@ -240,6 +243,7 @@ export default function EditExperience() {
         setPrice(expRow.price?.toString?.() ?? "");
         setOriginalPrice(expRow.original_price?.toString?.() ?? "");
         setChildPrice(expRow.child_price?.toString?.() ?? "");
+        setChildPriceDescription(expRow.child_price_description ?? "");
         setDurationMinutes(expRow.duration_minutes?.toString?.() ?? "");
         setMaxParticipants(expRow.max_participants?.toString?.() ?? "");
         setMinAge(expRow.min_age?.toString?.() ?? "");
@@ -376,6 +380,9 @@ export default function EditExperience() {
     if (description.trim() !== originalExperience.description) patch.description = description.trim();
     if ((shortDescription.trim() || null) !== (originalExperience.short_description ?? null)) {
       patch.short_description = shortDescription.trim() || null;
+    }
+    if ((childPriceDescription.trim() || null) !== (originalExperience.child_price_description ?? null)) {
+      patch.child_price_description = childPriceDescription.trim() || null;
     }
     if (locationName.trim() !== originalExperience.location_name) patch.location_name = locationName.trim();
     if (categoryId !== originalExperience.category_id) patch.category_id = categoryId;
@@ -599,6 +606,15 @@ export default function EditExperience() {
                       value={childPrice}
                       onChange={(e) => setChildPrice(e.target.value)}
                       placeholder="Opțional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="child_price_description">Detalii preț copii (opțional)</Label>
+                    <Input
+                      id="child_price_description"
+                      value={childPriceDescription}
+                      onChange={(e) => setChildPriceDescription(e.target.value)}
+                      placeholder="ex: preț valabil pentru copii sub 12 ani"
                     />
                   </div>
                   <div className="space-y-2">

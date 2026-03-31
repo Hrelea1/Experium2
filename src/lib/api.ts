@@ -139,6 +139,7 @@ export interface Experience {
   price: number;
   original_price?: number;
   child_price?: number;
+  child_price_description?: string;
   pricing_tiers?: { name: string; price: number }[];
   category_name: string;
   category_slug: string;

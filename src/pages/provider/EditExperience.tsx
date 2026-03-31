@@ -44,6 +44,8 @@ type ExperienceRow = {
   location_name: string;
   price: number;
   original_price: number | null;
+  child_price: number | null;
+  child_price_description: string | null;
   category_id: string;
   region_id: string;
   duration_minutes: number | null;
@@ -151,6 +153,8 @@ export default function EditExperience() {
   const [regionId, setRegionId] = useState<string>("");
   const [price, setPrice] = useState("");
   const [originalPrice, setOriginalPrice] = useState("");
+  const [childPrice, setChildPrice] = useState("");
+  const [childPriceDescription, setChildPriceDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [minAge, setMinAge] = useState("");
@@ -215,6 +219,8 @@ export default function EditExperience() {
           location_name: exp.location_name,
           price: Number(exp.price),
           original_price: exp.original_price ? Number(exp.original_price) : null,
+          child_price: exp.child_price ? Number(exp.child_price) : null,
+          child_price_description: exp.child_price_description || null,
           category_id: exp.category_id,
           region_id: exp.region_id,
           duration_minutes: exp.duration_minutes ? Number(exp.duration_minutes) : null,
@@ -241,6 +247,8 @@ export default function EditExperience() {
         setRegionId(expRow.region_id ?? "");
         setPrice(expRow.price?.toString?.() ?? "");
         setOriginalPrice(expRow.original_price?.toString?.() ?? "");
+        setChildPrice(expRow.child_price?.toString?.() ?? "");
+        setChildPriceDescription(expRow.child_price_description ?? "");
         setDurationMinutes(expRow.duration_minutes?.toString?.() ?? "");
         setMaxParticipants(expRow.max_participants?.toString?.() ?? "");
         setMinAge(expRow.min_age?.toString?.() ?? "");
@@ -383,16 +391,20 @@ export default function EditExperience() {
 
     const nextPrice = normalizeNumberInput(price);
     const nextOriginalPrice = normalizeNumberInput(originalPrice);
+    const nextChildPrice = normalizeNumberInput(childPrice);
     const nextDuration = normalizeNumberInput(durationMinutes);
     const nextMax = normalizeNumberInput(maxParticipants);
     const nextMinAge = normalizeNumberInput(minAge);
 
     if (title.trim() !== originalExperience.title) patch.title = title.trim();
     if (description.trim() !== originalExperience.description) patch.description = description.trim();
+    if (locationName.trim() !== originalExperience.location_name) patch.location_name = locationName.trim();
     if ((shortDescription.trim() || null) !== (originalExperience.short_description ?? null)) {
       patch.short_description = shortDescription.trim() || null;
     }
-    if (locationName.trim() !== originalExperience.location_name) patch.location_name = locationName.trim();
+    if ((childPriceDescription.trim() || null) !== (originalExperience.child_price_description ?? null)) {
+      patch.child_price_description = childPriceDescription.trim() || null;
+    }
     if (categoryId !== originalExperience.category_id) patch.category_id = categoryId;
     if (regionId !== originalExperience.region_id) patch.region_id = regionId;
 
@@ -404,6 +416,9 @@ export default function EditExperience() {
     if (!isEqualNullableNumber(nextPrice, originalExperience.price)) patch.price = nextPrice;
     if (!isEqualNullableNumber(nextOriginalPrice, originalExperience.original_price ?? null)) {
       patch.original_price = nextOriginalPrice;
+    }
+    if (!isEqualNullableNumber(nextChildPrice, originalExperience.child_price ?? null)) {
+      patch.child_price = nextChildPrice;
     }
     if (!isEqualNullableNumber(nextDuration, originalExperience.duration_minutes ?? null)) {
       patch.duration_minutes = nextDuration;
@@ -598,6 +613,27 @@ export default function EditExperience() {
                           inputMode="decimal"
                           value={originalPrice}
                           onChange={(e) => setOriginalPrice(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="child_price">Preț Copii (RON)</Label>
+                        <Input
+                          id="child_price"
+                          inputMode="decimal"
+                          value={childPrice}
+                          onChange={(e) => setChildPrice(e.target.value)}
+                          placeholder="Opțional"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="child_price_description">Detalii preț copii (opțional)</Label>
+                        <Input
+                          id="child_price_description"
+                          value={childPriceDescription}
+                          onChange={(e) => setChildPriceDescription(e.target.value)}
+                          placeholder="ex: preț valabil pentru copii sub 12 ani"
                         />
                       </div>
                     </div>
