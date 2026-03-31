@@ -553,7 +553,7 @@ export default function ProviderDashboard() {
         const confirmed = bData.filter(b => b.status === 'confirmed' || b.status === 'completed');
         setSalesStats({
           totalSales: confirmed.length,
-          totalRevenue: confirmed.reduce((sum, b) => sum + (b.total_price || 0), 0),
+          totalRevenue: confirmed.reduce((sum, b) => sum + Number(b.total_price || 0), 0),
           totalBookings: bData.length,
         });
 
