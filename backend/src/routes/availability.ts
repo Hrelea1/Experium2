@@ -26,13 +26,19 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
         (s.capacity - s.booked_count - COALESCE(
           (SELECT SUM(b.participants) 
            FROM bookings b 
-           JOIN availability_requests ar ON ar.booking_id = b.id 
+           LEFT JOIN availability_requests ar ON ar.booking_id = b.id 
            WHERE b.experience_id = s.experience_id 
              AND b.booking_date::date = s.slot_date 
              AND b.booking_date::time = s.start_time 
-             AND ar.expires_at > NOW()
-             AND (ar.status = 'pending' OR (ar.status = 'confirmed' AND b.status = 'pending'))
-        )) AS available_spots,
+             AND (
+                b.status IN ('confirmed', 'completed')
+                OR (
+                   ar.id IS NOT NULL 
+                   AND ar.expires_at > NOW()
+                   AND (ar.status = 'pending' OR (ar.status = 'confirmed' AND b.status = 'pending'))
+                )
+             )
+        ), 0)) AS available_spots,
         COALESCE(s.is_locked, false) AS is_locked
        FROM availability_slots s
        WHERE s.experience_id = $1

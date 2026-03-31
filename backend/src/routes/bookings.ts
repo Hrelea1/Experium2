@@ -260,13 +260,14 @@ router.post('/:id/reschedule', requireAuth, async (req: Request, res: Response) 
   }
 });
 
-// ─── PATCH /bookings/:id/status (Provider/Admin) ──────────────────────────────
-router.patch('/:id/status', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
+// ─── PATCH /bookings/:id/status ──────────────────────────────
+router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
     const userId = req.user!.userId;
-    const isAdmin = req.user!.role === 'admin';
+    const role = req.user!.role;
+    const isAdmin = role === 'admin';
 
     if (!['confirmed', 'cancelled', 'completed', 'pending', 'declined'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
@@ -274,13 +275,26 @@ router.patch('/:id/status', requireRole('admin', 'provider'), async (req: Reques
 
     // Verify ownership/assignment
     if (!isAdmin) {
-      const assignment = await queryOne(
-        `SELECT 1 FROM bookings b
-         JOIN experience_providers ep ON ep.experience_id = b.experience_id
-         WHERE b.id = $1 AND ep.provider_user_id = $2 AND ep.is_active = true`,
-        [id, userId]
-      );
-      if (!assignment) return res.status(403).json({ error: 'Not authorized to update this booking' });
+      if (role === 'provider') {
+        const assignment = await queryOne(
+          `SELECT 1 FROM bookings b
+           JOIN experience_providers ep ON ep.experience_id = b.experience_id
+           WHERE b.id = $1 AND ep.provider_user_id = $2 AND ep.is_active = true`,
+          [id, userId]
+        );
+        if (!assignment) return res.status(403).json({ error: 'Not authorized to update this booking' });
+      } else {
+        const ownership = await queryOne(
+          `SELECT 1 FROM bookings WHERE id = $1 AND user_id = $2`,
+          [id, userId]
+        );
+        if (!ownership) return res.status(403).json({ error: 'Not authorized to update this booking' });
+        
+        // Only allow user to confirm or cancel their own booking
+        if (!['confirmed', 'cancelled'].includes(status)) {
+          return res.status(403).json({ error: 'Users can only confirm or cancel bookings' });
+        }
+      }
     }
 
     // If declining, we might want to map 'declined' to 'cancelled' in the database 
@@ -289,11 +303,78 @@ router.patch('/:id/status', requireRole('admin', 'provider'), async (req: Reques
     const dbStatus = status === 'declined' ? 'cancelled' : status;
     const reason = status === 'declined' ? 'Provider declined' : null;
 
+    // Check previous status
+    const prevBooking = await queryOne<{ status: string; total_price: number; booking_date: string; participants: number; experience_id: string }>(
+      `SELECT status, total_price, booking_date, participants, experience_id FROM bookings WHERE id = $1`,
+      [id]
+    );
+
     await query(
       `UPDATE bookings SET status = $1, cancellation_reason = COALESCE($2, cancellation_reason), updated_at = now()
        WHERE id = $3`,
       [dbStatus, reason, id]
     );
+
+    // If transitioning to confirmed, send confirmation emails/WhatsApp
+    if (dbStatus === 'confirmed' && prevBooking && prevBooking.status !== 'confirmed') {
+      const confirmedBookingData = prevBooking;
+      queryOne<{ email: string; full_name: string; title: string; phone: string | null; user_id: string }>(
+        `SELECT u.email, p.full_name, p.phone, e.title, b.user_id
+         FROM bookings b
+         JOIN users u ON u.id = b.user_id
+         LEFT JOIN profiles p ON p.id = u.id
+         JOIN experiences e ON e.id = b.experience_id
+         WHERE b.id = $1`,
+        [id]
+      ).then(async (info) => {
+        if (info) {
+          await sendBookingConfirmation({
+            email: info.email,
+            name: info.full_name ?? 'Client',
+            experienceTitle: info.title,
+            bookingDate: new Date(confirmedBookingData.booking_date).toLocaleString('ro-RO'),
+            participants: Number(confirmedBookingData.participants),
+            totalPrice: Number(confirmedBookingData.total_price),
+            bookingId: id,
+          });
+
+          if (info.phone) {
+             await sendWhatsAppBookingConfirmation({
+              phone: info.phone,
+              clientName: info.full_name ?? 'Client',
+              experienceTitle: info.title,
+              bookingDate: new Date(confirmedBookingData.booking_date).toLocaleString('ro-RO'),
+              totalPrice: Number(confirmedBookingData.total_price)
+            });
+          }
+
+          // Notify providers
+          query<{ email: string; full_name: string }>(
+            `SELECT u.email, p.full_name
+             FROM experience_providers ep
+             JOIN users u ON u.id = ep.provider_user_id
+             LEFT JOIN profiles p ON p.id = u.id
+             WHERE ep.experience_id = $1 AND ep.is_active = true`,
+            [confirmedBookingData.experience_id]
+          ).then(async (providers) => {
+            for (const provider of providers) {
+              if (provider.email) {
+                await sendProviderBookingNotification({
+                  providerEmail: provider.email,
+                  providerName: provider.full_name ?? 'Furnizor',
+                  experienceTitle: info.title,
+                  clientName: info.full_name ?? 'Client',
+                  bookingDate: new Date(confirmedBookingData.booking_date).toLocaleString('ro-RO'),
+                  participants: Number(confirmedBookingData.participants),
+                  totalPrice: Number(confirmedBookingData.total_price),
+                  bookingId: id,
+                });
+              }
+            }
+          }).catch(err => console.error('[Provider Notification]', err));
+        }
+      }).catch(console.error);
+    }
 
     res.json({ success: true, status: dbStatus });
   } catch (err) {
