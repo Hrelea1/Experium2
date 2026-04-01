@@ -18,10 +18,6 @@ interface CheckoutItem {
   participantDetails: any[];
 }
 
-/**
- * useCheckout — replaced supabase.functions.invoke('create-checkout')
- * Now calls POST /bookings for each item and optionally redirects to payment.
- */
 export function useCheckout() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -36,41 +32,37 @@ export function useCheckout() {
     setIsProcessing(true);
     try {
       const token = tokenStore.get();
-      // Create a booking for each cart item
-      const results = await Promise.allSettled(
-        items.map((item) => {
-          // Send booking_date as the slot date + time
-          const bookingDate = `${item.slotDate}T${item.startTime}`;
-          
-          return fetch(`${API_BASE}/bookings`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              experience_id: item.experienceId,
-              booking_date: bookingDate,
-              participants: item.participants,
-              total_price: item.totalPrice,
-              participant_details: item.participantDetails,
-              payment_method: 'card',
-            }),
-          }).then((r) => (r.ok ? r.json() : Promise.reject(r)));
-        })
-      );
+      
+      const res = await fetch(`${API_BASE}/checkout/create-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          items,
+          success_url: `${window.location.origin}/#/payment-success`,
+          cancel_url: `${window.location.origin}/#/cart`,
+        }),
+      });
 
-      const failed = results.filter((r) => r.status === 'rejected');
-      if (failed.length > 0) {
-        throw new Error(`${failed.length} rezerv(e) au eșuat`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'A apărut o eroare la crearea sesiunii Stripe.');
       }
 
-      toast({ title: 'Rezervare confirmată!', description: `${items.length} rezervare(i) create cu succes.` });
-      return true;
+      const { url } = await res.json();
+      
+      // Redirect to Stripe Checkout
+      if (url) {
+        window.location.href = url;
+      }
+      
+      return true; // We don't actually get here visibly since the page changes
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast({
-        title: 'Eroare la procesarea rezervării',
+        title: 'Eroare la procesarea plății',
         description: error.message || 'Te rugăm să încerci din nou',
         variant: 'destructive',
       });

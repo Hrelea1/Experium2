@@ -78,74 +78,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // ── Load cart ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!user) {
-      setItems(loadLocal());
-      hasLoadedRef.current = false;
-      return;
-    }
-
-    const loadFromDb = async () => {
-      setIsLoading(true);
-      try {
-        const data: any[] = await apiRequest("/cart");
-
-        const dbItems: CartItem[] = data.map((row) => ({
-          id: row.id,
-          experienceId: row.experience_id,
-          title: row.title ?? "",
-          location: row.location_name ?? "",
-          price: row.price ?? 0,
-          originalPrice: row.original_price ?? undefined,
-          image: row.image ?? "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=600&h=400&fit=crop",
-          participants: row.quantity ?? 1,
-          selectedTiers: row.selected_tiers ?? [],
-          slotId: row.id,     // simple cart — no slot lock in custom backend
-          slotDate: "",
-          startTime: "",
-          endTime: "",
-          maxParticipants: row.max_participants ?? 10,
-          services: [],
-          addedAt: new Date(row.added_at).getTime(),
-        }));
-
-        const guestItems = loadLocal().filter(
-          (g) => !dbItems.some((db) => db.experienceId === g.experienceId)
-        );
-        const merged = [...dbItems, ...guestItems];
-        setItems(merged);
-        saveLocal(merged);
-      } catch (err) {
-        console.error("Error loading cart from DB:", err);
-        setItems(loadLocal());
-      } finally {
-        setIsLoading(false);
-        hasLoadedRef.current = true;
-      }
-    };
-
-    loadFromDb();
-  }, [user]);
+    setItems(loadLocal());
+    hasLoadedRef.current = true;
+  }, []);
 
   useEffect(() => { saveLocal(items); }, [items]);
 
   // ── addItem ─────────────────────────────────────────────────────────────────
   const addItem = async (item: CartItem): Promise<boolean> => {
-    if (user) {
-      try {
-        await apiRequest("/cart", {
-          method: "POST",
-          body: JSON.stringify({ 
-            experience_id: item.experienceId, 
-            quantity: item.participants,
-            selected_tiers: item.selectedTiers || []
-          }),
-        });
-      } catch (err: any) {
-        toast({ title: "Eroare la adăugarea în coș", description: err?.error ?? err?.message, variant: "destructive" });
-        return false;
-      }
-    }
-
     setItems((curr) => {
       const filtered = curr.filter((i) => i.experienceId !== item.experienceId);
       return [...filtered, item];
@@ -155,17 +95,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // ── removeItem ──────────────────────────────────────────────────────────────
   const removeItem = async (id: string) => {
-    if (user) {
-      apiRequest(`/cart/${id}`, { method: "DELETE" }).catch(console.error);
-    }
     setItems((curr) => curr.filter((i) => i.id !== id));
   };
 
   // ── clearCart ───────────────────────────────────────────────────────────────
   const clearCart = async () => {
-    if (user) {
-      apiRequest("/cart", { method: "DELETE" }).catch(console.error);
-    }
     setItems([]);
   };
 

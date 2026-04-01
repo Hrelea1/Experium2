@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { tokenStore } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { Header } from "@/components/layout/Header";
@@ -27,15 +28,22 @@ export default function PaymentSuccess() {
 
     const verifyPayment = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("verify-payment", {
-          body: { session_id: sessionId },
+        const token = tokenStore.get();
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/checkout/verify-session`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ session_id: sessionId }),
         });
 
-        if (error) throw error;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Verification failed");
         if (!data?.success && data?.successCount === 0) throw new Error(data?.error || "Verification failed");
 
         clearCart();
-        setBookingCount(data.successCount || data.bookings?.length || 1);
+        setBookingCount(data.successCount || 1);
         setStatus("success");
 
         setTimeout(() => {
