@@ -1,0 +1,87 @@
+﻿git : remote: error: 
+GH013: Repository rule 
+violations found for 
+refs/heads/main.        
+At line:1 char:1
++ git push origin main 
+2>&1 | Out-File -FilePath 
+push-error-full.txt -E ...
++ 
+~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (r  
+  emote: error: ...s/ma   
+ in.        :String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+remote: 
+remote: - GITHUB PUSH 
+PROTECTION        
+remote:   ΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇö        
+remote:     Resolve the 
+following violations 
+before pushing again      
+  
+remote: 
+remote:     - Push cannot 
+contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn 
+how to resolve a blocked 
+push        
+remote:      https://docs.
+github.com/code-security/s
+ecret-scanning/working-wit
+h-secret-scanning-and-push
+-protection/working-with-p
+ush-protection-from-the-co
+mmand-line#resolving-a-blo
+cked-push        
+remote:             
+remote:             
+remote:       ΓÇöΓÇö 
+Twilio Account String 
+Identifier ΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇöΓÇöΓÇöΓÇö        
+remote:        locations: 
+       
+remote:          - 
+commit: bde7359cdf0f0194df
+ae2954fbd46da6e73f6390    
+    
+remote:            path: 
+.env:4        
+remote:             
+remote:        (?) To 
+push, remove secret from 
+commit(s) or follow this 
+URL to allow the secret.  
+      
+remote:        https://git
+hub.com/Hrelea1/Experium2/
+security/secret-scanning/u
+nblock-secret/3BliICzw5eii
+1YPwuESwv7cPKAP        
+remote:             
+remote: 
+remote: 
+To https://github.com/Hrel
+ea1/Experium2.git
+ ! [remote rejected] main 
+-> main (push declined 
+due to repository rule 
+violations)
+error: failed to push 
+some refs to 'https://gith
+ub.com/Hrelea1/Experium2.g
+it'

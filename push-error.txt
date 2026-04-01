@@ -1,0 +1,33 @@
+git : remote: error: GH013: Repository rule violations found for refs/heads/fix-regions.        
+At line:1 char:1
++ git push origin fix-regions 2>&1 | Out-String -Width 2000 | Set-Conte ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo              : NotSpecified: (r    emote: error: ...egio    ns.        :String) [    ], RemoteException
+    + FullyQualifiedError    Id : NativeCommandErr    or
+ 
+remote: 
+remote: - GITHUB PUSH PROTECTION        
+remote:   G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현        
+remote:     Resolve the following violations before pushing again        
+remote: 
+remote:     - Push cannot contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how to resolve a blocked push        
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push        
+remote:             
+remote:             
+remote:       G현G현 Twilio Account String Identifier G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현G현        
+remote:        locations:        
+remote:          - commit: bde7359cdf0f0194dfae2954fbd46da6e73f6390        
+remote:            path: .env:4        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/Hrelea1/Experium2/security/secret-scanning/unblock-secret/3BliICzw5eii1YPwuESwv7cPKAP        
+remote:             
+remote: 
+remote: 
+To https://github.com/Hrelea1/Experium2.git
+ ! [remote rejected] fix-regions -> fix-regions (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/Hrelea1/Experium2.git'
+
