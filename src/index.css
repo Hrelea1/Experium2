@@ -128,10 +128,11 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased overflow-x-hidden;
   }
 
   html {
+    @apply overflow-x-hidden;
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;
   }

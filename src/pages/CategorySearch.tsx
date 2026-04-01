@@ -476,10 +476,10 @@ export default function CategorySearch() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
 
-      <main className="pt-20">
+      <main className="pt-20 overflow-x-hidden">
         {/* Hero Banner */}
         <div className="bg-gradient-to-r from-primary to-coral-dark py-12 lg:py-16">
           <div className="container">

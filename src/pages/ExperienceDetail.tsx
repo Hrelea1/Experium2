@@ -278,10 +278,10 @@ export default function ExperienceDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <Header />
       
-      <main className="pt-20">
+      <main className="pt-20 overflow-x-hidden">
         {/* Back Button */}
         <div className="container py-4">
           <Button 
