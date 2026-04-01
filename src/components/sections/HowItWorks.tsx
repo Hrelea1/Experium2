@@ -39,8 +39,7 @@ const defaultSteps: Step[] = [
   { 
     titleKey: "howItWorks.step3Title", 
     descKey: "howItWorks.step3Desc", 
-    icon: Calendar,
-    extraInfo: "howItWorks.step3Extra" 
+    icon: Calendar
   },
   { 
     titleKey: "howItWorks.step4Title", 
