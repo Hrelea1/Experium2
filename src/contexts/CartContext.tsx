@@ -72,22 +72,24 @@ function loadLocal(): CartItem[] {
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => loadLocal());
   const [isLoading, setIsLoading] = useState(false);
-  const hasLoadedRef = useRef(false);
+  const isFirstRender = useRef(true);
 
-  // ── Load cart ───────────────────────────────────────────────────────────────
+  // ── Save cart on changes ───────────────────────────────────────────────────
   useEffect(() => {
-    setItems(loadLocal());
-    hasLoadedRef.current = true;
-  }, []);
-
-  useEffect(() => { saveLocal(items); }, [items]);
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    saveLocal(items);
+  }, [items]);
 
   // ── addItem ─────────────────────────────────────────────────────────────────
   const addItem = async (item: CartItem): Promise<boolean> => {
     setItems((curr) => {
-      const filtered = curr.filter((i) => i.experienceId !== item.experienceId);
+      // Prevent exact duplicates (same experience, same slot, etc. - id is unique per "add" action)
+      const filtered = curr.filter((i) => i.id !== item.id);
       return [...filtered, item];
     });
     return true;
