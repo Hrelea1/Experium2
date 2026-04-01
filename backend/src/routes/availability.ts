@@ -239,14 +239,18 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
     const confirmUrl = `${appUrl}/api/availability/respond?token=${confirmToken}&action=confirm`;
     const declineUrl = `${appUrl}/api/availability/respond?token=${declineToken}&action=decline`;
 
-    await sendAvailabilityRequest({
-      providerEmail: info.provider_email,
-      providerName: info.provider_name ?? 'Provider',
-      experienceTitle: info.experience_title,
-      bookingDate: new Date(info.booking_date).toLocaleString('ro-RO'),
-      confirmUrl,
-      declineUrl,
-    });
+    try {
+      await sendAvailabilityRequest({
+        providerEmail: info.provider_email,
+        providerName: info.provider_name ?? 'Provider',
+        experienceTitle: info.experience_title,
+        bookingDate: new Date(info.booking_date).toLocaleString('ro-RO'),
+        confirmUrl,
+        declineUrl,
+      });
+    } catch (emailErr) {
+      console.error('[availability /check] Email send failed:', emailErr);
+    }
 
     if (info.provider_phone) {
       await sendWhatsAppProviderConfirmRequest({
@@ -260,9 +264,9 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
     }
 
     res.json({ message: 'Availability request sent to provider' });
-  } catch (err) {
-    console.error('[availability /check]', err);
-    res.status(500).json({ error: 'Failed to initiate availability check' });
+  } catch (err: any) {
+    console.error('[availability /check] Fatal Error:', err);
+    res.status(500).json({ error: 'Failed to initiate availability check: ' + err.message });
   }
 });
 

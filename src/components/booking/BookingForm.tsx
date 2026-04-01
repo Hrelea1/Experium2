@@ -95,11 +95,20 @@ export function BookingForm({ experience }: BookingFormProps) {
     setAddedToCart(false);
   }, []);
 
-  const handleInitiateCheck = async () => {
+  const handleInitiateCheck = async (phone: string) => {
     if (!user) {
       toast({ title: "Autentificare necesară", description: "Trebuie să fii autentificat.", variant: "destructive" });
       navigate("/auth");
       return;
+    }
+    
+    // Update user profile with phone before proceeding
+    if (phone && phone !== user.phone) {
+      try {
+        await api.auth.updateProfile({ phone });
+      } catch (err: any) {
+        console.error("Could not update phone", err);
+      }
     }
     
     setCheckingAvailability(true);
@@ -464,6 +473,7 @@ export function BookingForm({ experience }: BookingFormProps) {
           onClose={() => setShowAvailabilityModal(false)}
           onConfirm={handleInitiateCheck}
           experienceTitle={experience.title}
+          initialPhone={user?.phone}
         />
 
         {/* Security Note */}
