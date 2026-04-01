@@ -302,9 +302,118 @@ export default function ContentEditor() {
             <Card>
               <CardHeader>
                 <CardTitle>Secțiunea Cum Funcționează</CardTitle>
-                <CardDescription>Editează titlul și descrierea</CardDescription>
+                <CardDescription>Editează titlul, descrierea și pașii individuali</CardDescription>
               </CardHeader>
-              <CardContent>{renderSimpleSectionEditor("how-it-works", "Cum Funcționează")}</CardContent>
+              <CardContent>
+                <div className="space-y-8">
+                  {renderSimpleSectionEditor("how-it-works", "Cum Funcționează")}
+                  
+                  <div className="pt-6 border-t">
+                    <h3 className="text-lg font-bold mb-4">Editează Pașii</h3>
+                    <div className="grid gap-6">
+                      {[0, 1, 2, 3].map((idx) => {
+                        const content = getContent("how-it-works");
+                        const steps = content.steps || [];
+                        const step = steps[idx] || {};
+                        
+                        return (
+                          <div key={idx} className="p-4 border rounded-xl bg-slate-50/50 space-y-4">
+                            <div className="font-bold text-primary">Pasul {idx + 1}</div>
+                            
+                            <div className="grid sm:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Titlu Pas (sau cheie i18n)</Label>
+                                <Input 
+                                  value={step.titleKey || ""} 
+                                  onChange={(e) => {
+                                    const newSteps = [...steps];
+                                    newSteps[idx] = { ...step, titleKey: e.target.value };
+                                    handleContentChange("how-it-works", "steps", newSteps);
+                                  }}
+                                  placeholder={idx === 0 ? "howItWorks.step1Title" : ""}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Icon (Lucide name)</Label>
+                                <Input 
+                                  value={step.iconName || ""} 
+                                  onChange={(e) => {
+                                    const newSteps = [...steps];
+                                    newSteps[idx] = { ...step, iconName: e.target.value };
+                                    handleContentChange("how-it-works", "steps", newSteps);
+                                  }}
+                                  placeholder="Search, Gift, Calendar, Smile..."
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Descriere Pas (sau cheie i18n)</Label>
+                              <Textarea 
+                                value={step.descKey || ""} 
+                                onChange={(e) => {
+                                  const newSteps = [...steps];
+                                  newSteps[idx] = { ...step, descKey: e.target.value };
+                                  handleContentChange("how-it-works", "steps", newSteps);
+                                }}
+                                rows={2}
+                                placeholder={idx === 0 ? "howItWorks.step1Desc" : ""}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Imagine / Foto (URL)</Label>
+                              <div className="flex gap-2">
+                                <Input 
+                                  value={step.image || ""} 
+                                  onChange={(e) => {
+                                    const newSteps = [...steps];
+                                    newSteps[idx] = { ...step, image: e.target.value };
+                                    handleContentChange("how-it-works", "steps", newSteps);
+                                  }}
+                                  placeholder="https://..."
+                                />
+                                <Input
+                                  type="file"
+                                  className="hidden"
+                                  id={`step-image-${idx}`}
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      setUploading(`how-it-works-step-${idx}`);
+                                      try {
+                                        const url = await uploadImage.mutateAsync(file);
+                                        const newSteps = [...steps];
+                                        newSteps[idx] = { ...step, image: url };
+                                        handleContentChange("how-it-works", "steps", newSteps);
+                                      } finally {
+                                        setUploading(null);
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Button 
+                                  variant="outline" 
+                                  size="icon"
+                                  disabled={uploading === `how-it-works-step-${idx}`}
+                                  onClick={() => document.getElementById(`step-image-${idx}`)?.click()}
+                                >
+                                  {uploading === `how-it-works-step-${idx}` ? <Loader2 className="animate-spin h-4 w-4" /> : <Upload className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <Button onClick={() => handleSave("how-it-works")} disabled={updateContent.isPending} className="w-full">
+                    {updateContent.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Salvează Toată Secțiunea
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </TabsContent>
 
