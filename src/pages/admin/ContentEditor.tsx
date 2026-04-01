@@ -15,7 +15,7 @@ export default function ContentEditor() {
   const { data: sections, isLoading } = useAllHomepageContent();
   const updateContent = useUpdateHomepageContent();
   const uploadImage = useUploadHomepageImage();
-  
+
   const [editedContent, setEditedContent] = useState<Record<string, any>>({});
   const [uploading, setUploading] = useState<string | null>(null);
 
@@ -76,7 +76,7 @@ export default function ContentEditor() {
             onChange={(e) => handleContentChange("hero", "badge", e.target.value)}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label>Title</Label>
           <Input
@@ -216,7 +216,7 @@ export default function ContentEditor() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-          <h2 className="text-3xl font-bold">Editor Conținut</h2>
+            <h2 className="text-3xl font-bold">Editor Conținut</h2>
             <p className="text-muted-foreground">Editează text, imagini și linkuri pentru paginile site-ului</p>
           </div>
           <div className="flex gap-2">
@@ -457,7 +457,7 @@ export default function ContentEditor() {
                 <div className="space-y-6">
                   <div className="space-y-2"><Label>Titlu</Label><Input value={getContent("terms").title || ""} onChange={(e) => handleContentChange("terms", "title", e.target.value)} /></div>
                   <div className="space-y-2"><Label>Ultima actualizare</Label><Input value={getContent("terms").lastUpdated || ""} onChange={(e) => handleContentChange("terms", "lastUpdated", e.target.value)} /></div>
-                  
+
                   {(getContent("terms").sections || []).map((section: any, idx: number) => (
                     <div key={idx} className="p-4 border rounded-lg space-y-3">
                       <div className="flex items-center justify-between">

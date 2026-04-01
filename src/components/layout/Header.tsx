@@ -58,13 +58,6 @@ export function Header() {
         <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <motion.div 
-              whileHover={{ scale: 1.05, rotate: -5 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-primary/10 text-primary p-2 rounded-xl"
-            >
-              <Gift className="h-5 w-5 sm:h-6 sm:w-6" />
-            </motion.div>
             <motion.span 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -158,7 +151,7 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="hidden lg:flex rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.user_metadata?.avatar_url} />
+                      <AvatarImage src={user.avatar_url} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                         {getUserInitials()}
                       </AvatarFallback>
@@ -168,7 +161,7 @@ export function Header() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{user.user_metadata?.full_name || 'Utilizator'}</p>
+                      <p className="text-sm font-medium">{user.full_name || 'Utilizator'}</p>
                       <p className="text-xs text-muted-foreground">{user.email}</p>
                     </div>
                   </DropdownMenuLabel>

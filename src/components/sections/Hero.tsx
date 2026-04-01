@@ -29,8 +29,8 @@ export function Hero() {
 
   
   const heroContent = {
-    title: content?.content?.title || "Oferă Momente",
-    titleHighlight: content?.content?.titleHighlight || "Memorabile",
+    title: content?.content?.title || t('hero.title'),
+    titleHighlight: content?.content?.titleHighlight || t('hero.titleHighlight'),
     subtitle: content?.content?.subtitle || t('hero.subtitle'),
     badge: content?.content?.badge || t('hero.badge'),
     ctaPrimary: content?.content?.ctaPrimary || t('hero.discover'),

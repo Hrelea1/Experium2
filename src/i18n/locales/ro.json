@@ -20,8 +20,9 @@
     "about": "Despre noi"
   },
   "hero": {
-    "title": "Cadouri care creează amintiri de neuitat",
-    "subtitle": "Descoperă experiențe unice în toată România - de la aventuri pline de adrenalină la relaxare la spa",
+    "title": "Trăiește momente",
+    "titleHighlight": "memorabile",
+    "subtitle": "Fiecare colț al României are ceva de spus. Trebuie doar să îi dai voie să vorbească.",
     "discover": "Descoperă Experiențe",
     "hasVoucher": "Ai un Voucher?",
     "badge": "Peste 500+ experiențe unice în România",
@@ -73,16 +74,16 @@
   },
   "howItWorks": {
     "title": "Cum Funcționează",
-    "subtitle": "Trei pași simpli pentru a oferi un cadou memorabil",
+    "subtitle": "Patru pași simpli pentru a trăi o experiență memorabilă",
     "step1Title": "Alege Experiența",
     "step1Desc": "Explorează categoriile și găsește experiența perfectă pentru tine sau cei dragi.",
-    "step2Title": "Oferă Cadoul",
-    "step2Desc": "Primește un voucher digital sau fizic, personalizat cu un mesaj special.",
-    "step3Title": "Programează",
-    "step3Desc": "Beneficiarul alege data și locația care i se potrivește cel mai bine.",
+    "step2Title": "Rezervă Online",
+    "step2Desc": "Selectează locația, data și numărul de participanți direct de pe site, în câteva minute.",
+    "step3Title": "Plătești și pleci",
+    "step3Desc": "Totul se întâmplă pe site, într-un singur loc. Plata e sigură, rapidă, și gata în câteva secunde.",
     "step3Extra": "📅 Data experienței se selectează după achiziție",
-    "step4Title": "Bucurați-vă!",
-    "step4Desc": "Trăiește momente memorabile și creează amintiri de neuitat."
+    "step4Title": "Acum e rândul tău",
+    "step4Desc": "Ai ales, ai rezervat, ai plătit. Acum nu mai ai nimic de făcut decât să te bucuri."
   },
   "testimonials": {
     "title": "Ce Spun Clienții Noștri",

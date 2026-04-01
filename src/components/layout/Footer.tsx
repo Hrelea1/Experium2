@@ -58,8 +58,8 @@ export function Footer() {
               <a href="tel:+40721234567" className="block text-secondary-foreground/70 hover:text-primary transition-colors">
                 +40 721 234 567
               </a>
-              <a href="mailto:contact@experium.ro" className="block text-secondary-foreground/70 hover:text-primary transition-colors">
-                contact@experium.ro
+              <a href="mailto:office@experium.ro" className="block text-secondary-foreground/70 hover:text-primary transition-colors">
+                office@experium.ro
               </a>
               <div className="text-secondary-foreground/70">
                 Craiova, România

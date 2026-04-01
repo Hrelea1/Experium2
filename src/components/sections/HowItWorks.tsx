@@ -12,7 +12,7 @@ const stepLabels = [
 export function HowItWorks() {
   const { t } = useTranslation();
   const { data: content } = useHomepageContent("how-it-works");
-  
+
   const sectionContent = content?.content || {
     badge: "Cum funcționează",
     title: t('howItWorks.title'),

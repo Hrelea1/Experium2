@@ -4,12 +4,16 @@ import { useTranslation } from "react-i18next";
 import { useHomepageContent } from "@/hooks/useHomepageContent";
 import { useRegions } from "@/hooks/useRegions";
 
-// Static fallback images
+// Static fallback images - importing all from folder
 import transilvaniaImg from "@/assets/regions/transilvania.jpg";
 import bucovinaImg from "@/assets/regions/bucovina.jpg";
 import maramuresImg from "@/assets/regions/maramures.jpg";
 import dobrogeaImg from "@/assets/regions/dobrogea.jpg";
 import banatImg from "@/assets/regions/banat.jpg";
+import crisanaImg from "@/assets/regions/crisana.jpg";
+import moldovaImg from "@/assets/regions/moldova.jpg";
+import munteniaImg from "@/assets/regions/muntenia.jpg";
+import olteniaImg from "@/assets/regions/oltenia.jpg";
 
 const staticImages: Record<string, string> = {
   transilvania: transilvaniaImg,
@@ -18,6 +22,11 @@ const staticImages: Record<string, string> = {
   maramureș: maramuresImg,
   dobrogea: dobrogeaImg,
   banat: banatImg,
+  crisana: crisanaImg,
+  crișana: crisanaImg,
+  moldova: moldovaImg,
+  muntenia: munteniaImg,
+  oltenia: olteniaImg,
 };
 
 // Experience counts (could be dynamic in the future)
@@ -25,7 +34,6 @@ const experienceCounts: Record<string, number> = {
   transilvania: 156,
   bucovina: 48,
   maramures: 42,
-  maramureș: 42,
   dobrogea: 67,
   banat: 54,
   crisana: 32,
@@ -46,35 +54,27 @@ export function Regions() {
     subtitle: t("regions.subtitle"),
   };
 
-  // Build regions array from DB, with fallback images
-  const regions = (dbRegions || []).map((r) => ({
-    id: r.id,
-    name: r.name,
-    slug: r.slug,
-    image: r.image_url || staticImages[r.slug.toLowerCase()] || transilvaniaImg,
-    experiences: r.experience_count || 0,
-  }));
-
-  // Provide a set of default regions to ensure UI is always populated
+  // Provide a set of default regions with local images
   const defaultRegions = [
-    { id: "1", name: "Transilvania", slug: "transilvania", image: transilvaniaImg, experiences: 156 },
-    { id: "2", name: "Bucovina", slug: "bucovina", image: bucovinaImg, experiences: 48 },
-    { id: "3", name: "Maramureș", slug: "maramures", image: maramuresImg, experiences: 42 },
-    { id: "4", name: "Dobrogea", slug: "dobrogea", image: dobrogeaImg, experiences: 67 },
-    { id: "5", name: "Banat", slug: "banat", image: banatImg, experiences: 54 },
+    { id: "1", name: "Transilvania", slug: "transilvania", image: transilvaniaImg, experiences: experienceCounts.transilvania },
+    { id: "2", name: "Bucovina", slug: "bucovina", image: bucovinaImg, experiences: experienceCounts.bucovina },
+    { id: "3", name: "Maramureș", slug: "maramures", image: maramuresImg, experiences: experienceCounts.maramures },
+    { id: "4", name: "Dobrogea", slug: "dobrogea", image: dobrogeaImg, experiences: experienceCounts.dobrogea },
+    { id: "5", name: "Banat", slug: "banat", image: banatImg, experiences: experienceCounts.banat },
+    { id: "6", name: "Crișana", slug: "crisana", image: crisanaImg, experiences: experienceCounts.crisana },
+    { id: "7", name: "Moldova", slug: "moldova", image: moldovaImg, experiences: experienceCounts.moldova },
+    { id: "8", name: "Muntenia", slug: "muntenia", image: munteniaImg, experiences: experienceCounts.muntenia },
+    { id: "9", name: "Oltenia", slug: "oltenia", image: olteniaImg, experiences: experienceCounts.oltenia },
   ];
 
-  // Merge DB regions with defaults to ensure missing regions are filled
-  let displayRegions = [...regions];
-
-  // If there are fewer than 5 regions from the DB, append missing defaults By slug
-  if (displayRegions.length < 5) {
-    for (const defReg of defaultRegions) {
-      if (!displayRegions.find(r => r.slug === defReg.slug)) {
-        displayRegions.push(defReg);
-      }
-    }
-  }
+  // Merge DB regions with defaults, prioritizing default images but using DB counts if available
+  const displayRegions = defaultRegions.map((def) => {
+    const dbMatch = (dbRegions || []).find((r) => r.slug.toLowerCase() === def.slug.toLowerCase());
+    return {
+      ...def,
+      experiences: dbMatch?.experience_count || def.experiences,
+    };
+  });
 
   const handleRegionClick = (slug: string) => {
     navigate(`/category/toate-categoriile?region=${slug}`);
