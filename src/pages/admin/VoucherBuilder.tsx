@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,13 +39,7 @@ const VoucherBuilder = () => {
 
   const fetchExperiences = async () => {
     try {
-      const { data, error } = await supabase
-        .from('experiences')
-        .select('id, title, price')
-        .eq('is_active', true)
-        .order('title');
-
-      if (error) throw error;
+      const { data } = await api.experiences.list({ sort: 'created_at', order: 'DESC' });
       setExperiences(data || []);
     } catch (error) {
       console.error('Error fetching experiences:', error);
@@ -70,17 +64,14 @@ const VoucherBuilder = () => {
     setIsCreating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-voucher', {
-        body: {
-          experienceId: selectedExperience,
-          notes: notes || undefined,
-          validityMonths: parseInt(validity),
-        },
+      const selectedExp = experiences.find(e => e.id === selectedExperience);
+      const res = await api.vouchers.create({
+        experience_id: selectedExperience,
+        purchase_price: selectedExp?.price || 0,
+        expiry_months: parseInt(validity),
       });
 
-      if (error) throw error;
-
-      const voucherCode = data?.voucher?.code || 'N/A';
+      const voucherCode = res?.code || 'N/A';
       
       toast({
         title: "Succes",

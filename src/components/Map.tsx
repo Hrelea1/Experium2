@@ -3,6 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, MapPin } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface Experience {
   id: number | string;
@@ -31,16 +32,9 @@ const Map = ({ experiences, userLocation, onExperienceClick }: MapProps) => {
   useEffect(() => {
     const fetchToken = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('get-mapbox-token');
-
-        if (error) {
-          console.error('Error fetching Mapbox token:', error);
-          setError('Nu s-a putut încărca harta. Verificați configurarea Mapbox.');
-          return;
-        }
-
-        if (data?.token) {
-          setMapboxToken(data.token);
+        const { token } = await api.config.getMapboxToken();
+        if (token) {
+          setMapboxToken(token);
         } else {
           setError('Token Mapbox nu este configurat în Supabase secrets.');
         }

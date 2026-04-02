@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { requireAuth } from '../middleware/auth';
 import { query, queryOne } from '../db';
 import { sendBookingConfirmation, sendProviderBookingNotification } from '../services/email';
-import { sendWhatsAppBookingConfirmation } from '../services/whatsapp';
+import { sendSms, getBookingConfirmedSms } from '../services/sms';
 
 const router = Router();
 const stripeToken = process.env.STRIPE_SECRET_KEY || 'sk_test_51O...';
@@ -69,8 +69,6 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
       return res.status(400).json({ error: 'Invalid session metadata' });
     }
 
-    // To prevent double bookings for the same checkout session, we could store session_id in bookings
-    // For now, we will simply create the bookings and try to limit duplicates if needed
     const items = JSON.parse(metadata.itemsMetadata);
     const userId = metadata.userId;
 
@@ -88,34 +86,53 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
 
       if (booking) {
         successCount++;
-        // Trigger emails in background
-        queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
-          `SELECT u.email, p.full_name, p.phone, e.title
+        // Trigger notifications in background
+        queryOne<{ email: string; full_name: string; title: string; phone: string | null; provider_email: string; provider_name: string }>(
+          `SELECT u.email, p.full_name, p.phone, e.title, pu.email as provider_email, pp.full_name as provider_name
            FROM users u
            LEFT JOIN profiles p ON p.id = u.id
            JOIN experiences e ON e.id = $2
+           JOIN experience_providers ep ON ep.experience_id = e.id AND ep.is_active = true
+           JOIN users pu ON pu.id = ep.provider_user_id
+           LEFT JOIN profiles pp ON pp.id = ep.provider_user_id
            WHERE u.id = $1`,
           [userId, item.experienceId]
         ).then(async (info) => {
           if (info) {
+            const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
+            
+            // Client Email
             await sendBookingConfirmation({
               email: info.email,
               name: info.full_name ?? 'Client',
               experienceTitle: info.title,
-              bookingDate: new Date(bookingDate).toLocaleString('ro-RO'),
+              bookingDate: dateStr,
               participants: Number(item.participants),
               totalPrice: Number(item.totalPrice),
               bookingId: booking.id,
             });
 
+            // Provider Email
+            await sendProviderBookingNotification({
+              providerEmail: info.provider_email,
+              providerName: info.provider_name ?? 'Furnizor',
+              experienceTitle: info.title,
+              clientName: info.full_name ?? 'Client',
+              bookingDate: dateStr,
+              participants: Number(item.participants),
+              totalPrice: Number(item.totalPrice),
+              bookingId: booking.id,
+            });
+
+            // Client SMS
             if (info.phone) {
-              await sendWhatsAppBookingConfirmation({
-                phone: info.phone,
-                clientName: info.full_name ?? 'Client',
-                experienceTitle: info.title,
-                bookingDate: new Date(bookingDate).toLocaleString('ro-RO'),
-                totalPrice: Number(item.totalPrice)
+              const smsBody = getBookingConfirmedSms({
+                title: info.title,
+                date: dateStr,
+                participants: Number(item.participants),
+                bookingId: booking.id
               });
+              await sendSms(info.phone, smsBody);
             }
           }
         }).catch(console.error);

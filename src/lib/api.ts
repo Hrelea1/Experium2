@@ -286,6 +286,10 @@ export const vouchers = {
   async redeem(voucherId: string, params: { booking_date: string; participants?: number; special_requests?: string }) {
     return request(`/vouchers/${voucherId}/redeem`, { method: 'POST', body: JSON.stringify(params) });
   },
+
+  async create(data: { experience_id: string; purchase_price: number; expiry_months?: number; user_id?: string }) {
+    return request<{ id: string; code: string }>('/vouchers', { method: 'POST', body: JSON.stringify(data) });
+  },
 };
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────
@@ -335,6 +339,30 @@ export const availability = {
 
   async unlockSlot(slotId: string): Promise<{ success: boolean }> {
     return request(`/availability/slots/${slotId}/unlock`, { method: 'POST' });
+  },
+};
+
+// ─── Checkout ─────────────────────────────────────────────────────────────────
+export const checkout = {
+  async createSession(items: any[], successUrl: string, cancelUrl: string): Promise<{ id: string; url: string }> {
+    return request<{ id: string; url: string }>('/checkout/create-session', {
+      method: 'POST',
+      body: JSON.stringify({ items, success_url: successUrl, cancel_url: cancelUrl }),
+    });
+  },
+
+  async verifySession(sessionId: string): Promise<{ success: boolean; successCount: number }> {
+    return request<{ success: boolean; successCount: number }>('/checkout/verify-session', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId }),
+    });
+  },
+};
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+export const config = {
+  async getMapboxToken(): Promise<{ token: string }> {
+    return request<{ token: string }>('/config/mapbox');
   },
 };
 
@@ -410,6 +438,8 @@ export const api = {
   admin,
   availability,
   provider,
+  checkout,
+  config,
 };
 
 export default api;

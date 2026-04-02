@@ -2,7 +2,13 @@ import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAuth, requireAdmin, requireRole } from '../middleware/auth';
 import { sendBookingConfirmation, sendCancellationConfirmation, sendProviderBookingNotification } from '../services/email';
-import { sendWhatsAppBookingConfirmation, sendWhatsAppBookingCancellation } from '../services/whatsapp';
+import { 
+  sendSms, 
+  getBookingConfirmedSms, 
+  getBookingCancelledSms, 
+  getProviderNewBookingSms,
+  getProviderBookingCancelledSms
+} from '../services/sms';
 
 const router = Router();
 
@@ -17,7 +23,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         b.id, b.booking_date, b.participants, b.participant_details, b.status, b.total_price,
         b.special_requests, b.cancellation_reason, b.rescheduled_count,
         b.created_at,
-        e.title AS experience_title, e.location_name,
+        e.id AS experience_id, e.title AS experience_title, e.location_name,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS experience_image
        FROM bookings b
        JOIN experiences e ON e.id = b.experience_id
@@ -103,62 +109,70 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     );
 
     if (status === 'confirmed') {
-      // Send confirmation email and WhatsApp asynchronously (non-blocking)
-    queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
-      `SELECT u.email, p.full_name, p.phone, e.title
-       FROM users u
-       LEFT JOIN profiles p ON p.id = u.id
-       JOIN experiences e ON e.id = $2
-       WHERE u.id = $1`,
-      [req.user!.userId, experience_id]
-    ).then(async (info) => {
-      if (info) {
-        await sendBookingConfirmation({
-          email: info.email,
-          name: info.full_name ?? 'Client',
-          experienceTitle: info.title,
-          bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
-          participants: Number(participants),
-          totalPrice: Number(total_price),
-          bookingId: booking!.id,
-        });
-
-        if (info.phone) {
-          await sendWhatsAppBookingConfirmation({
-            phone: info.phone,
-            clientName: info.full_name ?? 'Client',
+      const dateStr = new Date(booking_date).toLocaleString('ro-RO');
+      queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
+        `SELECT u.email, p.full_name, p.phone, e.title
+         FROM users u
+         LEFT JOIN profiles p ON p.id = u.id
+         JOIN experiences e ON e.id = $2
+         WHERE u.id = $1`,
+        [req.user!.userId, experience_id]
+      ).then(async (info) => {
+        if (info) {
+          await sendBookingConfirmation({
+            email: info.email,
+            name: info.full_name ?? 'Client',
             experienceTitle: info.title,
-            bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
-            totalPrice: Number(total_price)
+            bookingDate: dateStr,
+            participants: Number(participants),
+            totalPrice: Number(total_price),
+            bookingId: booking!.id,
           });
-        }
 
-        // Notify providers
-        query<{ email: string; full_name: string }>(
-          `SELECT u.email, p.full_name
-           FROM experience_providers ep
-           JOIN users u ON u.id = ep.provider_user_id
-           LEFT JOIN profiles p ON p.id = u.id
-           WHERE ep.experience_id = $1 AND ep.is_active = true`,
-          [experience_id]
-        ).then(async (providers) => {
-          for (const provider of providers) {
-            if (provider.email) {
-              await sendProviderBookingNotification({
-                providerEmail: provider.email,
-                providerName: provider.full_name ?? 'Furnizor',
-                experienceTitle: info.title,
-                clientName: info.full_name ?? 'Client',
-                bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
-                participants: Number(participants),
-                totalPrice: Number(total_price),
-                bookingId: booking!.id,
-              });
-            }
+          if (info.phone) {
+            const smsBody = getBookingConfirmedSms({
+              title: info.title,
+              date: dateStr,
+              participants: Number(participants),
+              bookingId: booking!.id
+            });
+            await sendSms(info.phone, smsBody);
           }
-        }).catch(err => console.error('[Provider Notification]', err));
-      }
-    }).catch(console.error);
+
+          query<{ email: string; full_name: string; phone: string | null }>(
+            `SELECT u.email, p.full_name, p.phone
+             FROM experience_providers ep
+             JOIN users u ON u.id = ep.provider_user_id
+             LEFT JOIN profiles p ON p.id = u.id
+             WHERE ep.experience_id = $1 AND ep.is_active = true`,
+            [experience_id]
+          ).then(async (providers) => {
+            for (const provider of providers) {
+              if (provider.email) {
+                await sendProviderBookingNotification({
+                  providerEmail: provider.email,
+                  providerName: provider.full_name ?? 'Furnizor',
+                  experienceTitle: info.title,
+                  clientName: info.full_name ?? 'Client',
+                  bookingDate: dateStr,
+                  participants: Number(participants),
+                  totalPrice: Number(total_price),
+                  bookingId: booking!.id,
+                });
+              }
+              if (provider.phone) {
+                const pSmsBody = getProviderNewBookingSms({
+                  title: info.title,
+                  date: dateStr,
+                  clientName: info.full_name ?? 'Client',
+                  participants: Number(participants)
+                });
+                await sendSms(provider.phone, pSmsBody);
+              }
+            }
+          }).catch(err => console.error('[Provider Notification]', err));
+        }
+      }).catch(console.error);
     }
 
     res.status(201).json({ id: booking!.id, message: 'Booking created' });
@@ -182,7 +196,7 @@ router.post('/:id/cancel', requireAuth, async (req: Request, res: Response) => {
 
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (!['confirmed', 'pending'].includes(booking.status)) {
-      return res.status(400).json({ error: 'Booking cannot be cancelled in its current state' });
+      return res.status(400).json({ error: 'Booking cannot be cancelled' });
     }
 
     const hoursUntil = (new Date(booking.booking_date).getTime() - Date.now()) / 3600000;
@@ -194,7 +208,8 @@ router.post('/:id/cancel', requireAuth, async (req: Request, res: Response) => {
       [cancellation_reason ?? null, req.params.id]
     );
 
-    // Send email/WhatsApp async
+    const dateStr = new Date(booking.booking_date).toLocaleString('ro-RO');
+
     queryOne<{ email: string; full_name: string; title: string; phone: string | null }>(
       `SELECT u.email, p.full_name, p.phone, e.title FROM users u
        LEFT JOIN profiles p ON p.id = u.id
@@ -211,13 +226,33 @@ router.post('/:id/cancel', requireAuth, async (req: Request, res: Response) => {
         });
 
         if (info.phone) {
-          await sendWhatsAppBookingCancellation({
-            phone: info.phone,
-            clientName: info.full_name ?? 'Client',
-            experienceTitle: info.title,
+          const smsBody = getBookingCancelledSms({
+            title: info.title,
+            date: dateStr,
             refundEligible
           });
+          await sendSms(info.phone, smsBody);
         }
+
+        query<{ email: string; full_name: string; phone: string | null }>(
+          `SELECT u.email, p.full_name, p.phone
+           FROM experience_providers ep
+           JOIN users u ON u.id = ep.provider_user_id
+           LEFT JOIN profiles p ON p.id = u.id
+           WHERE ep.experience_id = $1 AND ep.is_active = true`,
+          [booking.experience_id]
+        ).then(async (providers) => {
+          for (const provider of providers) {
+            if (provider.phone) {
+              const pSmsBody = getProviderBookingCancelledSms({
+                title: info.title,
+                date: dateStr,
+                clientName: info.full_name ?? 'Client'
+              });
+              await sendSms(provider.phone, pSmsBody);
+            }
+          }
+        }).catch(err => console.error('[Provider Cancellation Notification]', err));
       }
     }).catch(console.error);
 
@@ -273,7 +308,6 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Verify ownership/assignment
     if (!isAdmin) {
       if (role === 'provider') {
         const assignment = await queryOne(
@@ -282,28 +316,19 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
            WHERE b.id = $1 AND ep.provider_user_id = $2 AND ep.is_active = true`,
           [id, userId]
         );
-        if (!assignment) return res.status(403).json({ error: 'Not authorized to update this booking' });
+        if (!assignment) return res.status(403).json({ error: 'Not authorized' });
       } else {
-        const ownership = await queryOne(
-          `SELECT 1 FROM bookings WHERE id = $1 AND user_id = $2`,
-          [id, userId]
-        );
-        if (!ownership) return res.status(403).json({ error: 'Not authorized to update this booking' });
-        
-        // Only allow user to confirm or cancel their own booking
+        const ownership = await queryOne(`SELECT 1 FROM bookings WHERE id = $1 AND user_id = $2`, [id, userId]);
+        if (!ownership) return res.status(403).json({ error: 'Not authorized' });
         if (!['confirmed', 'cancelled'].includes(status)) {
-          return res.status(403).json({ error: 'Users can only confirm or cancel bookings' });
+          return res.status(403).json({ error: 'Users restricted' });
         }
       }
     }
 
-    // If declining, we might want to map 'declined' to 'cancelled' in the database 
-    // or keep 'declined' if the schema supports it. 
-    // The previous logic used 'cancelled' with a reason.
     const dbStatus = status === 'declined' ? 'cancelled' : status;
     const reason = status === 'declined' ? 'Provider declined' : null;
 
-    // Check previous status
     const prevBooking = await queryOne<{ status: string; total_price: number; booking_date: string; participants: number; experience_id: string }>(
       `SELECT status, total_price, booking_date, participants, experience_id FROM bookings WHERE id = $1`,
       [id]
@@ -315,9 +340,8 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
       [dbStatus, reason, id]
     );
 
-    // If transitioning to confirmed, send confirmation emails/WhatsApp
     if (dbStatus === 'confirmed' && prevBooking && prevBooking.status !== 'confirmed') {
-      const confirmedBookingData = prevBooking;
+      const dateStr = new Date(prevBooking.booking_date).toLocaleString('ro-RO');
       queryOne<{ email: string; full_name: string; title: string; phone: string | null; user_id: string }>(
         `SELECT u.email, p.full_name, p.phone, e.title, b.user_id
          FROM bookings b
@@ -332,30 +356,29 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
             email: info.email,
             name: info.full_name ?? 'Client',
             experienceTitle: info.title,
-            bookingDate: new Date(confirmedBookingData.booking_date).toLocaleString('ro-RO'),
-            participants: Number(confirmedBookingData.participants),
-            totalPrice: Number(confirmedBookingData.total_price),
+            bookingDate: dateStr,
+            participants: Number(prevBooking.participants),
+            totalPrice: Number(prevBooking.total_price),
             bookingId: id,
           });
 
           if (info.phone) {
-             await sendWhatsAppBookingConfirmation({
-              phone: info.phone,
-              clientName: info.full_name ?? 'Client',
-              experienceTitle: info.title,
-              bookingDate: new Date(confirmedBookingData.booking_date).toLocaleString('ro-RO'),
-              totalPrice: Number(confirmedBookingData.total_price)
+             const smsBody = getBookingConfirmedSms({
+              title: info.title,
+              date: dateStr,
+              participants: Number(prevBooking.participants),
+              bookingId: id
             });
+            await sendSms(info.phone, smsBody);
           }
 
-          // Notify providers
-          query<{ email: string; full_name: string }>(
-            `SELECT u.email, p.full_name
+          query<{ email: string; full_name: string; phone: string | null }>(
+            `SELECT u.email, p.full_name, p.phone
              FROM experience_providers ep
              JOIN users u ON u.id = ep.provider_user_id
              LEFT JOIN profiles p ON p.id = u.id
              WHERE ep.experience_id = $1 AND ep.is_active = true`,
-            [confirmedBookingData.experience_id]
+            [prevBooking.experience_id]
           ).then(async (providers) => {
             for (const provider of providers) {
               if (provider.email) {
@@ -364,11 +387,20 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
                   providerName: provider.full_name ?? 'Furnizor',
                   experienceTitle: info.title,
                   clientName: info.full_name ?? 'Client',
-                  bookingDate: new Date(confirmedBookingData.booking_date).toLocaleString('ro-RO'),
-                  participants: Number(confirmedBookingData.participants),
-                  totalPrice: Number(confirmedBookingData.total_price),
+                  bookingDate: dateStr,
+                  participants: Number(prevBooking.participants),
+                  totalPrice: Number(prevBooking.total_price),
                   bookingId: id,
                 });
+              }
+              if (provider.phone) {
+                const pSmsBody = getProviderNewBookingSms({
+                  title: info.title,
+                  date: dateStr,
+                  clientName: info.full_name ?? 'Client',
+                  participants: Number(prevBooking.participants)
+                });
+                await sendSms(provider.phone, pSmsBody);
               }
             }
           }).catch(err => console.error('[Provider Notification]', err));
@@ -379,7 +411,7 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
     res.json({ success: true, status: dbStatus });
   } catch (err) {
     console.error('[bookings PATCH /status]', err);
-    res.status(500).json({ error: 'Failed to update booking status' });
+    res.status(500).json({ error: 'Failed' });
   }
 });
 

@@ -3,11 +3,11 @@ import { query, queryOne } from '../db';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { sendAvailabilityRequest } from '../services/email';
 import { 
-  sendWhatsAppProviderAlert, 
-  sendWhatsAppProviderConfirmRequest,
-  sendWhatsAppUserPaymentLink,
-  sendWhatsAppBookingUnavailable
-} from '../services/whatsapp';
+  sendSms,
+  getProviderAvailabilityCheckSms,
+  getUserPaymentLinkSms,
+  getUserUnavailableSms
+} from '../services/sms';
 import crypto from 'crypto';
 
 const router = Router();
@@ -75,7 +75,6 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
       [userId, ...(from ? [from] : [])]
     );
 
-    // Normalize to shape expected by ProviderDashboard
     const normalised = rows.map((s: any) => ({
       ...s,
       max_participants: s.capacity,
@@ -91,7 +90,6 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
 });
 
 // ─── POST /availability/slots (Provider/Admin) ────────────────────────────────
-// Create availability slots for an experience
 router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req: Request, res: Response) => {
   try {
     const { experience_id, slot_date, start_time, end_time, capacity } = req.body;
@@ -111,14 +109,13 @@ router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req:
   }
 });
 
-// ─── DELETE /availability/slots/:id (Provider/Admin) ──────────────────────────
+// ─── DELETE /availability/slots/:id ──────────────────────────
 router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.userId;
     const isAdmin = req.user!.role === 'admin';
 
-    // Verify ownership if not admin
     if (!isAdmin) {
       const slot = await queryOne('SELECT 1 FROM availability_slots WHERE id = $1 AND provider_user_id = $2', [id, userId]);
       if (!slot) return res.status(403).json({ error: 'Not authorized to delete this slot' });
@@ -133,13 +130,11 @@ router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Reques
 });
 
 // ─── POST /availability/slots/:id/lock ────────────────────────────────────────
-// Temporarily lock a slot for a user (5-minute hold during checkout)
 router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.userId;
 
-    // Check slot exists and isn't already locked by someone else
     const slot = await queryOne<{
       id: string; is_locked: boolean; locked_by: string | null;
       locked_until: string | null; capacity: number; booked_count: number;
@@ -149,13 +144,9 @@ router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) 
     );
 
     if (!slot) return res.status(404).json({ error: 'Slot not found' });
-
-    // Check if slot has capacity
     if (slot.capacity - slot.booked_count <= 0) {
       return res.json([{ success: false, error_message: 'Slotul este plin.' }]);
     }
-
-    // Check if locked by another user and lock hasn't expired
     if (slot.is_locked && slot.locked_by !== userId) {
       const lockExpiry = slot.locked_until ? new Date(slot.locked_until) : new Date(0);
       if (lockExpiry > new Date()) {
@@ -163,7 +154,6 @@ router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) 
       }
     }
 
-    // Lock the slot for 5 minutes
     const lockedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     await query(
       `UPDATE availability_slots SET is_locked = true, locked_by = $1, locked_until = $2 WHERE id = $3`,
@@ -178,18 +168,15 @@ router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) 
 });
 
 // ─── POST /availability/slots/:id/unlock ──────────────────────────────────────
-// Release a slot lock
 router.post('/slots/:id/unlock', requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.userId;
-
     await query(
       `UPDATE availability_slots SET is_locked = false, locked_by = NULL, locked_until = NULL
        WHERE id = $1 AND locked_by = $2`,
       [id, userId]
     );
-
     res.json({ success: true });
   } catch (err) {
     console.error('[availability POST /slots/:id/unlock]', err);
@@ -198,14 +185,11 @@ router.post('/slots/:id/unlock', requireAuth, async (req: Request, res: Response
 });
 
 // ─── POST /availability/check ─────────────────────────────────────────────────
-// Replaces initiate-availability-check edge function
-// Sends email to provider asking them to confirm/decline availability
 router.post('/check', requireAuth, async (req: Request, res: Response) => {
   try {
     const { booking_id } = req.body;
     if (!booking_id) return res.status(400).json({ error: 'booking_id required' });
 
-    // Fetch booking + experience + provider info
     const info = await queryOne<{
       experience_id: string; experience_title: string;
       booking_date: string; participants: number; provider_email: string; provider_name: string;
@@ -227,7 +211,7 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
 
     const confirmToken = crypto.randomUUID();
     const declineToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes!
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); 
 
     await query(
       `INSERT INTO availability_requests (booking_id, confirm_token, decline_token, status, expires_at)
@@ -235,7 +219,7 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
       [booking_id, confirmToken, declineToken, expiresAt.toISOString()]
     );
 
-    const appUrl = process.env.APP_URL ?? 'https://experium.ro';
+    const appUrl = process.env.VITE_APP_URL ?? 'https://experium.ro';
     const confirmUrl = `${appUrl}/api/availability/respond?token=${confirmToken}&action=confirm`;
     const declineUrl = `${appUrl}/api/availability/respond?token=${declineToken}&action=decline`;
 
@@ -253,14 +237,14 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
     }
 
     if (info.provider_phone) {
-      await sendWhatsAppProviderConfirmRequest({
-        phone: info.provider_phone,
-        experienceTitle: info.experience_title,
-        bookingDate: new Date(info.booking_date).toLocaleString('ro-RO'),
-        participants: info.participants,
+      const smsBody = getProviderAvailabilityCheckSms({
+        title: info.experience_title,
+        date: new Date(info.booking_date).toLocaleString('ro-RO'),
+        clientName: 'Experium Client',
         confirmUrl,
         declineUrl
       });
+      await sendSms(info.provider_phone, smsBody);
     }
 
     res.json({ message: 'Availability request sent to provider' });
@@ -271,7 +255,6 @@ router.post('/check', requireAuth, async (req: Request, res: Response) => {
 });
 
 // ─── POST /availability/respond ───────────────────────────────────────────────
-// Replaces process-availability-response edge function
 router.post('/respond', async (req: Request, res: Response) => {
   try {
     const { token, action } = req.body;
@@ -287,12 +270,12 @@ router.post('/respond', async (req: Request, res: Response) => {
 
     if (!request) return res.status(404).json({ error: 'Invalid token' });
     if (request.status !== 'pending') return res.status(400).json({ error: 'Request already processed' });
+    
     if (new Date(request.expires_at) < new Date()) {
       await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['expired', request.id]);
       return res.status(410).json({ error: 'Request expired' });
     }
 
-    // Fetch booking / user details for WhatsApp
     const bookingInfo = await queryOne<{ user_phone: string; user_name: string; title: string; booking_date: string; }>(
       `SELECT p.phone AS user_phone, p.full_name AS user_name, e.title, b.booking_date
        FROM bookings b
@@ -306,27 +289,22 @@ router.post('/respond', async (req: Request, res: Response) => {
 
     if (action === 'confirm') {
       await query("UPDATE availability_requests SET status = $1, expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2", ['confirmed', request.id]);
-      
       if (bookingInfo && bookingInfo.user_phone) {
-        await sendWhatsAppUserPaymentLink({
-          phone: bookingInfo.user_phone,
-          clientName: bookingInfo.user_name || 'Client',
-          experienceTitle: bookingInfo.title,
-          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+        const smsBody = getUserPaymentLinkSms({
+          title: bookingInfo.title,
           paymentUrl: `${appUrl}/checkout/${request.booking_id}`
         });
+        await sendSms(bookingInfo.user_phone, smsBody);
       }
     } else {
       await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['declined', request.id]);
       await query(`UPDATE bookings SET status = 'cancelled', cancellation_reason = 'Provider declined availability' WHERE id = $1`, [request.booking_id]);
-
       if (bookingInfo && bookingInfo.user_phone) {
-        await sendWhatsAppBookingUnavailable({
-          phone: bookingInfo.user_phone,
-          clientName: bookingInfo.user_name || 'Client',
-          experienceTitle: bookingInfo.title,
-          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+        const smsBody = getUserUnavailableSms({
+          title: bookingInfo.title,
+          date: new Date(bookingInfo.booking_date).toLocaleString('ro-RO')
         });
+        await sendSms(bookingInfo.user_phone, smsBody);
       }
     }
 
@@ -340,10 +318,6 @@ router.post('/respond', async (req: Request, res: Response) => {
 // ─── GET /availability/respond (for email link clicks) ────────────────────────
 router.get('/respond', async (req: Request, res: Response) => {
   const { token, action } = req.query as { token: string; action: string };
-  // Forward to POST handler by synthesizing the request body inline
-  req.body = { token, action };
-
-  // Inline processing for GET (email link) — same logic as POST
   try {
     const tokenColumn = action === 'confirm' ? 'confirm_token' : 'decline_token';
     const request = await queryOne<{ id: string; booking_id: string; expires_at: string; status: string }>(
@@ -358,7 +332,6 @@ router.get('/respond', async (req: Request, res: Response) => {
       return res.send('<h2>Cererea a expirat.</h2>');
     }
 
-    // Notification logic
     const bookingInfo = await queryOne<{ user_phone: string; user_name: string; title: string; booking_date: string; }>(
       `SELECT p.phone AS user_phone, p.full_name AS user_name, e.title, b.booking_date
        FROM bookings b
@@ -372,28 +345,23 @@ router.get('/respond', async (req: Request, res: Response) => {
 
     if (action === 'confirm') {
       await query("UPDATE availability_requests SET status = $1, expires_at = NOW() + INTERVAL '15 minutes' WHERE id = $2", ['confirmed', request.id]);
-      
       if (bookingInfo && bookingInfo.user_phone) {
-        await sendWhatsAppUserPaymentLink({
-          phone: bookingInfo.user_phone,
-          clientName: bookingInfo.user_name || 'Client',
-          experienceTitle: bookingInfo.title,
-          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+        const smsBody = getUserPaymentLinkSms({
+          title: bookingInfo.title,
           paymentUrl: `${appUrl}/checkout/${request.booking_id}`
         });
+        await sendSms(bookingInfo.user_phone, smsBody);
       }
-      res.send('<h2 style="color:green">✅ Disponibilitate confirmată! Clientul va fi notificat prin WhatsApp pentru plată.</h2>');
+      res.send('<h2 style="color:green">✅ Disponibilitate confirmată! Clientul va fi notificat prin SMS pentru plată.</h2>');
     } else {
       await query('UPDATE availability_requests SET status = $1 WHERE id = $2', ['declined', request.id]);
       await query(`UPDATE bookings SET status = 'cancelled', cancellation_reason = 'Provider declined' WHERE id = $1`, [request.booking_id]);
-      
       if (bookingInfo && bookingInfo.user_phone) {
-        await sendWhatsAppBookingUnavailable({
-          phone: bookingInfo.user_phone,
-          clientName: bookingInfo.user_name || 'Client',
-          experienceTitle: bookingInfo.title,
-          bookingDate: new Date(bookingInfo.booking_date).toLocaleString('ro-RO'),
+        const smsBody = getUserUnavailableSms({
+          title: bookingInfo.title,
+          date: new Date(bookingInfo.booking_date).toLocaleString('ro-RO')
         });
+        await sendSms(bookingInfo.user_phone, smsBody);
       }
       res.send('<h2 style="color:red">❌ Disponibilitate refuzată. Clientul va fi notificat.</h2>');
     }

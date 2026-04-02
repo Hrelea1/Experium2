@@ -25,6 +25,7 @@
     "nodemailer": "^6.9.14",
     "pg": "^8.12.0",
     "stripe": "^21.0.1",
+    "twilio": "^5.13.1",
     "uuid": "^10.0.0",
     "zod": "^3.23.8"
   },
@@ -37,6 +38,7 @@
     "@types/node": "^20.14.0",
     "@types/nodemailer": "^6.4.15",
     "@types/pg": "^8.11.6",
+    "@types/twilio": "^3.19.2",
     "@types/uuid": "^10.0.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"

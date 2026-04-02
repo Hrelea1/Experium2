@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,13 +32,7 @@ const CreateTestVoucher = () => {
 
   const fetchExperiences = async () => {
     try {
-      const { data, error } = await supabase
-        .from('experiences')
-        .select('id, title, price')
-        .eq('is_active', true)
-        .limit(10);
-
-      if (error) throw error;
+      const { data } = await api.experiences.list({ limit: 10 });
       setExperiences(data || []);
       
       if (data && data.length > 0) {
@@ -63,15 +57,11 @@ const CreateTestVoucher = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-voucher', {
-        body: {
-          experienceId: selectedExperience,
-          purchasePrice: parseFloat(price),
-          notes: 'Test voucher creat manual',
-        },
+      await api.vouchers.create({
+        experience_id: selectedExperience,
+        purchase_price: parseFloat(price),
+        expiry_months: 12,
       });
-
-      if (error) throw error;
 
       toast({
         title: 'Succes!',
