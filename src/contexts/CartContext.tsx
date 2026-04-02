@@ -65,7 +65,18 @@ function saveLocal(items: CartItem[]) {
 function loadLocal(): CartItem[] {
   try {
     const s = localStorage.getItem(CART_STORAGE_KEY);
-    return s ? JSON.parse(s) : [];
+    if (!s) return [];
+    const parsed = JSON.parse(s);
+    if (!Array.isArray(parsed)) return [];
+    
+    // Defensive normalization for legacy/malformed data
+    return parsed.map((item: any) => ({
+      ...item,
+      services: Array.isArray(item.services) ? item.services : [],
+      selectedTiers: Array.isArray(item.selectedTiers) ? item.selectedTiers : [],
+      startTime: item.startTime || '',
+      endTime: item.endTime || '',
+    }));
   } catch { return []; }
 }
 
@@ -111,9 +122,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (item.selectedTiers && item.selectedTiers.length > 0) {
       base = item.selectedTiers.reduce((s, tier) => s + tier.price * tier.quantity, 0);
     } else {
-      base = item.price * item.participants;
+      base = (item.price || 0) * (item.participants || 0);
     }
-    const extras = item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0);
+    const extras = (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0);
     return sum + base + extras;
   }, 0);
 

@@ -88,7 +88,7 @@ export default function Cart() {
       slotDate: item.slotDate,
       startTime: item.startTime,
       participants: item.participants,
-      totalPrice: item.price * item.participants + item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0),
+      totalPrice: (item.price || 0) * (item.participants || 0) + (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0),
       title: item.title,
       participantDetails: [...(item.selectedTiers || []), ...(item.services || [])],
     }));
@@ -186,7 +186,7 @@ export default function Cart() {
                                 <div className="space-y-2 mb-4">
                                   <div className="flex items-center text-sm text-muted-foreground gap-4">
                                     <span className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-primary" /> {formatDate(item.slotDate)}</span>
-                                    <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-primary" /> {item.startTime.slice(0, 5)} - {item.endTime.slice(0, 5)}</span>
+                                    <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-primary" /> {(item.startTime || '00:00').slice(0, 5)} - {(item.endTime || '00:00').slice(0, 5)}</span>
                                   </div>
                                   <div className="flex items-center text-sm text-muted-foreground gap-4">
                                     <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" /> {item.location}</span>
@@ -194,10 +194,10 @@ export default function Cart() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex justify-between items-end border-t border-border/50 pt-4">
-                                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal</div>
-                                <div className="text-xl font-black">{item.price * item.participants + item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0)} Lei</div>
-                              </div>
+                                <div className="flex justify-between items-end border-t border-border/50 pt-4">
+                                  <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal</div>
+                                  <div className="text-xl font-black">{(item.price || 0) * (item.participants || 0) + (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0)} Lei</div>
+                                </div>
                             </div>
                           </div>
                         </CardContent>
@@ -270,7 +270,7 @@ export default function Cart() {
                                 <span className="font-bold text-foreground">{item.title}</span>
                                 <span className="text-xs text-muted-foreground">{item.participants} pers • {formatDate(item.slotDate)}</span>
                               </div>
-                              <span className="font-bold">{item.price * item.participants + item.services.reduce((s, svc) => s + svc.price * svc.quantity, 0)} Lei</span>
+                              <span className="font-bold">{(item.price || 0) * (item.participants || 0) + (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0)} Lei</span>
                             </div>
                           ))}
                         </div>
