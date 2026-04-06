@@ -128,13 +128,16 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased overflow-x-hidden;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 
   html {
-    @apply overflow-x-hidden;
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;
+  }
+
+  #root {
+    @apply w-full overflow-x-hidden;
   }
 }
 

@@ -11,9 +11,9 @@ import { AIAssistant } from "@/components/AIAssistant";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       <Header />
-      <main className="overflow-x-hidden">
+      <main>
         <Hero />
         <Regions />
         <FeaturedExperiences />
