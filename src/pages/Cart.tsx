@@ -77,6 +77,17 @@ export default function Cart() {
     window.scrollTo(0, 0);
   };
 
+  const getItemTotal = (item: any) => {
+    let base = 0;
+    if (item.selectedTiers && item.selectedTiers.length > 0) {
+      base = item.selectedTiers.reduce((s: any, tier: any) => s + (tier.price || 0) * (tier.quantity || 0), 0);
+    } else {
+      base = (item.price || 0) * (item.participants || 0);
+    }
+    const extras = (item.services || []).reduce((s: any, svc: any) => s + (svc.price || 0) * (svc.quantity || 0), 0);
+    return base + extras;
+  };
+
   const handleFinalCheckout = async () => {
     setIsUpdatingPhone(true);
     await supabase.from('profiles').update({ phone: phoneNumber }).eq('id', user.id);
@@ -88,7 +99,7 @@ export default function Cart() {
       slotDate: item.slotDate,
       startTime: item.startTime,
       participants: item.participants,
-      totalPrice: (item.price || 0) * (item.participants || 0) + (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0),
+      totalPrice: getItemTotal(item),
       title: item.title,
       participantDetails: [...(item.selectedTiers || []), ...(item.services || [])],
     }));
@@ -96,8 +107,10 @@ export default function Cart() {
     await processCheckout(checkoutItems);
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
     return date.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
@@ -196,7 +209,7 @@ export default function Cart() {
                               </div>
                                 <div className="flex justify-between items-end border-t border-border/50 pt-4">
                                   <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal</div>
-                                  <div className="text-xl font-black">{(item.price || 0) * (item.participants || 0) + (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0)} Lei</div>
+                                  <div className="text-xl font-black">{getItemTotal(item)} Lei</div>
                                 </div>
                             </div>
                           </div>
@@ -270,7 +283,7 @@ export default function Cart() {
                                 <span className="font-bold text-foreground">{item.title}</span>
                                 <span className="text-xs text-muted-foreground">{item.participants} pers • {formatDate(item.slotDate)}</span>
                               </div>
-                              <span className="font-bold">{(item.price || 0) * (item.participants || 0) + (item.services || []).reduce((s, svc) => s + (svc.price || 0) * (svc.quantity || 0), 0)} Lei</span>
+                              <span className="font-bold">{getItemTotal(item)} Lei</span>
                             </div>
                           ))}
                         </div>

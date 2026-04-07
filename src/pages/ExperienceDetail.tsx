@@ -168,6 +168,30 @@ export default function ExperienceDetail() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [experience, setExperience] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      const wishlists = JSON.parse(localStorage.getItem('wishlists') || '[]');
+      setIsWishlisted(wishlists.includes(id));
+    }
+  }, [id]);
+
+  const toggleWishlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!id) return;
+    const wishlists = JSON.parse(localStorage.getItem('wishlists') || '[]');
+    if (isWishlisted) {
+      const newWishlists = wishlists.filter((w: string) => w !== id);
+      localStorage.setItem('wishlists', JSON.stringify(newWishlists));
+      setIsWishlisted(false);
+      toast({ title: "Eliminat de la favorite", description: "Experiența a fost eliminată din listă." });
+    } else {
+      wishlists.push(id);
+      localStorage.setItem('wishlists', JSON.stringify(wishlists));
+      setIsWishlisted(true);
+      toast({ title: "Adăugat la favorite! ❤️", description: "Experiența a fost salvată în listă." });
+    }
+  };
   const [recommendedExperiences, setRecommendedExperiences] = useState<RecommendedExperience[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -315,7 +339,7 @@ export default function ExperienceDetail() {
                 {/* Action Buttons */}
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button 
-                    onClick={() => setIsWishlisted(!isWishlisted)}
+                    onClick={toggleWishlist}
                     className="w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-md"
                   >
                     <Heart className={`w-5 h-5 ${isWishlisted ? "fill-primary text-primary" : "text-foreground"}`} />
@@ -374,10 +398,16 @@ export default function ExperienceDetail() {
               <div className="mt-8">
                 {/* Location & Duration */}
                 <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1">
+                  <a 
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experience.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                    title="Deschide în Google Maps"
+                  >
                     <MapPin className="w-4 h-4" />
                     {experience.location}
-                  </span>
+                  </a>
                   <span className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     {experience.duration}
