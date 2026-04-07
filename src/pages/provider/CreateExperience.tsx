@@ -57,6 +57,7 @@ export default function CreateExperience() {
   const [providerType, setProviderType] = useState<'accommodation' | 'service'>('service');
   const [durationMinutes, setDurationMinutes] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
+  const [minParticipants, setMinParticipants] = useState('1');
   const [categoryId, setCategoryId] = useState('none');
   const [regionId, setRegionId] = useState('none');
   const [locationName, setLocationName] = useState('');
@@ -178,6 +179,7 @@ export default function CreateExperience() {
         provider_type: providerType,
         duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
         max_participants: parseInt(maxParticipants) || 10,
+        min_participants: parseInt(minParticipants) || 1,
         category_id: categoryId,
         region_id: regionId,
         location_name: locationName,
@@ -371,10 +373,15 @@ export default function CreateExperience() {
                   <Input id="location" value={locationName} onChange={(e) => setLocationName(e.target.value)} placeholder="Ex: Tulcea, Delta Dunării" />
                 </div>
 
-                {/* Capacity */}
-                <div className="space-y-2">
-                  <Label htmlFor="maxPart">Capacitate maximă</Label>
-                  <Input id="maxPart" type="number" value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} min={1} max={500} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="maxPart">Capacitate maximă</Label>
+                    <Input id="maxPart" type="number" value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} min={1} max={500} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="minPart">Min participanți</Label>
+                    <Input id="minPart" type="number" value={minParticipants} onChange={(e) => setMinParticipants(e.target.value)} min={1} />
+                  </div>
                 </div>
 
                 {/* Cancellation policy */}

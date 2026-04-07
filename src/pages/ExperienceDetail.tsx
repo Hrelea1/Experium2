@@ -244,6 +244,7 @@ export default function ExperienceDetail() {
             description: data.description,
             includes: Array.isArray((data as any).includes) ? (data as any).includes : [],
             maxParticipants: data.max_participants || 10,
+            minParticipants: data.min_participants || 1,
             is_assisted: (data as any).is_assisted || false,
             pricingTiers: data.pricing_tiers || [],
             services: data.services || [],
@@ -454,6 +455,41 @@ export default function ExperienceDetail() {
                     ))}
                   </ul>
                 </div>
+                
+                {/* Contact Provider */}
+                {(experience as any).provider_phone || ((experience as any).provider_social_links && Object.keys((experience as any).provider_social_links).length > 0) ? (
+                  <div className="bg-amber-50/50 rounded-xl p-6 mt-6 border border-amber-100">
+                    <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                       Contact Furnizor
+                    </h3>
+                    <div className="flex flex-col gap-2">
+                      {(experience as any).provider_phone && (
+                        <a href={`tel:${(experience as any).provider_phone}`} className="text-muted-foreground hover:text-amber-600 transition-colors font-medium">
+                          📞 {(experience as any).provider_phone}
+                        </a>
+                      )}
+                      {(experience as any).provider_social_links && Object.keys((experience as any).provider_social_links).length > 0 && (
+                        <div className="flex gap-4 mt-2">
+                          {(experience as any).provider_social_links.instagram && (
+                            <a href={(experience as any).provider_social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-rose-600 font-medium">
+                              Instagram
+                            </a>
+                          )}
+                          {(experience as any).provider_social_links.facebook && (
+                            <a href={(experience as any).provider_social_links.facebook} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-blue-600 font-medium">
+                              Facebook
+                            </a>
+                          )}
+                          {(experience as any).provider_social_links.website && (
+                            <a href={(experience as any).provider_social_links.website} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-emerald-600 font-medium">
+                              Website
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Reviews */}
                 <ExperienceReviews experienceId={experience.id} />

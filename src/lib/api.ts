@@ -149,6 +149,7 @@ export interface Experience {
   location_name: string;
   duration_minutes?: number;
   max_participants: number;
+  min_participants?: number;
   avg_rating: number;
   total_reviews: number;
   is_featured: boolean;
@@ -160,6 +161,9 @@ export interface Experience {
   cancellation_policy?: string;
   includes?: string[];
   min_age?: number;
+  provider_name?: string;
+  provider_phone?: string;
+  provider_social_links?: any;
 }
 
 export interface ExperienceFilters {

@@ -50,6 +50,7 @@ type ExperienceRow = {
   region_id: string;
   duration_minutes: number | null;
   max_participants: number | null;
+  min_participants: number | null;
   min_age: number | null;
   is_active: boolean | null;
   is_featured: boolean | null;
@@ -157,6 +158,7 @@ export default function EditExperience() {
   const [childPriceDescription, setChildPriceDescription] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
+  const [minParticipants, setMinParticipants] = useState("");
   const [minAge, setMinAge] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
@@ -225,6 +227,7 @@ export default function EditExperience() {
           region_id: exp.region_id,
           duration_minutes: exp.duration_minutes ? Number(exp.duration_minutes) : null,
           max_participants: exp.max_participants ? Number(exp.max_participants) : null,
+          min_participants: exp.min_participants ? Number(exp.min_participants) : null,
           min_age: exp.min_age ? Number(exp.min_age) : null,
           is_active: exp.is_active ?? true,
           is_featured: exp.is_featured ?? false,
@@ -251,6 +254,7 @@ export default function EditExperience() {
         setChildPriceDescription(expRow.child_price_description ?? "");
         setDurationMinutes(expRow.duration_minutes?.toString?.() ?? "");
         setMaxParticipants(expRow.max_participants?.toString?.() ?? "");
+        setMinParticipants(expRow.min_participants?.toString?.() ?? "");
         setMinAge(expRow.min_age?.toString?.() ?? "");
         setIsActive(expRow.is_active ?? true);
         setIsFeatured(expRow.is_featured ?? false);
@@ -394,6 +398,7 @@ export default function EditExperience() {
     const nextChildPrice = normalizeNumberInput(childPrice);
     const nextDuration = normalizeNumberInput(durationMinutes);
     const nextMax = normalizeNumberInput(maxParticipants);
+    const nextMinPart = normalizeNumberInput(minParticipants);
     const nextMinAge = normalizeNumberInput(minAge);
 
     if (title.trim() !== originalExperience.title) patch.title = title.trim();
@@ -425,6 +430,9 @@ export default function EditExperience() {
     }
     if (!isEqualNullableNumber(nextMax, originalExperience.max_participants ?? null)) {
       patch.max_participants = nextMax;
+    }
+    if (!isEqualNullableNumber(nextMinPart, originalExperience.min_participants ?? null)) {
+      patch.min_participants = nextMinPart;
     }
     if (!isEqualNullableNumber(nextMinAge, originalExperience.min_age ?? null)) {
       patch.min_age = nextMinAge;
@@ -692,6 +700,16 @@ export default function EditExperience() {
                       inputMode="numeric"
                       value={maxParticipants}
                       onChange={(e) => setMaxParticipants(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="min_participants">Min. participanți</Label>
+                    <Input
+                      id="min_participants"
+                      inputMode="numeric"
+                      value={minParticipants}
+                      onChange={(e) => setMinParticipants(e.target.value)}
+                      placeholder="Implicit: 1"
                     />
                   </div>
                   <div className="space-y-2">

@@ -126,7 +126,7 @@ export function Header() {
               className="hidden sm:flex"
               asChild
             >
-              <Link to="/my-bookings" aria-label="Rezervările mele">
+              <Link to="/wishlist" aria-label="Favorite">
                 <Heart className="h-5 w-5" />
               </Link>
             </Button>
@@ -319,7 +319,7 @@ export function Header() {
                   size="icon"
                   asChild
                 >
-                  <Link to="/my-bookings" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/wishlist" onClick={() => setIsMenuOpen(false)}>
                     <Heart className="h-5 w-5" />
                   </Link>
                 </Button>

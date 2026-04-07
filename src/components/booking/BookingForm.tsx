@@ -23,6 +23,7 @@ interface BookingFormProps {
     child_price?: number;
     child_price_description?: string;
     maxParticipants: number;
+    minParticipants?: number;
     image?: string;
     isAssisted?: boolean;
     pricingTiers?: {name: string, price: number}[];
@@ -36,9 +37,10 @@ export function BookingForm({ experience }: BookingFormProps) {
   const { user } = useAuth();
   const { addItem, items } = useCart();
   const { t } = useTranslation();
-  const [adults, setAdults] = useState(1);
+  const min = experience.minParticipants || 1;
+  const [adults, setAdults] = useState(min);
   const [children, setChildren] = useState(0);
-  const [participants, setParticipants] = useState(1);
+  const [participants, setParticipants] = useState(min);
   const selectedServicesRef = useRef<SelectedService[]>([]);
   const [servicesTotal, setServicesTotal] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
@@ -52,7 +54,7 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const [tierQuantities, setTierQuantities] = useState<Record<number, number>>(() => {
     if (hasTiers) {
-      return { 0: 1 };
+      return { 0: min };
     }
     return {};
   });
@@ -275,7 +277,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                   <div className="flex items-center gap-3 self-end sm:self-auto">
                     <button
                       type="button"
-                      disabled={getTierQty(idx) <= 0 || (idx === 0 && totalParticipants <= 1)} // require at least 1 global participant
+                      disabled={getTierQty(idx) <= 0 || (totalParticipants <= min)} // require at least min global participants
                       onClick={() => setTierQty(idx, Math.max(0, getTierQty(idx) - 1))}
                       className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
                     >
@@ -309,8 +311,8 @@ export function BookingForm({ experience }: BookingFormProps) {
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <button
                     type="button"
-                    disabled={adults <= 1}
-                    onClick={() => setAdults(Math.max(1, adults - 1))}
+                    disabled={adults <= min && children === 0}
+                    onClick={() => setAdults(Math.max(min, adults - 1))}
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
                   >
                     −
@@ -368,7 +370,8 @@ export function BookingForm({ experience }: BookingFormProps) {
             <div className="flex items-center gap-3 pl-2">
               <button
                 type="button"
-                onClick={() => setParticipants(Math.max(1, participants - 1))}
+                disabled={participants <= min}
+                onClick={() => setParticipants(Math.max(min, participants - 1))}
                 className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
               >
                 −

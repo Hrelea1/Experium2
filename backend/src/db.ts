@@ -68,6 +68,7 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS original_price DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS child_price DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS child_price_description TEXT,
+      ADD COLUMN IF NOT EXISTS min_participants INTEGER DEFAULT 1,
       ADD COLUMN IF NOT EXISTS includes TEXT[] DEFAULT '{}'::text[],
       ADD COLUMN IF NOT EXISTS provider_type TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),
       ADD COLUMN IF NOT EXISTS pricing_tiers JSONB DEFAULT '[]'::jsonb;
@@ -85,7 +86,9 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS selected_tiers JSONB DEFAULT '[]'::jsonb;
       
       ALTER TABLE provider_profiles
-      ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false;
+      ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS phone TEXT,
+      ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{}'::jsonb;
     `);
     
     // Fix existing slots with NULL values that prevent them from showing up
