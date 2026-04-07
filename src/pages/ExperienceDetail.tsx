@@ -470,7 +470,7 @@ export default function ExperienceDetail() {
               <BookingForm 
                 experience={{
                   ...experience,
-                  image: experience.gallery?.[0] || experience.image,
+                  image: typeof experience.gallery?.[0] === 'string' ? experience.gallery?.[0] : (experience.gallery?.[0]?.url || experience.image),
                   isAssisted: experience.is_assisted
                 }}
               />

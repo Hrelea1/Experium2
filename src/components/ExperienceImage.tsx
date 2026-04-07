@@ -28,9 +28,9 @@ export function ExperienceImage({
   const [hasError, setHasError] = useState(false);
   
   // Normalize incorrect domain prefixes from previous uploads
-  let finalSrc = src;
-  if (src?.startsWith("https://experium.ro/static/")) {
-    finalSrc = src.replace("https://experium.ro/static/", "https://experium2-production.up.railway.app/static/");
+  let finalSrc = typeof src === 'string' ? src : ((src as any)?.url || "");
+  if (typeof finalSrc === 'string' && finalSrc.startsWith("https://experium.ro/static/")) {
+    finalSrc = finalSrc.replace("https://experium.ro/static/", "https://experium2-production.up.railway.app/static/");
   }
   
   const x = clamp(typeof focalX === "number" ? focalX : 50, 0, 100);
