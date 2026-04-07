@@ -352,9 +352,12 @@ export default function Cart() {
                 </CardContent>
               </Card>
               
-              <div className="mt-6 p-4 rounded-2xl bg-muted/50 border border-border/50 text-center space-y-2">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Ai nevoie de ajutor?</p>
-                <p className="text-sm font-medium">Suntem aici pentru tine la 07XX XXX XXX</p>
+              <div className="mt-6 p-6 rounded-[2rem] bg-primary/5 border border-primary/10 text-center space-y-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <Phone className="w-5 h-5 text-primary" />
+                </div>
+                <p className="text-xs font-black text-primary uppercase tracking-[0.2em]">Asistență</p>
+                <p className="text-sm font-bold text-foreground leading-relaxed">Suntem aici pentru a te ajuta să finalizezi rezervarea perfectă.</p>
               </div>
             </div>
           </div>
