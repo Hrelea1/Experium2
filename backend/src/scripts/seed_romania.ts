@@ -15,9 +15,9 @@ const REGIONS = [
 ];
 
 const CATEGORIES = [
-  { name: 'Spa și relaxare', slug: 'spa-si-relaxare', icon: 'Waves' },
-  { name: 'Gastronomie', slug: 'gastronomie', icon: 'Utensils' },
-  { name: 'Aventură și sport', slug: 'aventura-si-sport', icon: 'Mountain' },
+  { name: 'Relax și Spa', slug: 'spa-si-relaxare', icon: 'Waves' },
+  { name: 'Gourmet', slug: 'gastronomie', icon: 'Utensils' },
+  { name: 'Adrenalină și Sport', slug: 'aventura-si-sport', icon: 'Mountain' },
   { name: 'Natură', slug: 'natura', icon: 'TreePine' },
 ];
 

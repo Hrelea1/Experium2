@@ -407,9 +407,9 @@ BEGIN
   -- 1. Ensure the 4 requested categories exist
   INSERT INTO categories (name, slug, display_order)
   VALUES 
-    ('Spa și relaxare', 'spa-si-relaxare', 1),
-    ('Gastronomie', 'gastronomie', 2),
-    ('Aventură și sport', 'aventura-si-sport', 3),
+    ('Relax și Spa', 'spa-si-relaxare', 1),
+    ('Gourmet', 'gastronomie', 2),
+    ('Adrenalină și Sport', 'aventura-si-sport', 3),
     ('Natură', 'natura', 4)
   ON CONFLICT (slug) DO UPDATE SET 
     name = EXCLUDED.name,
