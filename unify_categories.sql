@@ -5,9 +5,9 @@
 -- 1. Insert or Update the 4 primary categories
 INSERT INTO categories (name, slug, description)
 VALUES 
-  ('Relax & Spa', 'spa-relaxare', 'Experiențe de relaxare, spa și wellness'),
-  ('Gourmet', 'gastronomie', 'Degustări de vinuri, cursuri de gătit și experiențe culinare'),
-  ('Adrenaline & Sport', 'aventura', 'Sporturi extreme, zboruri și aventuri pline de adrenalină'),
+  ('Spa și relaxare', 'spa-si-relaxare', 'Experiențe de relaxare, spa și wellness'),
+  ('Gastronomie', 'gastronomie', 'Degustări de vinuri, cursuri de gătit și experiențe culinare'),
+  ('Aventură și sport', 'aventura-si-sport', 'Sporturi extreme, zboruri și aventuri pline de adrenalină'),
   ('Natură', 'natura', 'Drumeții, safari și explorări în natură')
 ON CONFLICT (slug) DO UPDATE 
 SET name = EXCLUDED.name, description = EXCLUDED.description;

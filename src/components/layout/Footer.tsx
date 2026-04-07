@@ -6,10 +6,10 @@ export function Footer() {
 
   const dynamicFooterLinks = {
     experiențe: [
-      { label: t('footer.adventure'), href: "/category/aventura" },
-      { label: t('footer.wellness'), href: "/category/spa-relaxare" },
+      { label: t('footer.adventure'), href: "/category/aventura-si-sport" },
+      { label: t('footer.wellness'), href: "/category/spa-si-relaxare" },
       { label: t('footer.gastronomy'), href: "/category/gastronomie" },
-      { label: t('footer.culture'), href: "/category/arta-cultura" },
+      { label: t('categories.nature'), href: "/category/natura" },
     ],
     regiuni: [
       { label: "Transilvania", href: "/category/toate-categoriile?region=transilvania" },

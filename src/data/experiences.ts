@@ -247,15 +247,15 @@ export const allExperiences: Experience[] = [
 ];
 
 export const categoryTitles: Record<string, string> = {
-  "spa-relaxare": "Relax & Spa",
-  "gastronomie": "Gourmet",
-  "aventura": "Adrenaline & Sport",
+  "spa-si-relaxare": "Spa și relaxare",
+  "gastronomie": "Gastronomie",
+  "aventura-si-sport": "Aventură și sport",
   "natura": "Natură",
 };
 
 export const categoryMapping: Record<string, string> = {
-  "spa-relaxare": "Relax & Spa",
-  "gastronomie": "Gourmet",
-  "aventura": "Adrenaline & Sport",
+  "spa-si-relaxare": "Spa și relaxare",
+  "gastronomie": "Gastronomie",
+  "aventura-si-sport": "Aventură și sport",
   "natura": "Natură",
 };

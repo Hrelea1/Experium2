@@ -11,7 +11,8 @@ async function seed() {
     const categories = [
       { id: '11111111-1111-1111-1111-111111111111', name: 'Spa și relaxare', slug: 'spa-si-relaxare', icon: 'Waves' },
       { id: '22222222-2222-2222-2222-222222222222', name: 'Gastronomie', slug: 'gastronomie', icon: 'Utensils' },
-      { id: '33333333-3333-3333-3333-333333333333', name: 'Natură și aventură', slug: 'natura-si-aventura', icon: 'TreePine' },
+      { id: '33333333-3333-3333-3333-333333333333', name: 'Aventură și sport', slug: 'aventura-si-sport', icon: 'Mountain' },
+      { id: '44444444-4444-4444-4444-444444444444', name: 'Natură', slug: 'natura', icon: 'TreePine' },
     ];
     for (const c of categories) {
       await client.query(

@@ -17,13 +17,8 @@ const REGIONS = [
 const CATEGORIES = [
   { name: 'Spa și relaxare', slug: 'spa-si-relaxare', icon: 'Waves' },
   { name: 'Gastronomie', slug: 'gastronomie', icon: 'Utensils' },
-  { name: 'Natură și aventură', slug: 'natura-si-aventura', icon: 'TreePine' },
-  { name: 'Sport și adrenalină', slug: 'sport-si-adrenalina', icon: 'BicepsFlexed' },
-  { name: 'Zbor și aviație', slug: 'zbor-si-aviatie', icon: 'Plane' },
-  { name: 'Cadouri inedite', slug: 'cadouri-inedite', icon: 'Gift' },
-  { name: 'Evadări romantice', slug: 'evadari-romantice', icon: 'Heart' },
-  { name: 'Ateliere și cursuri', slug: 'ateliere-si-cursuri', icon: 'Palette' },
-  { name: 'Cazări inedite', slug: 'cazari-inedite', icon: 'Tent' },
+  { name: 'Aventură și sport', slug: 'aventura-si-sport', icon: 'Mountain' },
+  { name: 'Natură', slug: 'natura', icon: 'TreePine' },
 ];
 
 async function seed() {

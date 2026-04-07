@@ -53,10 +53,10 @@ interface Experience {
 }
 
 const categoryTitles: Record<string, string> = {
-  "spa-relaxare": "Relax & Spa",
-  gastronomie: "Gourmet",
-  aventura: "Adrenalină și Sport",
-  natura: "Natură",
+  "spa-si-relaxare": "Spa și relaxare",
+  "gastronomie": "Gastronomie",
+  "aventura-si-sport": "Aventură și sport",
+  "natura": "Natură",
   "toate-categoriile": "Toate Experiențele",
 };
 

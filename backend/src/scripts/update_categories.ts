@@ -6,10 +6,10 @@ async function main() {
     
     // Define the update mappings
     const updates = [
-      { slug: 'spa-relaxare', newName: 'Relax & Spa' },
-      { slug: 'gastronomie', newName: 'Gourmet' },
+      { slug: 'spa-si-relaxare', newName: 'Spa și relaxare' },
+      { slug: 'gastronomie', newName: 'Gastronomie' },
       { slug: 'natura', newName: 'Natură' },
-      { slug: 'aventura', newName: 'Adrenalină și Sport' }
+      { slug: 'aventura-si-sport', newName: 'Aventură și sport' }
     ];
 
     for (const update of updates) {
@@ -20,9 +20,9 @@ async function main() {
       console.log(`✅ Updated slug "${update.slug}" to "${update.newName}"`);
     }
 
-    // Also check for 'spa-si-relaxare' and 'aventura-si-sport' slugs just in case
-    await query(`UPDATE categories SET name = 'Relax & Spa' WHERE slug = 'spa-si-relaxare'`);
-    await query(`UPDATE categories SET name = 'Adrenalină și Sport' WHERE slug = 'aventura-si-sport'`);
+    // Ensure all variants of slugs are handled if they exist
+    await query(`UPDATE categories SET name = 'Spa și relaxare' WHERE slug = 'spa-relaxare'`);
+    await query(`UPDATE categories SET name = 'Aventură și sport' WHERE slug = 'aventura'`);
 
     console.log('✨ All categories updated successfully!');
   } catch (err) {
