@@ -397,6 +397,45 @@ CREATE TABLE IF NOT EXISTS provider_notifications (
 CREATE INDEX IF NOT EXISTS idx_pn_provider ON provider_notifications(provider_user_id, is_read);
 
 -- =============================================================================
+-- REVIEWS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS reviews (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  experience_id UUID NOT NULL REFERENCES experiences(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rating        INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment       TEXT,
+  status        TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('pending', 'approved', 'rejected')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(experience_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_exp ON reviews(experience_id);
+
+CREATE OR REPLACE FUNCTION update_experience_rating()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+    UPDATE experiences
+    SET total_reviews = (SELECT count(*) FROM reviews WHERE experience_id = NEW.experience_id AND status = 'approved'),
+        avg_rating = COALESCE((SELECT avg(rating)::numeric(3,2) FROM reviews WHERE experience_id = NEW.experience_id AND status = 'approved'), 0)
+    WHERE id = NEW.experience_id;
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE experiences
+    SET total_reviews = (SELECT count(*) FROM reviews WHERE experience_id = OLD.experience_id AND status = 'approved'),
+        avg_rating = COALESCE((SELECT avg(rating)::numeric(3,2) FROM reviews WHERE experience_id = OLD.experience_id AND status = 'approved'), 0)
+    WHERE id = OLD.experience_id;
+    RETURN OLD;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_rating ON reviews;
+CREATE TRIGGER trg_update_rating
+AFTER INSERT OR UPDATE OR DELETE ON reviews
+FOR EACH ROW EXECUTE FUNCTION update_experience_rating();
+
+-- =============================================================================
 -- DONE
 -- =============================================================================
 

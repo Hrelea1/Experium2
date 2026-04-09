@@ -18,6 +18,7 @@ import homepageContentRoutes from './routes/homepageContent';
 import notificationRoutes from './routes/notifications';
 import checkoutRoutes from './routes/checkout';
 import configRoutes from './routes/config';
+import reviewRoutes from './routes/reviews';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -53,6 +54,7 @@ app.use('/homepage-content', homepageContentRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/checkout', checkoutRoutes);
 app.use('/config', configRoutes);
+app.use('/reviews', reviewRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

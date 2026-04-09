@@ -1,83 +1,117 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { format } from "date-fns";
+import { useExperienceReviews, useAddReview } from "@/hooks/useReviews";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
-interface Review {
-  id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
-  profiles?: { full_name: string | null };
-}
+export function ExperienceReviews({ experienceId }: { experienceId: string }) {
+  const { data: reviews, isLoading } = useExperienceReviews(experienceId);
+  const { mutate: addReview, isPending } = useAddReview();
+  const { user } = useAuth();
+  
+  const [rating, setRating] = useState<number>(0);
+  const [comment, setComment] = useState("");
+  const [hoverRating, setHoverRating] = useState<number>(0);
 
-interface ExperienceReviewsProps {
-  experienceId: string;
-}
-
-export function ExperienceReviews({ experienceId }: ExperienceReviewsProps) {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("reviews" as any)
-        .select("id, rating, comment, created_at, user_id")
-        .eq("experience_id", experienceId)
-        .order("created_at", { ascending: false })
-        .limit(10) as any;
-
-      if (data && data.length > 0) {
-        // Fetch profile names
-        const userIds = [...new Set(data.map((r: any) => r.user_id))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds as string[]);
-
-        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name]));
-
-        setReviews(
-          data.map((r: any) => ({
-            ...r,
-            profiles: { full_name: profileMap.get(r.user_id) || null },
-          }))
-        );
+  const hasReviewed = reviews?.some((r: any) => user && r.user_id === user.id);
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0) return;
+    addReview({ experienceId, rating, comment }, {
+      onSuccess: () => {
+        setRating(0);
+        setComment("");
       }
-      setLoading(false);
-    };
-    fetch();
-  }, [experienceId]);
+    });
+  };
 
-  if (loading || reviews.length === 0) return null;
+  if (isLoading) return null;
 
   return (
-    <div className="mt-8">
-      <h3 className="text-lg font-semibold text-foreground mb-4">
-        Recenzii ({reviews.length})
+    <div className="mt-12 pt-8 border-t border-border">
+      <h3 className="text-2xl font-bold text-foreground mb-8">
+        Recenzii ({reviews?.length || 0})
       </h3>
-      <div className="space-y-4">
-        {reviews.map((review) => (
-          <div key={review.id} className="p-4 rounded-xl bg-muted/30 border border-border">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-amber-500 font-medium">
-                  {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {review.profiles?.full_name || "Anonim"}
-                </span>
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(review.created_at), "dd.MM.yyyy")}
-              </span>
+      
+      {user ? (
+        !hasReviewed ? (
+          <form onSubmit={handleSubmit} className="mb-10 bg-muted/20 p-6 rounded-2xl border border-border">
+            <h4 className="font-semibold mb-4">Adaugă o recenzie</h4>
+            <div className="flex gap-1 mb-4">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  className="text-2xl transition-colors"
+                  onMouseEnter={() => setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  onClick={() => setRating(star)}
+                >
+                  <span className={star <= (hoverRating || rating) ? "text-amber-500" : "text-muted-foreground/30"}>
+                    ★
+                  </span>
+                </button>
+              ))}
             </div>
-            {review.comment && (
-              <p className="text-sm text-foreground">{review.comment}</p>
-            )}
+            <Textarea 
+              placeholder="Cum a fost experiența ta?" 
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="mb-4 bg-background"
+              rows={3}
+            />
+            <Button type="submit" disabled={rating === 0 || isPending}>
+              {isPending ? "Se adaugă..." : "Trimite recenzia"}
+            </Button>
+          </form>
+        ) : (
+          <div className="mb-10 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm text-foreground">
+            Ai lăsat deja o recenzie pentru această experiență. Îți mulțumim!
           </div>
-        ))}
-      </div>
+        )
+      ) : (
+        <div className="mb-10 p-4 bg-muted/30 rounded-xl text-center text-sm text-muted-foreground">
+          Trebuie să fii autentificat pentru a lăsa o recenzie.
+        </div>
+      )}
+
+      {(!reviews || reviews.length === 0) ? (
+        <p className="text-muted-foreground">Nu există recenzii încă. Fii primul care adaugă una!</p>
+      ) : (
+        <div className="space-y-6">
+          {reviews.map((review: any) => (
+            <div key={review.id} className="p-6 rounded-2xl bg-card border border-border/50 shadow-sm">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden">
+                  {review.user_avatar ? (
+                    <img src={review.user_avatar} alt={review.user_name} className="w-full h-full object-cover" />
+                  ) : (
+                    review.user_name ? review.user_name.charAt(0).toUpperCase() : 'A'
+                  )}
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground">
+                    {review.user_name || "Anonim"}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-500 text-sm tracking-widest">
+                      {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      • {format(new Date(review.created_at), "dd.MM.yyyy")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {review.comment && (
+                <p className="text-foreground/90 leading-relaxed text-sm">{review.comment}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
