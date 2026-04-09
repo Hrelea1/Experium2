@@ -149,22 +149,22 @@ export default function Cart() {
       <main className="pt-32 pb-24">
         <div className="container max-w-5xl px-4">
           {/* Stepper */}
-          <div className="mb-12">
-            <div className="flex items-center justify-center space-x-4">
+          <div className="mb-8 sm:mb-12">
+            <div className="flex items-center justify-center">
               {steps.map((step, i) => (
                 <div key={step.id} className="flex items-center">
                   <div className={`flex flex-col items-center group transition-all`}>
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-2 transition-all duration-300 ${
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-2 transition-all duration-300 ${
                       currentStep >= step.id ? 'bg-primary text-white shadow-lg shadow-primary/20 ring-4 ring-primary/10' : 'bg-muted text-muted-foreground'
                     }`}>
-                      <step.icon className="w-5 h-5" />
+                      <step.icon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
-                    <span className={`text-xs font-bold uppercase tracking-wider ${currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'}`}>
+                    <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center ${currentStep >= step.id ? 'text-primary' : 'text-muted-foreground'}`}>
                       {step.label}
                     </span>
                   </div>
                   {i < steps.length - 1 && (
-                    <div className={`w-12 h-px mx-4 mb-6 transition-colors duration-500 ${currentStep > step.id ? 'bg-primary' : 'bg-border'}`} />
+                    <div className={`w-8 sm:w-12 h-px mx-2 sm:mx-4 mb-6 transition-colors duration-500 ${currentStep > step.id ? 'bg-primary' : 'bg-border'}`} />
                   )}
                 </div>
               ))}
@@ -197,13 +197,13 @@ export default function Cart() {
                                   </Button>
                                 </div>
                                 <div className="space-y-2 mb-4">
-                                  <div className="flex items-center text-sm text-muted-foreground gap-4">
-                                    <span className="flex items-center gap-1.5"><CalendarDays className="w-4 h-4 text-primary" /> {formatDate(item.slotDate)}</span>
-                                    <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-primary" /> {(item.startTime || '00:00').slice(0, 5)} - {(item.endTime || '00:00').slice(0, 5)}</span>
+                                  <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-4 gap-y-2">
+                                    <span className="flex items-center gap-1.5 break-words"><CalendarDays className="w-4 h-4 text-primary flex-shrink-0" /> <span>{formatDate(item.slotDate)}</span></span>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap"><Clock className="w-4 h-4 text-primary flex-shrink-0" /> {(item.startTime || '00:00').slice(0, 5)} - {(item.endTime || '00:00').slice(0, 5)}</span>
                                   </div>
-                                  <div className="flex items-center text-sm text-muted-foreground gap-4">
-                                    <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" /> {item.location}</span>
-                                    <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-primary" /> {item.participants} pers.</span>
+                                  <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-4 gap-y-2">
+                                    <span className="flex items-center gap-1.5 break-words"><MapPin className="w-4 h-4 text-primary flex-shrink-0" /> <span>{item.location}</span></span>
+                                    <span className="flex items-center gap-1.5 whitespace-nowrap"><Users className="w-4 h-4 text-primary flex-shrink-0" /> {item.participants} pers.</span>
                                   </div>
                                 </div>
                               </div>
@@ -217,7 +217,7 @@ export default function Cart() {
                       </Card>
                     ))}
                     <div className="flex justify-end pt-4">
-                      <Button size="xl" onClick={nextStep} className="rounded-2xl px-10 shadow-lg shadow-primary/20 group">
+                      <Button size="xl" onClick={nextStep} className="w-full sm:w-auto rounded-2xl px-6 sm:px-10 shadow-lg shadow-primary/20 group">
                         Continuă la facturare <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </div>
@@ -233,7 +233,7 @@ export default function Cart() {
                           Date facturare și contact
                         </h2>
                       </div>
-                      <CardContent className="p-8 space-y-8">
+                      <CardContent className="p-5 sm:p-8 space-y-8">
                         <div className="grid gap-6">
                            <BillingForm onChange={setBillingData} />
                            <div className="space-y-4 pt-4 border-t border-border/50">
@@ -254,9 +254,9 @@ export default function Cart() {
                         </div>
                       </CardContent>
                     </Card>
-                    <div className="flex justify-between pt-4">
-                      <Button variant="ghost" onClick={prevStep} className="rounded-2xl px-6 font-bold">Înapoi</Button>
-                      <Button size="xl" onClick={nextStep} className="rounded-2xl px-10 shadow-lg shadow-primary/20 group">
+                    <div className="flex flex-col-reverse sm:flex-row justify-between pt-4 gap-4">
+                      <Button variant="ghost" onClick={prevStep} className="rounded-2xl px-6 font-bold h-12 sm:h-auto">Înapoi</Button>
+                      <Button size="xl" onClick={nextStep} className="w-full sm:w-auto rounded-2xl px-6 sm:px-10 shadow-lg shadow-primary/20 group">
                         Confirmare comandă <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </div>
@@ -270,7 +270,7 @@ export default function Cart() {
                       <p className="text-muted-foreground">Verifică detaliile înainte de a finaliza plata securizată.</p>
                     </div>
                     
-                    <div className="bg-primary/5 rounded-[2rem] p-8 border border-primary/10">
+                    <div className="bg-primary/5 rounded-3xl sm:rounded-[2rem] p-5 sm:p-8 border border-primary/10">
                       <div className="space-y-6">
                         <div className="flex flex-col space-y-4">
                           <div className="flex justify-between items-center text-sm font-bold tracking-widest uppercase text-muted-foreground">
@@ -289,12 +289,12 @@ export default function Cart() {
                         </div>
                         
                         <div className="pt-6 mt-6 border-t-2 border-dashed border-primary/20">
-                          <div className="flex justify-between items-center bg-white dark:bg-card p-6 rounded-2xl shadow-sm">
+                          <div className="flex justify-between items-center bg-white dark:bg-card p-5 sm:p-6 rounded-2xl shadow-sm gap-4">
                             <div className="flex flex-col">
-                              <span className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total de plată</span>
-                              <span className="text-xs text-primary font-medium">Inclusiv TVA</span>
+                              <span className="text-[10px] sm:text-sm font-bold text-muted-foreground uppercase tracking-widest">Total de plată</span>
+                              <span className="text-[10px] sm:text-xs text-primary font-medium">Inclusiv TVA</span>
                             </div>
-                            <span className="text-4xl font-black text-primary">{subtotal} Lei</span>
+                            <span className="text-2xl sm:text-4xl font-black text-primary whitespace-nowrap">{subtotal} Lei</span>
                           </div>
                         </div>
                       </div>
