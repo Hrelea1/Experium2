@@ -437,9 +437,10 @@ export default function ExperienceDetail() {
                 </div>
 
                 {/* Description */}
-                <p className="text-muted-foreground leading-relaxed mb-8 whitespace-pre-wrap break-words">
-                  {experience.description}
-                </p>
+                <div 
+                  className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed mb-8 break-words prose-p:leading-relaxed prose-a:text-primary"
+                  dangerouslySetInnerHTML={{ __html: experience.description }}
+                />
 
                 {/* What's Included */}
                 <div className="bg-muted/50 rounded-xl p-6">

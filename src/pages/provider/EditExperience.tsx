@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { uploadExperienceImageFile } from "@/lib/experienceImages";
-
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { ExperienceImage } from "@/components/ExperienceImage";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -754,13 +754,8 @@ export default function EditExperience() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descriere *</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={7}
-                  />
+                  <Label>Descriere *</Label>
+                  <RichTextEditor value={description} onChange={setDescription} />
                 </div>
 
                 <div className="space-y-3">

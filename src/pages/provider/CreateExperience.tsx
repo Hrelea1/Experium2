@@ -15,6 +15,7 @@ import { ArrowLeft, Save, Building2, Wrench, Plus, X, Upload, Package } from 'lu
 import { uploadExperienceImageFile } from '@/lib/experienceImages';
 import { api } from '@/lib/api';
 import { ExperienceImage } from '@/components/ExperienceImage';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 
 interface Category { id: string; name: string; }
 interface Region { id: string; name: string; }
@@ -279,8 +280,8 @@ export default function CreateExperience() {
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descriere *</Label>
-                  <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} placeholder="Descrie experiența în detaliu..." />
+                  <Label>Descriere *</Label>
+                  <RichTextEditor value={description} onChange={setDescription} />
                 </div>
 
                 <div className="space-y-2">
