@@ -328,7 +328,7 @@ export default function ExperienceDetail() {
               transition={{ duration: 0.5 }}
             >
               {/* Main Image */}
-              <div className="relative h-[400px] rounded-2xl overflow-hidden mb-4">
+              <div className="relative h-64 sm:h-[400px] rounded-2xl overflow-hidden mb-4">
                 <ExperienceImage
                   src={(experience.gallery as GalleryImage[])[selectedImage]?.url}
                   alt={experience.title}
@@ -380,7 +380,7 @@ export default function ExperienceDetail() {
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`relative rounded-lg overflow-hidden flex-none w-24 h-20 snap-center ${
+                    className={`relative rounded-lg overflow-hidden flex-none w-20 h-16 sm:w-24 sm:h-20 snap-center ${
                       selectedImage === index ? "ring-2 ring-primary" : ""
                     }`}
                   >
@@ -420,7 +420,7 @@ export default function ExperienceDetail() {
                 </div>
 
                 {/* Title */}
-                <h1 className="text-3xl lg:text-4xl font-bold text-foreground mb-4 break-words">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4 break-words leading-tight">
                   {experience.title}
                 </h1>
 
@@ -436,7 +436,7 @@ export default function ExperienceDetail() {
                 </div>
 
                 {/* Description */}
-                <p className="text-muted-foreground leading-relaxed mb-8">
+                <p className="text-muted-foreground leading-relaxed mb-8 whitespace-pre-wrap break-words">
                   {experience.description}
                 </p>
 
@@ -446,7 +446,7 @@ export default function ExperienceDetail() {
                     <Gift className="w-5 h-5 text-primary" />
                     Ce include
                   </h3>
-                  <ul className="grid sm:grid-cols-2 gap-3">
+                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {experience.includes.map((item, index) => (
                       <li key={index} className="flex items-center gap-2 text-muted-foreground">
                         <Check className="w-4 h-4 text-primary flex-shrink-0" />
@@ -469,7 +469,7 @@ export default function ExperienceDetail() {
                         </a>
                       )}
                       {(experience as any).provider_social_links && Object.keys((experience as any).provider_social_links).length > 0 && (
-                        <div className="flex gap-4 mt-2">
+                        <div className="flex flex-wrap gap-4 mt-2">
                           {(experience as any).provider_social_links.instagram && (
                             <a href={(experience as any).provider_social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-rose-600 font-medium">
                               Instagram
@@ -524,7 +524,7 @@ export default function ExperienceDetail() {
               <h2 className="text-2xl font-bold text-foreground mb-6">
                 {t('experience.recommended')}
               </h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {recommendedExperiences.map((rec) => {
                   const imageUrl =
                     rec.primary_image ||

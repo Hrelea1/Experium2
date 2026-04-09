@@ -234,7 +234,7 @@ export function BookingForm({ experience }: BookingFormProps) {
       className="bg-card rounded-2xl shadow-xl border border-border/50 overflow-hidden"
     >
       {/* Price Header */}
-      <div className="bg-gradient-to-r from-primary to-coral-dark p-6 text-primary-foreground">
+      <div className="bg-gradient-to-r from-primary to-coral-dark p-4 sm:p-6 text-primary-foreground">
         <div className="flex flex-wrap items-baseline gap-3">
           {hasTiers ? (
             <span className="text-lg font-medium opacity-90">Preț variabil per participant</span>
@@ -258,7 +258,7 @@ export function BookingForm({ experience }: BookingFormProps) {
       </div>
 
       {/* Form */}
-      <div className="p-6 space-y-5">
+      <div className="p-4 sm:p-6 space-y-5">
         {/* Participants */}
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-4">
@@ -304,8 +304,8 @@ export function BookingForm({ experience }: BookingFormProps) {
           ) : hasDistinctChildPrice ? (
             <div className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
-                <div>
-                  <h4 className="font-semibold text-sm">Adulți</h4>
+                <div className="pr-2">
+                  <h4 className="font-semibold text-sm break-words">Adulți</h4>
                   <p className="text-muted-foreground text-xs">{experience.price} {t('common.lei')}</p>
                 </div>
                 <div className="flex items-center gap-3 self-end sm:self-auto">
@@ -331,11 +331,11 @@ export function BookingForm({ experience }: BookingFormProps) {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
-                <div>
-                  <h4 className="font-semibold text-sm">Copii</h4>
+                <div className="pr-2">
+                  <h4 className="font-semibold text-sm break-words">Copii</h4>
                   <p className="text-muted-foreground text-xs font-medium">{childPriceToUse} {t('common.lei')}</p>
                   {experience.child_price_description && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight opacity-80 max-w-[180px]">
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight opacity-80 break-words">
                       {experience.child_price_description}
                     </p>
                   )}
