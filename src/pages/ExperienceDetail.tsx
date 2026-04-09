@@ -222,7 +222,11 @@ export default function ExperienceDetail() {
             child_price_description: data.child_price_description,
             rating: data.avg_rating || 4.5,
             reviews: data.total_reviews || 0,
-            duration: data.duration_minutes ? `${Math.floor(data.duration_minutes / 60)} ore` : "Variabil",
+            duration: data.duration_minutes 
+              ? (data.duration_minutes >= 60 
+                  ? `${Math.floor(data.duration_minutes / 60)} ore${data.duration_minutes % 60 > 0 ? ` și ${data.duration_minutes % 60} min` : ''}` 
+                  : `${data.duration_minutes} minute`) 
+              : "Variabil",
             image:
               images[0]?.url ||
               "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?w=1200&h=800&fit=crop",
@@ -320,16 +324,17 @@ export default function ExperienceDetail() {
           </Button>
         </div>
 
-        <div className="container pb-20">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
+        <div className="container px-4 sm:px-6 pb-20">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
             {/* Left Column - Images & Details */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
+              className="flex-1 min-w-0 overflow-hidden"
             >
               {/* Main Image */}
-              <div className="relative h-64 sm:h-[400px] rounded-2xl overflow-hidden mb-4">
+              <div className="relative aspect-video sm:h-[400px] rounded-2xl overflow-hidden mb-4">
                 <ExperienceImage
                   src={(experience.gallery as GalleryImage[])[selectedImage]?.url}
                   alt={experience.title}
@@ -421,7 +426,7 @@ export default function ExperienceDetail() {
                 </div>
 
                 {/* Title */}
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4 break-words leading-tight">
+                <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-4 break-words leading-tight">
                   {experience.title}
                 </h1>
 
@@ -438,7 +443,7 @@ export default function ExperienceDetail() {
 
                 {/* Description */}
                 <div 
-                  className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed mb-8 break-words prose-p:leading-relaxed prose-a:text-primary"
+                  className="prose prose-sm sm:prose-base dark:prose-invert max-w-full text-muted-foreground leading-relaxed mb-8 break-words overflow-hidden prose-p:leading-relaxed prose-a:text-primary"
                   dangerouslySetInnerHTML={{ __html: experience.description }}
                 />
 
@@ -531,10 +536,10 @@ export default function ExperienceDetail() {
 
             {/* Right Column - Booking Form */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="lg:sticky lg:top-24 lg:self-start w-full max-w-full"
+              className="lg:sticky lg:top-24 lg:self-start w-full lg:w-[400px] shrink-0"
             >
               <BookingForm 
                 experience={{
