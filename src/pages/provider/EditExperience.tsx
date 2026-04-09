@@ -42,6 +42,7 @@ type ExperienceRow = {
   short_description: string | null;
   includes: string[];
   location_name: string;
+  google_maps_url: string | null;
   price: number;
   original_price: number | null;
   child_price: number | null;
@@ -150,6 +151,7 @@ export default function EditExperience() {
   const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
   const [locationName, setLocationName] = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [regionId, setRegionId] = useState<string>("");
   const [price, setPrice] = useState("");
@@ -219,6 +221,7 @@ export default function EditExperience() {
           short_description: exp.short_description,
           includes: exp.includes ?? [],
           location_name: exp.location_name,
+          google_maps_url: exp.google_maps_url || null,
           price: Number(exp.price),
           original_price: exp.original_price ? Number(exp.original_price) : null,
           child_price: exp.child_price ? Number(exp.child_price) : null,
@@ -246,6 +249,7 @@ export default function EditExperience() {
         setDescription(expRow.description ?? "");
         setIncludes(Array.isArray(expRow.includes) ? expRow.includes : []);
         setLocationName(expRow.location_name ?? "");
+        setGoogleMapsUrl(expRow.google_maps_url ?? "");
         setCategoryId(expRow.category_id ?? "");
         setRegionId(expRow.region_id ?? "");
         setPrice(expRow.price?.toString?.() ?? "");
@@ -404,6 +408,7 @@ export default function EditExperience() {
     if (title.trim() !== originalExperience.title) patch.title = title.trim();
     if (description.trim() !== originalExperience.description) patch.description = description.trim();
     if (locationName.trim() !== originalExperience.location_name) patch.location_name = locationName.trim();
+    if ((googleMapsUrl.trim() || null) !== (originalExperience.google_maps_url ?? null)) patch.google_maps_url = googleMapsUrl.trim() || null;
     if ((shortDescription.trim() || null) !== (originalExperience.short_description ?? null)) {
       patch.short_description = shortDescription.trim() || null;
     }
@@ -557,13 +562,28 @@ export default function EditExperience() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Locație *</Label>
-                    <Input
-                      id="location"
-                      value={locationName}
-                      onChange={(e) => setLocationName(e.target.value)}
-                    />
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-4 border p-4 rounded-xl bg-card md:col-span-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Locație (Afișată text) *</Label>
+                      <Input
+                        id="location"
+                        value={locationName}
+                        onChange={(e) => setLocationName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="googleMapsUrl">Link Google Maps (Opțional)</Label>
+                      <Input 
+                        id="googleMapsUrl" 
+                        value={googleMapsUrl} 
+                        onChange={(e) => setGoogleMapsUrl(e.target.value)} 
+                        placeholder="Ex: https://goo.gl/maps/..." 
+                      />
+                      <p className="text-xs text-muted-foreground">Dacă adaugi un link, o hartă navigabilă va fi afișată în pagina experienței.</p>
+                    </div>
                   </div>
                 </div>
 

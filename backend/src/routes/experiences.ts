@@ -64,8 +64,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const rows = await query(
       `SELECT
         e.id, e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.pricing_tiers,
-        e.location_name, e.duration_minutes, e.max_participants, e.min_participants,
-        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at,
+        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
@@ -116,8 +115,7 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
         ep.id,
         ep.experience_id,
         e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.pricing_tiers,
-        e.location_name, e.duration_minutes, e.max_participants, e.min_participants,
-        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at,
+        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url,
         e.provider_type,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
@@ -154,6 +152,7 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
         is_featured: r.is_featured,
         is_active: r.is_active,
         created_at: r.created_at,
+        google_maps_url: r.google_maps_url,
         category_name: r.category_name,
         category_slug: r.category_slug,
         category_icon: r.category_icon,
@@ -180,7 +179,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
         e.id, e.title, e.description, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.includes, e.pricing_tiers,
         e.category_id, e.region_id, e.county_id, e.city_id, e.location_name,
         e.duration_minutes, e.max_participants, e.min_participants, e.min_age,
-        e.avg_rating, e.total_reviews, e.is_active, e.is_featured,
+        e.avg_rating, e.total_reviews, e.is_active, e.is_featured, e.google_maps_url,
         e.created_at, e.updated_at,
         ep.provider_user_id AS provider_id,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
@@ -256,7 +255,7 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
   try {
     const {
       title, description, short_description, price, original_price, child_price, child_price_description, includes, pricing_tiers,
-      category_id, region_id, county_id, city_id, location_name,
+      category_id, region_id, county_id, city_id, location_name, google_maps_url,
       duration_minutes, max_participants, min_participants, min_age, is_featured,
       provider_id, images, services
     } = req.body;
@@ -277,11 +276,11 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
     const expRes = await client.query(
       `INSERT INTO experiences
         (title, description, short_description, price, original_price, child_price, child_price_description, includes, pricing_tiers, category_id, region_id,
-         county_id, city_id, location_name, duration_minutes, max_participants, min_participants, min_age, is_featured)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+         county_id, city_id, location_name, google_maps_url, duration_minutes, max_participants, min_participants, min_age, is_featured)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        RETURNING id`,
       [title, description, short_description, price, original_price ?? null, child_price ?? null, child_price_description ?? null, includes ?? [], pricing_tiers ? JSON.stringify(pricing_tiers) : '[]', category_id, region_id,
-       county_id ?? null, city_id ?? null, location_name, duration_minutes ?? null,
+       county_id ?? null, city_id ?? null, location_name, google_maps_url ?? null, duration_minutes ?? null,
        max_participants ?? 10, min_participants ?? 1, min_age ?? null, is_featured ?? false]
     );
     const experienceId = expRes.rows[0].id;
@@ -338,7 +337,7 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
     const { id } = req.params;
     const fields = req.body;
     const allowed = ['title','description','short_description','price','original_price','child_price','child_price_description','includes','pricing_tiers',
-      'category_id','region_id','county_id','city_id','location_name',
+      'category_id','region_id','county_id','city_id','location_name', 'google_maps_url',
       'duration_minutes','max_participants','min_participants','min_age','is_featured','is_active'];
 
     const client = await pool.connect();

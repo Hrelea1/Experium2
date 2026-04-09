@@ -164,6 +164,7 @@ export interface Experience {
   provider_name?: string;
   provider_phone?: string;
   provider_social_links?: any;
+  google_maps_url?: string;
 }
 
 export interface ExperienceFilters {

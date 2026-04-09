@@ -71,6 +71,7 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS min_participants INTEGER DEFAULT 1,
       ADD COLUMN IF NOT EXISTS includes TEXT[] DEFAULT '{}'::text[],
       ADD COLUMN IF NOT EXISTS provider_type TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),
+      ADD COLUMN IF NOT EXISTS google_maps_url TEXT,
       ADD COLUMN IF NOT EXISTS pricing_tiers JSONB DEFAULT '[]'::jsonb;
       
       ALTER TABLE availability_slots 

@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS experiences (
   is_active         BOOLEAN DEFAULT true,
   is_featured       BOOLEAN DEFAULT false,
   provider_type     TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),
+  google_maps_url   TEXT,
   created_at        TIMESTAMPTZ DEFAULT now(),
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
@@ -438,6 +439,17 @@ FOR EACH ROW EXECUTE FUNCTION update_experience_rating();
 -- =============================================================================
 -- DONE
 -- =============================================================================
+
+-- ADD MISSING COLUMNS
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='experiences' AND column_name='google_maps_url'
+  ) THEN
+    ALTER TABLE experiences ADD COLUMN google_maps_url TEXT;
+  END IF;
+END $$;
 
 -- RESTRICT CATEGORIES TO SPECIFIC FOUR
 -- This block ensures only the four requested categories exist.

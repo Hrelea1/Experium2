@@ -248,6 +248,7 @@ export default function ExperienceDetail() {
             is_assisted: (data as any).is_assisted || false,
             pricingTiers: data.pricing_tiers || [],
             services: data.services || [],
+            google_maps_url: (data as any).google_maps_url || null,
           });
         }
       } catch (error: any) {
@@ -455,6 +456,37 @@ export default function ExperienceDetail() {
                     ))}
                   </ul>
                 </div>
+
+                {/* Google Maps Portal */}
+                {experience.google_maps_url && (
+                  <div className="bg-muted/30 rounded-xl p-6 mt-8 border border-border/50">
+                    <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5 text-primary" />
+                      Locație pe hartă
+                    </h3>
+                    <div className="w-full h-[350px] sm:h-[450px] rounded-lg overflow-hidden bg-muted relative">
+                      <iframe 
+                        src={
+                          experience.google_maps_url.match(/src="([^"]+)"/) 
+                            ? experience.google_maps_url.match(/src="([^"]+)"/)[1] 
+                            : experience.google_maps_url.includes('google.com/maps/embed') 
+                              ? experience.google_maps_url 
+                              : (!experience.google_maps_url.startsWith('http') 
+                                  ? `https://maps.google.com/maps?q=${encodeURIComponent(experience.google_maps_url)}&t=&z=13&ie=UTF8&iwloc=&output=embed`
+                                  : experience.google_maps_url)
+                        }
+                        width="100%" 
+                        height="100%" 
+                        style={{ border: 0 }} 
+                        allowFullScreen={true} 
+                        loading="lazy" 
+                        referrerPolicy="no-referrer-when-downgrade"
+                        title="Google Maps Location"
+                        className="absolute inset-0 w-full h-full"
+                      ></iframe>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Contact Provider */}
                 {(experience as any).provider_phone || ((experience as any).provider_social_links && Object.keys((experience as any).provider_social_links).length > 0) ? (

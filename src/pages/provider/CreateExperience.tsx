@@ -61,6 +61,7 @@ export default function CreateExperience() {
   const [categoryId, setCategoryId] = useState('none');
   const [regionId, setRegionId] = useState('none');
   const [locationName, setLocationName] = useState('');
+  const [googleMapsUrl, setGoogleMapsUrl] = useState('');
   const [cancellationPolicy, setCancellationPolicy] = useState('');
 
   // Images state
@@ -183,6 +184,7 @@ export default function CreateExperience() {
         category_id: categoryId,
         region_id: regionId,
         location_name: locationName,
+        google_maps_url: googleMapsUrl || null,
         cancellation_policy: cancellationPolicy || null,
         is_active: false, // always pending for providers
         pricing_tiers: validTiers,
@@ -368,9 +370,16 @@ export default function CreateExperience() {
                 </div>
 
                 {/* Location */}
-                <div className="space-y-2">
-                  <Label htmlFor="location">Locație *</Label>
-                  <Input id="location" value={locationName} onChange={(e) => setLocationName(e.target.value)} placeholder="Ex: Tulcea, Delta Dunării" />
+                <div className="space-y-4 border p-4 rounded-xl bg-card">
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Locație (Afișată text) *</Label>
+                    <Input id="location" value={locationName} onChange={(e) => setLocationName(e.target.value)} placeholder="Ex: Tulcea, Delta Dunării" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="googleMapsUrl">Link Google Maps (Opțional)</Label>
+                    <Input id="googleMapsUrl" value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)} placeholder="Ex: https://goo.gl/maps/..." />
+                    <p className="text-xs text-muted-foreground">Dacă adaugi un link, o hartă navigabilă va fi afișată în pagina experienței.</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
