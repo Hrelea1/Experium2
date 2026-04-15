@@ -69,8 +69,14 @@ export function usePushSubscription() {
       const res = await fetch(`${API_BASE}/notifications/push/vapid-key`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Failed to fetch VAPID key: ${res.status} ${errText}`);
+      }
+
       const { publicKey } = await res.json();
-      if (!publicKey) throw new Error('No VAPID key');
+      if (!publicKey) throw new Error('No VAPID key found in response. Is VAPID_PUBLIC_KEY set in the backend environment?');
 
       // Subscribe to PushManager
       const sub = await reg.pushManager.subscribe({
