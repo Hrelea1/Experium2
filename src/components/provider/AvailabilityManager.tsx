@@ -442,11 +442,11 @@ function CalendarView({
               </div>
 
               {/* Slot pills */}
-              <div className="flex flex-col gap-0.5 flex-1">
+              <div className="flex flex-col gap-0.5 flex-1 max-h-[250px] overflow-y-auto pr-0.5">
                 {daySlots.length === 0 && !past && isOwn && (
                   <span className="text-[9px] text-muted-foreground/50 text-center mt-1">—</span>
                 )}
-                {daySlots.slice(0, 6).map(s => (
+                {daySlots.map(s => (
                   <SlotPill
                     key={s.id}
                     slot={s}
@@ -454,9 +454,6 @@ function CalendarView({
                     onToggle={() => onToggleSlot(s)}
                   />
                 ))}
-                {daySlots.length > 6 && (
-                  <span className="text-[9px] text-muted-foreground text-center">+{daySlots.length - 6} mai mult</span>
-                )}
               </div>
 
               {/* Day summary badges */}
