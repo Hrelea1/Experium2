@@ -22,6 +22,7 @@ interface BookingFormProps {
     originalPrice?: number;
     child_price?: number;
     child_price_description?: string;
+    weekendPrice?: number;
     maxParticipants: number;
     minParticipants?: number;
     image?: string;
@@ -70,6 +71,9 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const childPriceToUse = experience.child_price ?? experience.price;
 
+  const isWeekend = selectedSlot ? [0, 6].includes(new Date(selectedSlot.slot_date).getDay()) : false;
+  const weekendSurcharge = (isWeekend && experience.weekendPrice) ? (experience.weekendPrice * totalParticipants) : 0;
+
   const basePrice = hasTiers
     ? Object.entries(tierQuantities).reduce((sum, [idx, qty]) => {
         return sum + (experience.pricingTiers![Number(idx)].price * qty);
@@ -78,7 +82,7 @@ export function BookingForm({ experience }: BookingFormProps) {
       ? (experience.price * adults) + (childPriceToUse * children)
       : (experience.price * participants);
 
-  const totalPrice = basePrice + servicesTotal;
+  const totalPrice = basePrice + weekendSurcharge + servicesTotal;
   const savings = experience.originalPrice 
     ? (experience.originalPrice - experience.price) * totalParticipants 
     : 0;
@@ -132,8 +136,16 @@ export function BookingForm({ experience }: BookingFormProps) {
                 { name: "Participanți", price: experience.price, quantity: participants }
               ]);
         
-      // Combine tiers and services
-      const participantDetailsPayload = [...selectedTiersPayload, ...selectedServicesRef.current];
+      // Combine tiers, services and potential weekend surcharge
+      const participantDetailsPayload = [
+        ...selectedTiersPayload, 
+        ...selectedServicesRef.current,
+        ...(isWeekend && experience.weekendPrice ? [{
+          name: 'Tarif extra weekend',
+          price: experience.weekendPrice,
+          quantity: totalParticipants,
+        }] : [])
+      ];
 
       // 1. Create a pending booking via Node API
       const { id: bookingId } = await api.bookings.create({
@@ -207,12 +219,20 @@ export function BookingForm({ experience }: BookingFormProps) {
       startTime: selectedSlot.start_time,
       endTime: selectedSlot.end_time,
       maxParticipants: selectedSlot.max_participants || experience.maxParticipants,
-      services: selectedServicesRef.current.map(s => ({
-        serviceId: s.serviceId,
-        name: s.name,
-        price: s.price,
-        quantity: s.quantity,
-      })),
+      services: [
+        ...selectedServicesRef.current.map(s => ({
+          serviceId: s.serviceId,
+          name: s.name,
+          price: s.price,
+          quantity: s.quantity,
+        })),
+        ...(isWeekend && experience.weekendPrice ? [{
+          serviceId: 'weekend-surcharge',
+          name: 'Tarif extra weekend',
+          price: experience.weekendPrice,
+          quantity: totalParticipants,
+        }] : [])
+      ],
       addedAt: Date.now(),
     };
 
@@ -250,6 +270,11 @@ export function BookingForm({ experience }: BookingFormProps) {
             </>
           )}
         </div>
+        {(isWeekend && experience.weekendPrice) ? (
+          <p className="text-primary-foreground/90 text-sm mt-1">
+            Include {experience.weekendPrice} {t('common.lei')} tarif extra de weekend / pers.
+          </p>
+        ) : null}
         {savings > 0 && (
           <p className="text-primary-foreground/90 text-sm mt-1">
             {t('booking.savings', { amount: savings })}

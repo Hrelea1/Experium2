@@ -63,7 +63,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
 
     const rows = await query(
       `SELECT
-        e.id, e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.pricing_tiers,
+        e.id, e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.pricing_tiers,
         e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
@@ -88,11 +88,12 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     );
 
     const formattedRows = rows.map(r => ({
-      ...r,
+      title: r.title,
       price: Number(r.price),
       original_price: r.original_price ? Number(r.original_price) : null,
       child_price: r.child_price ? Number(r.child_price) : null,
       child_price_description: r.child_price_description || null,
+      weekend_price: r.weekend_price ? Number(r.weekend_price) : null,
       avg_rating: Number(r.avg_rating),
       total_reviews: Number(r.total_reviews),
     }));
@@ -114,7 +115,7 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
       `SELECT
         ep.id,
         ep.experience_id,
-        e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.pricing_tiers,
+        e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.pricing_tiers,
         e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url,
         e.provider_type,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
@@ -142,6 +143,7 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
         original_price: r.original_price ? Number(r.original_price) : null,
         child_price: r.child_price ? Number(r.child_price) : null,
         child_price_description: r.child_price_description || null,
+        weekend_price: r.weekend_price ? Number(r.weekend_price) : null,
         pricing_tiers: r.pricing_tiers || [],
         provider_type: r.provider_type,
         duration_minutes: r.duration_minutes,
@@ -176,7 +178,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 
     const experience = await queryOne(
       `SELECT
-        e.id, e.title, e.description, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.includes, e.pricing_tiers,
+        e.id, e.title, e.description, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.includes, e.pricing_tiers,
         e.category_id, e.region_id, e.county_id, e.city_id, e.location_name,
         e.duration_minutes, e.max_participants, e.min_participants, e.min_age,
         e.avg_rating, e.total_reviews, e.is_active, e.is_featured, e.google_maps_url,
@@ -236,6 +238,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       original_price: experience.original_price ? Number(experience.original_price) : null,
       child_price: experience.child_price ? Number(experience.child_price) : null,
       child_price_description: experience.child_price_description || null,
+      weekend_price: experience.weekend_price ? Number(experience.weekend_price) : null,
       avg_rating: Number(experience.avg_rating),
       total_reviews: Number(experience.total_reviews),
       is_assisted: Boolean(experience.is_assisted),
@@ -254,7 +257,7 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
   const client = await pool.connect();
   try {
     const {
-      title, description, short_description, price, original_price, child_price, child_price_description, includes, pricing_tiers,
+      title, description, short_description, price, original_price, child_price, child_price_description, weekend_price, includes, pricing_tiers,
       category_id, region_id, county_id, city_id, location_name, google_maps_url,
       duration_minutes, max_participants, min_participants, min_age, is_featured,
       provider_id, images, services
@@ -275,11 +278,11 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
     // 1. Insert experience
     const expRes = await client.query(
       `INSERT INTO experiences
-        (title, description, short_description, price, original_price, child_price, child_price_description, includes, pricing_tiers, category_id, region_id,
+        (title, description, short_description, price, original_price, child_price, child_price_description, weekend_price, includes, pricing_tiers, category_id, region_id,
          county_id, city_id, location_name, google_maps_url, duration_minutes, max_participants, min_participants, min_age, is_featured)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
        RETURNING id`,
-      [title, description, short_description, price, original_price ?? null, child_price ?? null, child_price_description ?? null, includes ?? [], pricing_tiers ? JSON.stringify(pricing_tiers) : '[]', category_id, region_id,
+      [title, description, short_description, price, original_price ?? null, child_price ?? null, child_price_description ?? null, weekend_price ?? null, includes ?? [], pricing_tiers ? JSON.stringify(pricing_tiers) : '[]', category_id, region_id,
        county_id ?? null, city_id ?? null, location_name, google_maps_url ?? null, duration_minutes ?? null,
        max_participants ?? 10, min_participants ?? 1, min_age ?? null, is_featured ?? false]
     );
@@ -336,7 +339,7 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
   try {
     const { id } = req.params;
     const fields = req.body;
-    const allowed = ['title','description','short_description','price','original_price','child_price','child_price_description','includes','pricing_tiers',
+    const allowed = ['title','description','short_description','price','original_price','child_price','child_price_description','weekend_price','includes','pricing_tiers',
       'category_id','region_id','county_id','city_id','location_name', 'google_maps_url',
       'duration_minutes','max_participants','min_participants','min_age','is_featured','is_active'];
 

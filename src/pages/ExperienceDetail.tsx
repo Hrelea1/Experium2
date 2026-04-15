@@ -220,6 +220,7 @@ export default function ExperienceDetail() {
             originalPrice: data.original_price ? Number(data.original_price) : undefined,
             child_price: data.child_price ? Number(data.child_price) : undefined,
             child_price_description: data.child_price_description,
+            weekendPrice: data.weekend_price ? Number(data.weekend_price) : undefined,
             rating: data.avg_rating || 4.5,
             reviews: data.total_reviews || 0,
             duration: data.duration_minutes 

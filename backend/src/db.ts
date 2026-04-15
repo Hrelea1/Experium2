@@ -68,6 +68,7 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS original_price DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS child_price DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS child_price_description TEXT,
+      ADD COLUMN IF NOT EXISTS weekend_price DECIMAL(10,2),
       ADD COLUMN IF NOT EXISTS min_participants INTEGER DEFAULT 1,
       ADD COLUMN IF NOT EXISTS includes TEXT[] DEFAULT '{}'::text[],
       ADD COLUMN IF NOT EXISTS provider_type TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),

@@ -27,7 +27,6 @@ export function Footer() {
     ],
     companie: [
       { label: t('footer.about'), href: "/about" },
-      { label: t('footer.careers'), href: "/careers" },
       { label: t('footer.partners'), href: "/partners" },
       { label: t('footer.blog'), href: "/blog" },
     ],

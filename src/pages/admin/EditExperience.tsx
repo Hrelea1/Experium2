@@ -43,6 +43,7 @@ type ExperienceRow = {
   original_price: number | null;
   child_price: number | null;
   child_price_description: string | null;
+  weekend_price: number | null;
   category_id: string;
   region_id: string;
   duration_minutes: number | null;
@@ -148,6 +149,7 @@ export default function EditExperience() {
   const [originalPrice, setOriginalPrice] = useState("");
   const [childPrice, setChildPrice] = useState("");
   const [childPriceDescription, setChildPriceDescription] = useState("");
+  const [weekendPrice, setWeekendPrice] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [minParticipants, setMinParticipants] = useState("");
@@ -217,6 +219,7 @@ export default function EditExperience() {
           original_price: exp.original_price ? Number(exp.original_price) : null,
           child_price: exp.child_price ? Number(exp.child_price) : null,
           child_price_description: exp.child_price_description || null,
+          weekend_price: exp.weekend_price ? Number(exp.weekend_price) : null,
           category_id: exp.category_id,
           region_id: exp.region_id,
           duration_minutes: exp.duration_minutes ? Number(exp.duration_minutes) : null,
@@ -247,6 +250,7 @@ export default function EditExperience() {
         setOriginalPrice(expRow.original_price?.toString?.() ?? "");
         setChildPrice(expRow.child_price?.toString?.() ?? "");
         setChildPriceDescription(expRow.child_price_description ?? "");
+        setWeekendPrice(expRow.weekend_price?.toString?.() ?? "");
         setDurationMinutes(expRow.duration_minutes?.toString?.() ?? "");
         setMaxParticipants(expRow.max_participants?.toString?.() ?? "");
         setMinParticipants(expRow.min_participants?.toString?.() ?? "");
@@ -376,6 +380,7 @@ export default function EditExperience() {
     const nextPrice = normalizeNumberInput(price);
     const nextOriginalPrice = normalizeNumberInput(originalPrice);
     const nextChildPrice = normalizeNumberInput(childPrice);
+    const nextWeekendPrice = normalizeNumberInput(weekendPrice);
     const nextDuration = normalizeNumberInput(durationMinutes);
     const nextMax = normalizeNumberInput(maxParticipants);
     const nextMinPart = normalizeNumberInput(minParticipants);
@@ -404,6 +409,9 @@ export default function EditExperience() {
     }
     if (!isEqualNullableNumber(nextChildPrice, originalExperience.child_price ?? null)) {
       patch.child_price = nextChildPrice;
+    }
+    if (!isEqualNullableNumber(nextWeekendPrice, originalExperience.weekend_price ?? null)) {
+      patch.weekend_price = nextWeekendPrice;
     }
     if (!isEqualNullableNumber(nextDuration, originalExperience.duration_minutes ?? null)) {
       patch.duration_minutes = nextDuration;
@@ -614,6 +622,16 @@ export default function EditExperience() {
                       value={childPrice}
                       onChange={(e) => setChildPrice(e.target.value)}
                       placeholder="Opțional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="weekend_price">Preț Extra Weekend (RON)</Label>
+                    <Input
+                      id="weekend_price"
+                      inputMode="decimal"
+                      value={weekendPrice}
+                      onChange={(e) => setWeekendPrice(e.target.value)}
+                      placeholder="Adăugat la prețul de bază"
                     />
                   </div>
                   <div className="space-y-2">

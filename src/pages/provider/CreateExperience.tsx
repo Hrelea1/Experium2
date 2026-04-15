@@ -55,6 +55,7 @@ export default function CreateExperience() {
   const [description, setDescription] = useState('');
   const [shortDescription, setShortDescription] = useState('');
   const [price, setPrice] = useState('');
+  const [weekendPrice, setWeekendPrice] = useState('');
   const [providerType, setProviderType] = useState<'accommodation' | 'service'>('service');
   const [durationMinutes, setDurationMinutes] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
@@ -178,6 +179,7 @@ export default function CreateExperience() {
         description,
         short_description: shortDescription || null,
         price: parseFloat(price),
+        weekend_price: weekendPrice ? parseFloat(weekendPrice) : null,
         provider_type: providerType,
         duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
         max_participants: parseInt(maxParticipants) || 10,
@@ -291,10 +293,18 @@ export default function CreateExperience() {
 
                 {/* Price & Tiers */}
                 <div className="space-y-4 p-5 border rounded-xl bg-muted/5">
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Preț de bază (Lei) *</Label>
-                    <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 250" min={1} step={0.01} />
-                    <p className="text-xs text-muted-foreground">Prețul standard dacă nu adaugi categorii specifice mai jos.</p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Preț de bază (Lei) *</Label>
+                      <Input id="price" type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 250" min={1} step={0.01} />
+                      <p className="text-xs text-muted-foreground">Prețul standard dacă nu adaugi categorii specifice mai jos.</p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="weekendPrice">Preț Extra Weekend (Lei)</Label>
+                      <Input id="weekendPrice" type="number" value={weekendPrice} onChange={(e) => setWeekendPrice(e.target.value)} placeholder="Ex: 50" min={0} step={0.01} />
+                      <p className="text-xs text-muted-foreground">Se va adăuga la prețul experienței dacă data selectată este Sâmbătă sau Duminică.</p>
+                    </div>
                   </div>
 
                   <div className="space-y-3 pt-3 border-t">
