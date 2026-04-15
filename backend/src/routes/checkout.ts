@@ -76,6 +76,13 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
     let successCount = 0;
     for (const item of items) {
       const bookingDate = `${item.slotDate}T${item.startTime}`;
+
+      // ── 48-hour advance booking enforcement ─────────────────
+      const hoursUntil = (new Date(bookingDate).getTime() - Date.now()) / 3_600_000;
+      if (hoursUntil < 48) {
+        console.warn(`[checkout] Slot rejected (< 48h): ${bookingDate}`);
+        continue; // skip this item — slot too close
+      }
       
       const booking = await queryOne<{ id: string }>(
         `INSERT INTO bookings

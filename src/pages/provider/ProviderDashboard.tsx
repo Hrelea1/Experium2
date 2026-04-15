@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CalendarDays, Clock, Users, Plus, Trash2, PlusCircle, Building2, Wrench, Bell, TrendingUp, BarChart3, ArrowLeft, MapPin, Star, Eye, Image as ImageIcon, Tag, CheckCircle2, ExternalLink, XCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RecurringAvailability } from '@/components/provider/RecurringAvailability';
+import { AvailabilityManager } from '@/components/provider/AvailabilityManager';
 import { ProviderBookings } from '@/components/provider/ProviderBookings';
 import { PushNotificationSettings } from '@/components/provider/PushNotificationSettings';
 import { useProviderNotifications } from '@/hooks/useProviderNotifications';
@@ -132,14 +133,6 @@ function ExperienceDetailView({
   onSlotAdded: () => void;
   onSlotDeleted: (id: string) => void;
 }) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('17:00');
-  const [maxParticipants, setMaxParticipants] = useState(10);
-
   // Live preview data
   const [images, setImages] = useState<Array<{ id: string; image_url: string; is_primary: boolean; focal_x: number; focal_y: number }>>([]);
   const [fullExperience, setFullExperience] = useState<{
@@ -196,26 +189,6 @@ function ExperienceDetailView({
   const primaryImage = images.find(i => i.is_primary) || images[0];
   const currentImage = images[previewImageIdx] || primaryImage;
 
-  const addSlot = async () => {
-    if (!user || !selectedDate) {
-      toast({ title: 'Date incomplete', description: 'Selectează data', variant: 'destructive' });
-      return;
-    }
-    try {
-      await api.provider.addAvailabilitySlot({
-        experience_id: experience.experience_id,
-        slot_date: format(selectedDate, 'yyyy-MM-dd'),
-        start_time: startTime,
-        end_time: endTime,
-        capacity: maxParticipants,
-      });
-      toast({ title: 'Succes', description: 'Disponibilitatea a fost adăugată' });
-      setDialogOpen(false);
-      onSlotAdded();
-    } catch (error: any) {
-      toast({ title: 'Eroare', description: error.message, variant: 'destructive' });
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -416,97 +389,12 @@ function ExperienceDetailView({
       </Card>
 
       {/* ═══ AVAILABILITY SECTION ═══ */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Disponibilitate
-            </CardTitle>
-            <CardDescription>Sloturi individuale</CardDescription>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Adaugă Slot
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Adaugă Disponibilitate</DialogTitle>
-                <DialogDescription>{exp.title}</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Data</Label>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date()}
-                    className="rounded-md border"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Ora început</Label>
-                    <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Ora sfârșit</Label>
-                    <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Participanți maximi</Label>
-                  <Input type="number" value={maxParticipants} onChange={(e) => setMaxParticipants(parseInt(e.target.value))} min={1} max={100} />
-                </div>
-                <Button onClick={addSlot} className="w-full">Adaugă Disponibilitate</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          {slots.length === 0 ? (
-            <p className="text-muted-foreground text-center py-6 text-sm">Nicio disponibilitate setată. Adaugă un slot mai sus.</p>
-          ) : (
-            <div className="space-y-2">
-              {slots.map((slot) => (
-                <div key={slot.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1 font-medium">
-                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                      {new Date(slot.slot_date).toLocaleDateString('ro-RO')}
-                    </span>
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      {slot.start_time.slice(0, 5)} - {slot.end_time.slice(0, 5)}
-                    </span>
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" />
-                      {slot.booked_participants}/{slot.max_participants}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={slot.is_available ? 'default' : 'secondary'} className="text-xs">
-                      {slot.is_available ? 'Disponibil' : 'Plin'}
-                    </Badge>
-                    <Button variant="ghost" size="icon" onClick={() => onSlotDeleted(slot.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recurring availability */}
-      <RecurringAvailability
+      {/* New unified Availability Manager */}
+      <AvailabilityManager
         experienceId={experience.experience_id}
         experienceTitle={exp.title}
+        durationMinutes={exp.duration_minutes ?? 60}
+        onSlotsUpdated={onSlotAdded}
       />
     </div>
   );
@@ -728,30 +616,47 @@ export default function ProviderDashboard() {
                             </TableCell>
                             <TableCell className="text-right font-medium">{b.total_price} Lei</TableCell>
                             <TableCell className="text-right">
-                              {b.status === 'pending' && (
-                                <div className="flex items-center justify-end gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                                    onClick={() => handleBookingAction(b.id, 'confirm')} 
-                                    disabled={actionLoading === b.id}
-                                  >
-                                    <CheckCircle2 className="w-4 h-4 mr-1" />
-                                    Confirmă
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                                    onClick={() => handleBookingAction(b.id, 'decline')} 
-                                    disabled={actionLoading === b.id}
-                                  >
-                                    <XCircle className="w-4 h-4 mr-1" />
-                                    Respinge
-                                  </Button>
-                                </div>
-                              )}
+                              {b.status === 'pending' && (() => {
+                                const hoursSince = (Date.now() - new Date(b.created_at).getTime()) / 3_600_000;
+                                const canReject = hoursSince < 24;
+                                const hoursLeft = Math.max(0, 24 - hoursSince);
+                                return (
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                                        onClick={() => handleBookingAction(b.id, 'confirm')} 
+                                        disabled={actionLoading === b.id}
+                                      >
+                                        <CheckCircle2 className="w-4 h-4 mr-1" />
+                                        Confirmă
+                                      </Button>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                                        onClick={() => handleBookingAction(b.id, 'decline')} 
+                                        disabled={actionLoading === b.id || !canReject}
+                                        title={!canReject ? 'Fereastra de 24h pentru respingere a expirat' : undefined}
+                                      >
+                                        <XCircle className="w-4 h-4 mr-1" />
+                                        Respinge
+                                      </Button>
+                                    </div>
+                                    {canReject ? (
+                                      <span className="text-[10px] text-amber-600 font-medium">
+                                        ⏱ {Math.floor(hoursLeft)}h {Math.round((hoursLeft % 1) * 60)}m pentru respingere
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground">
+                                        Fereastra de respingere a expirat
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                           </TableRow>
                         ))}

@@ -109,6 +109,35 @@ router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req:
   }
 });
 
+// ─── POST /availability/bulk-slots ───────────────────────────────────────────────────
+router.post('/bulk-slots', requireRole('admin', 'provider', 'moderator'), async (req: Request, res: Response) => {
+  try {
+    const { experience_id, slots } = req.body;
+    const userId = req.user!.userId;
+
+    if (!experience_id || !Array.isArray(slots) || slots.length === 0) {
+      return res.status(400).json({ error: 'experience_id and non-empty slots array required' });
+    }
+
+    const inserted: string[] = [];
+    for (const s of slots) {
+      const row = await queryOne<{ id: string }>(
+        `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity, booked_count, is_locked)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, false)
+         ON CONFLICT DO NOTHING
+         RETURNING id`,
+        [experience_id, userId, s.slot_date, s.start_time, s.end_time, s.capacity || 10]
+      );
+      if (row) inserted.push(row.id);
+    }
+
+    res.status(201).json({ inserted: inserted.length, ids: inserted });
+  } catch (err: any) {
+    console.error('[availability POST /bulk-slots]', err);
+    res.status(500).json({ error: 'Failed to bulk-create slots: ' + (err.message || String(err)) });
+  }
+});
+
 // ─── DELETE /availability/slots/:id ──────────────────────────
 router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
   try {

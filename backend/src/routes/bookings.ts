@@ -99,6 +99,16 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'experience_id, booking_date, and total_price are required' });
     }
 
+    // ── 48-hour advance booking enforcement ──────────────────────────────────
+    const bookingDateTime = new Date(booking_date);
+    const hoursUntilBooking = (bookingDateTime.getTime() - Date.now()) / 3_600_000;
+    if (hoursUntilBooking < 48) {
+      return res.status(400).json({
+        error: 'BOOKING_TOO_SOON',
+        message: 'Rezervările trebuie făcute cu cel puțin 48 de ore înainte de data experienței.',
+      });
+    }
+
     const booking = await queryOne<{ id: string }>(
       `INSERT INTO bookings
         (user_id, experience_id, booking_date, participants, participant_details, total_price, payment_method, special_requests, voucher_id, status)
@@ -328,6 +338,23 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
 
     const dbStatus = status === 'declined' ? 'cancelled' : status;
     const reason = status === 'declined' ? 'Provider declined' : null;
+
+    // ── Provider rejection 24-hour window ────────────────────────────────────
+    if (status === 'declined' && role === 'provider') {
+      const booking24h = await queryOne<{ created_at: string }>(
+        'SELECT created_at FROM bookings WHERE id = $1',
+        [id]
+      );
+      if (booking24h) {
+        const hoursSinceCreation = (Date.now() - new Date(booking24h.created_at).getTime()) / 3_600_000;
+        if (hoursSinceCreation > 24) {
+          return res.status(400).json({
+            error: 'REJECTION_WINDOW_EXPIRED',
+            message: 'Fereastra de 24 de ore pentru respingerea rezervărilor a expirat. Nu mai poți respinge această rezervare.',
+          });
+        }
+      }
+    }
 
     const prevBooking = await queryOne<{ status: string; total_price: number; booking_date: string; participants: number; experience_id: string }>(
       `SELECT status, total_price, booking_date, participants, experience_id FROM bookings WHERE id = $1`,

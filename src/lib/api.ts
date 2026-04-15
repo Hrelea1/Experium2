@@ -425,8 +425,26 @@ export const provider = {
   },
 
   async deleteAvailabilitySlot(slotId: string) {
-    return request(`/availability/slots/${slotId}`, { // I need to verify if this route exists
+    return request(`/availability/slots/${slotId}`, {
       method: 'DELETE',
+    });
+  },
+
+  async lockSlot(slotId: string) {
+    return request(`/availability/slots/${slotId}/lock`, { method: 'POST' });
+  },
+
+  async unlockSlot(slotId: string) {
+    return request(`/availability/slots/${slotId}/unlock`, { method: 'POST' });
+  },
+
+  async bulkAddSlots(data: {
+    experience_id: string;
+    slots: { slot_date: string; start_time: string; end_time: string; capacity: number }[];
+  }) {
+    return request('/availability/bulk-slots', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

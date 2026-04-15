@@ -80,10 +80,11 @@ const MyBookings = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      confirmed: { label: 'Confirmată', variant: 'default' as const, icon: CheckCircle },
-      pending: { label: 'În așteptare', variant: 'secondary' as const, icon: Clock },
-      cancelled: { label: 'Anulată', variant: 'destructive' as const, icon: XCircle },
-      completed: { label: 'Finalizată', variant: 'outline' as const, icon: CheckCircle },
+      confirmed:  { label: 'Confirmată',     variant: 'default'     as const, icon: CheckCircle },
+      pending:    { label: 'În așteptare',   variant: 'secondary'   as const, icon: Clock },
+      cancelled:  { label: 'Anulată',        variant: 'destructive' as const, icon: XCircle },
+      completed:  { label: 'Finalizată',     variant: 'outline'     as const, icon: CheckCircle },
+      declined:   { label: 'Respinsă',       variant: 'destructive' as const, icon: Ban },
     };
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
     const Icon = config.icon;
@@ -261,6 +262,23 @@ const BookingGrid = ({ bookings, getStatusBadge, onCancelClick, onChangeDateClic
             <div className="flex items-center gap-2 text-sm">
               <Users className="h-4 w-4" /> {booking.participants} participanți
             </div>
+            {/* Pending — provider confirmation notice */}
+            {booking.status === 'pending' && (() => {
+              const hoursLeft = Math.max(0, 24 - (Date.now() - new Date(booking.created_at).getTime()) / 3_600_000);
+              return (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm">
+                  <p className="font-medium text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    Așteaptă confirmare furnizor
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                    {hoursLeft > 0
+                      ? `Furnizorul mai are ${Math.floor(hoursLeft)}h ${Math.round((hoursLeft % 1) * 60)}m să confirme sau să respingă rezervarea.`
+                      : 'Fereastra de răspuns a furnizorului a expirat. Rezervarea va fi procesata automat.'}
+                  </p>
+                </div>
+              );
+            })()}
             <div className="pt-4 border-t flex gap-2">
               {booking.status === 'confirmed' && (
                 <Button size="sm" variant="destructive" className="flex-1" onClick={() => onCancelClick(booking.id)}>Anulează</Button>

@@ -26,6 +26,9 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [locking, setLocking] = useState(false);
 
+  // 48-hour rule: bookings must be at least 48h before the slot
+  const minBookingDate = new Date(Date.now() + 48 * 3600 * 1000);
+
   // Unlock previous slot when selecting a new one or unmounting
   useEffect(() => {
     return () => {
@@ -90,7 +93,7 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
 
   const isDateAvailable = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return availableDates.includes(dateStr);
+    return availableDates.includes(dateStr) && date >= minBookingDate;
   };
 
   if (loading) {
@@ -144,13 +147,17 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
                 setSelectedSlot(null);
                 onSlotSelected(null);
               }}
-              disabled={(date) => !isDateAvailable(date) || date < new Date()}
+              disabled={(date) => !isDateAvailable(date) || date < minBookingDate}
               locale={ro}
               initialFocus
               className="rounded-xl border shadow-sm"
             />
           </PopoverContent>
         </Popover>
+        <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+          <Clock className="w-3 h-3" />
+          Rezervările se fac cu cel puțin 48 de ore înainte.
+        </p>
       </div>
 
       {/* Time slots */}
