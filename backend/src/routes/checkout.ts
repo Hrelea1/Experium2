@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { query, queryOne } from '../db';
 import { sendBookingConfirmation, sendProviderBookingNotification } from '../services/email';
 import { sendSms, getBookingConfirmedSms } from '../services/sms';
+import { createProviderNotification } from '../services/providerNotifications';
 
 const router = Router();
 const stripeToken = process.env.STRIPE_SECRET_KEY || 'sk_test_51O...';
@@ -87,8 +88,8 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
       if (booking) {
         successCount++;
         // Trigger notifications in background
-        queryOne<{ email: string; full_name: string; title: string; phone: string | null; provider_email: string; provider_name: string }>(
-          `SELECT u.email, p.full_name, p.phone, e.title, pu.email as provider_email, pp.full_name as provider_name
+        queryOne<{ email: string; full_name: string; title: string; phone: string | null; provider_email: string; provider_name: string; provider_user_id: string }>(
+          `SELECT u.email, p.full_name, p.phone, e.title, pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
            FROM users u
            LEFT JOIN profiles p ON p.id = u.id
            JOIN experiences e ON e.id = $2
@@ -123,6 +124,15 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
               totalPrice: Number(item.totalPrice),
               bookingId: booking.id,
             });
+
+            // Provider DB Notification + Web Push
+            await createProviderNotification(
+              info.provider_user_id,
+              `Rezervare nouă — ${info.title}`,
+              `Ai o rezervare nouă de la ${info.full_name ?? 'Client'} pentru data ${dateStr}.`,
+              'booking_confirmed',
+              booking.id
+            );
 
             // Client SMS
             if (info.phone) {

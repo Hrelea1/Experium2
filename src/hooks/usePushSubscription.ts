@@ -1,12 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { tokenStore } from '@/lib/api';
 
-/**
- * usePushSubscription Hook
- * 
- * NOTE: Push notification backend migration is pending.
- * Supabase dependencies have been removed.
- */
+const isProd = import.meta.env.PROD;
+const defaultApiUrl = isProd ? 'https://experium2-production.up.railway.app' : 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? defaultApiUrl;
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export function usePushSubscription() {
   const { user } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -43,9 +57,41 @@ export function usePushSubscription() {
       setPermission(perm);
       if (perm !== 'granted') return false;
 
-      // TODO: Implement backend VAPID key and subscription storage
-      console.warn('Push notification backend migration is pending. Implementation required.');
-      return false;
+      const reg = await navigator.serviceWorker.register('/sw-push.js');
+      await navigator.serviceWorker.ready;
+
+      // Unsubscribe existing if any
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) await existing.unsubscribe();
+
+      // Get VAPID key
+      const token = tokenStore.get();
+      const res = await fetch(`${API_BASE}/notifications/push/vapid-key`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const { publicKey } = await res.json();
+      if (!publicKey) throw new Error('No VAPID key');
+
+      // Subscribe to PushManager
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+
+      // Save to backend
+      const saveRes = await fetch(`${API_BASE}/notifications/push/subscribe`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(sub)
+      });
+
+      if (!saveRes.ok) throw new Error('Failed to save push subscription');
+
+      setIsSubscribed(true);
+      return true;
     } catch (err) {
       console.error('Push subscription failed', err);
       return false;
@@ -56,10 +102,21 @@ export function usePushSubscription() {
     try {
       const reg = await navigator.serviceWorker.getRegistration('/sw-push.js');
       if (reg) {
-        const sub = await (reg as any).pushManager?.getSubscription();
+        const sub = await reg.pushManager.getSubscription();
         if (sub) {
+          // Unsubscribe from backend first
+          const token = tokenStore.get();
+          await fetch(`${API_BASE}/notifications/push/unsubscribe`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ endpoint: sub.endpoint })
+          });
+
+          // Unsubscribe from browser
           await sub.unsubscribe();
-          // TODO: Remove from backend
         }
       }
       setIsSubscribed(false);

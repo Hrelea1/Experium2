@@ -63,4 +63,54 @@ router.put('/read-all', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// ─── Web Push Subscriptions ───────────────────────────────────────────────────
+router.get('/push/vapid-key', requireAuth, (_req: Request, res: Response) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+router.post('/push/subscribe', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { endpoint, keys } = req.body;
+    
+    if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+      return res.status(400).json({ error: 'Invalid subscription object' });
+    }
+
+    await query(
+      `INSERT INTO web_push_subscriptions (user_id, endpoint, keys_p256dh, keys_auth)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, endpoint) DO UPDATE
+       SET keys_p256dh = EXCLUDED.keys_p256dh, keys_auth = EXCLUDED.keys_auth, created_at = now()`,
+      [userId, endpoint, keys.p256dh, keys.auth]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[notifications POST /push/subscribe]', err);
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
+
+router.post('/push/unsubscribe', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { endpoint } = req.body;
+    
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Endpoint required' });
+    }
+
+    await query(
+      'DELETE FROM web_push_subscriptions WHERE user_id = $1 AND endpoint = $2',
+      [userId, endpoint]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[notifications POST /push/unsubscribe]', err);
+    res.status(500).json({ error: 'Failed to unsubscribe' });
+  }
+});
+
 export default router;
