@@ -698,7 +698,7 @@ export default function ProviderDashboard() {
                   {salesBookings.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">Nicio rezervare încă.</p>
                   ) : (
-                    <Table>
+                    <Table className="min-w-[800px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Experiență</TableHead>

@@ -130,7 +130,7 @@ const ManageBookings = () => {
   };
 
   const BookingsTable = ({ bookings }: { bookings: Booking[] }) => (
-    <Table>
+    <Table className="min-w-[800px]">
       <TableHeader>
         <TableRow>
           <TableHead>Client</TableHead>

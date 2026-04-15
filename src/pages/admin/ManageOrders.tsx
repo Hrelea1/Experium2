@@ -97,7 +97,7 @@ const ManageOrders = () => {
     .reduce((sum, b) => sum + b.total_price, 0);
 
   const BookingsTable = ({ bookings }: { bookings: Booking[] }) => (
-    <Table>
+    <Table className="min-w-[800px]">
       <TableHeader>
         <TableRow>
           <TableHead>Client</TableHead>

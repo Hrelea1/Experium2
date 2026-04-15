@@ -71,7 +71,7 @@ const ManagePartnerApplications = () => {
         </div>
 
         <div className="border rounded-lg">
-          <Table>
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Nume</TableHead>
