@@ -152,6 +152,9 @@ export function Footer() {
             <Link to="/gdpr" className="text-secondary-foreground/60 hover:text-primary transition-colors">
               {t('footer.gdpr')}
             </Link>
+            <Link to="/dpa" className="text-secondary-foreground/60 hover:text-primary transition-colors">
+              Acord Prelucrare Date
+            </Link>
           </div>
         </div>
       </div>

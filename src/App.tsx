@@ -49,6 +49,8 @@ import AmbassadorDashboard from "./pages/ambassador/AmbassadorDashboard";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { CookieBanner } from "./components/CookieBanner";
+import DataProcessingAgreement from "./pages/DataProcessingAgreement";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,7 @@ const App = () => (
           <Sonner />
           <HashRouter>
             <ScrollToTop />
+            <CookieBanner />
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -86,6 +89,7 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/cookies" element={<Cookies />} />
               <Route path="/gdpr" element={<GDPR />} />
+              <Route path="/dpa" element={<DataProcessingAgreement />} />
               
               {/* Provider Routes */}
               <Route path="/provider" element={<ProviderDashboard />} />
