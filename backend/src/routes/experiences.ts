@@ -88,7 +88,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     );
 
     const formattedRows = rows.map(r => ({
-      title: r.title,
+      ...r,
       price: Number(r.price),
       original_price: r.original_price ? Number(r.original_price) : null,
       child_price: r.child_price ? Number(r.child_price) : null,
