@@ -197,7 +197,10 @@ export default function ExperienceDetail() {
 
   useEffect(() => {
     const fetchExperience = async () => {
-      if (!id) return;
+      if (!id || id === 'undefined' || id === 'null') {
+        setLoading(false);
+        return;
+      }
       
       try {
         const data = await api.experiences.getById(id);

@@ -198,6 +198,7 @@ export const experiences = {
   },
 
   async getById(id: string): Promise<Experience> {
+    if (!id || id === 'undefined' || id === 'null') return Promise.reject(new Error('Invalid experience ID'));
     return request(`/experiences/${id}`);
   },
 
@@ -231,6 +232,7 @@ export const bookings = {
   },
 
   async getById(id: string): Promise<Booking> {
+    if (!id || id === 'undefined' || id === 'null') return Promise.reject(new Error('Invalid booking ID'));
     return request(`/bookings/${id}`);
   },
 

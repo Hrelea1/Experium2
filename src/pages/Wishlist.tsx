@@ -20,12 +20,14 @@ export default function Wishlist() {
     }
 
     Promise.all(
-      list.map((id: string) => 
-        api.experiences.getById(id).catch(err => {
-          console.error("Failed to load experience", id, err);
-          return null;
-        })
-      )
+      list
+        .filter((id: string) => id && id !== 'undefined' && id !== 'null')
+        .map((id: string) => 
+          api.experiences.getById(id).catch(err => {
+            console.error("Failed to load experience", id, err);
+            return null;
+          })
+        )
     )
       .then(data => {
         setWishlists(data.filter(Boolean));
