@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, Users, Check,
-  Zap, RotateCcw, AlertCircle, Lock, Unlock, Settings
+  Zap, RotateCcw, AlertCircle, Lock, Unlock, Settings, Trash2
 } from 'lucide-react';
 import {
   format, addDays, startOfWeek, endOfWeek, eachDayOfInterval,
@@ -558,6 +558,20 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
     }
   };
 
+  const handleDeleteEmptySlots = async () => {
+    if (!confirm('Ești sigur că vrei să cureți toate sloturile libere (fără rezervări) generate anterior?')) return;
+    setLoading(true);
+    try {
+      const res = await api.provider.deleteEmptySlots(experienceId);
+      toast({ title: 'Sloturi curățate', description: `Au fost șterse ${res.count} sloturi libere.` });
+      await fetchSlots();
+      onSlotsUpdated?.();
+    } catch (err: any) {
+      toast({ title: 'Eroare', description: err.message || 'Eroare la ștergerea sloturilor libere', variant: 'destructive' });
+      setLoading(false);
+    }
+  };
+
   const stats = useMemo(() => ({
     total:     slots.length,
     available: slots.filter(s => !s.is_locked && s.is_available).length,
@@ -577,6 +591,18 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
           <CardDescription className="mt-0.5">{experienceTitle}</CardDescription>
         </div>
         <div className="flex items-center gap-2">
+          {view === 'calendar' && (stats.available > 0 || stats.blocked > 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDeleteEmptySlots}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+              title="Șterge toate sloturile fără rezervări"
+            >
+              <Trash2 className="h-3.5 w-3.5 sm:mr-1" /> 
+              <span className="hidden sm:inline">Curăță sloturi</span>
+            </Button>
+          )}
           <Button
             variant={view === 'wizard' ? 'default' : 'outline'}
             size="sm"

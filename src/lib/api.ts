@@ -430,6 +430,12 @@ export const provider = {
     });
   },
 
+  async deleteEmptySlots(experienceId: string) {
+    return request<{ message: string; count: number }>(`/availability/experiences/${experienceId}/empty-slots`, {
+      method: 'DELETE',
+    });
+  },
+
   async lockSlot(slotId: string) {
     return request(`/availability/slots/${slotId}/lock`, { method: 'POST' });
   },

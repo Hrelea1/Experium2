@@ -138,6 +138,27 @@ router.post('/bulk-slots', requireRole('admin', 'provider', 'moderator'), async 
   }
 });
 
+// ─── DELETE /availability/experiences/:experience_id/empty-slots ─────────────
+router.delete('/experiences/:experience_id/empty-slots', requireRole('admin', 'provider', 'moderator'), async (req: Request, res: Response) => {
+  try {
+    const { experience_id } = req.params;
+    const userId = req.user!.userId;
+    const isAdmin = req.user!.role === 'admin' || req.user!.role === 'moderator';
+
+    const queryStr = isAdmin 
+      ? `DELETE FROM availability_slots WHERE experience_id = $1 AND booked_count = 0 RETURNING id`
+      : `DELETE FROM availability_slots WHERE experience_id = $1 AND provider_user_id = $2 AND booked_count = 0 RETURNING id`;
+      
+    const params = isAdmin ? [experience_id] : [experience_id, userId];
+
+    const deleted = await query(queryStr, params);
+    res.json({ message: 'Empty slots deleted', count: deleted.length });
+  } catch (err: any) {
+    console.error('[availability DELETE /empty-slots]', err);
+    res.status(500).json({ error: 'Failed to delete empty slots: ' + (err.message || String(err)) });
+  }
+});
+
 // ─── DELETE /availability/slots/:id ──────────────────────────
 router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
   try {
