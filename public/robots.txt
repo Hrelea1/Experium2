@@ -1,14 +1,17 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+
+# Blocheaza paginile private (autentificare, dashboard, admin, provider)
+Disallow: /#/auth
+Disallow: /#/dashboard
+Disallow: /#/my-bookings
+Disallow: /#/wishlist
+Disallow: /#/cart
+Disallow: /#/checkout/
+Disallow: /#/order-confirmation
+Disallow: /#/payment-success
+Disallow: /#/admin/
+Disallow: /#/provider/
+Disallow: /#/ambassador/
+
+Sitemap: https://experium.ro/sitemap.xml
