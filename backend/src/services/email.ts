@@ -106,18 +106,41 @@ export async function sendBookingConfirmation(params: {
     to: params.email,
     subject: `Rezervare confirmată — ${params.experienceTitle}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">✅ Rezervarea ta a fost confirmată!</h2>
-        <p>Bună ${params.name},</p>
-        <p>Rezervarea ta pentru <strong>${params.experienceTitle}</strong> a fost confirmată.</p>
-        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
-          <tr><td style="padding: 8px; color:#666;">Data:</td><td style="padding:8px;"><strong>${params.bookingDate}</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">Participanți:</td><td style="padding:8px;"><strong>${params.participants}</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">Total:</td><td style="padding:8px;"><strong>${params.totalPrice} RON</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">ID rezervare:</td><td style="padding:8px; font-size:12px;">${params.bookingId}</td></tr>
-        </table>
-        <p>Ne vedem în curând! 🎉</p>
-        <p style="color:#666; font-size:12px;">Experium — experiente memorabile</p>
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px; text-align: center;">
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">✅ Rezervare Confirmată!</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 15px;">Experium</p>
+        </div>
+        <div style="padding: 32px;">
+          <p style="color: #333; font-size: 16px; margin-top: 0;">Bună <strong>${params.name}</strong>,</p>
+          <p style="color: #555; line-height: 1.6;">Ne bucurăm să îți confirmăm rezervarea pentru experiența:</p>
+          
+          <h3 style="color: #1a1a2e; margin: 16px 0 8px; font-size: 18px;">${params.experienceTitle}</h3>
+          
+          <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #eaeaea;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;">📅 Dată:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.bookingDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;">👥 Participanți:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.participants}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0 4px; color: #666; font-size: 14px;">💰 Total plătit:</td>
+                <td style="padding: 12px 0 4px; text-align: right; color: #10b981; font-weight: bold; font-size: 16px;">${params.totalPrice} RON</td>
+              </tr>
+            </table>
+          </div>
+          
+          <p style="color: #555; font-size: 15px; text-align: center; margin: 32px 0;">Ne vedem în curând! 🎉</p>
+          
+          <div style="margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
+            <p style="color: #888; font-size: 12px; margin: 0;">ID Rezervare principală: <span style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${params.bookingId}</span></p>
+            <p style="color: #aaa; font-size: 11px; margin: 8px 0 0;">Ai primit acest email deoarece ai făcut o rezervare prin platforma Experium.</p>
+          </div>
+        </div>
       </div>
     `,
   });
@@ -139,19 +162,44 @@ export async function sendProviderBookingNotification(params: {
     to: params.providerEmail,
     subject: `Rezervare nouă — ${params.experienceTitle}`,
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
-        <h2 style="color: #1a1a2e;">🎉 Ai o rezervare nouă!</h2>
-        <p>Bună ${params.providerName},</p>
-        <p>A fost efectuată o nouă rezervare pentru experiența <strong>${params.experienceTitle}</strong>.</p>
-        <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
-          <tr><td style="padding: 8px; color:#666;">Client:</td><td style="padding:8px;"><strong>${params.clientName}</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">Data:</td><td style="padding:8px;"><strong>${params.bookingDate}</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">Participanți:</td><td style="padding:8px;"><strong>${params.participants}</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">Total:</td><td style="padding:8px;"><strong>${params.totalPrice} RON</strong></td></tr>
-          <tr><td style="padding: 8px; color:#666;">ID rezervare:</td><td style="padding:8px; font-size:12px;">${params.bookingId}</td></tr>
-        </table>
-        <p>Te rugăm să verifici dashboard-ul pentru mai multe detalii.</p>
-        <p style="color:#666; font-size:12px;">Echipa Experium</p>
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 32px; text-align: center;">
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">🎉 Rezervare Nouă!</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 15px;">Experium Provider</p>
+        </div>
+        <div style="padding: 32px;">
+          <p style="color: #333; font-size: 16px; margin-top: 0;">Bună <strong>${params.providerName}</strong>,</p>
+          <p style="color: #555; line-height: 1.6;">Ai primit o nouă rezervare pentru experiența:</p>
+          
+          <h3 style="color: #1a1a2e; margin: 16px 0 8px; font-size: 18px;">${params.experienceTitle}</h3>
+          
+          <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #eaeaea;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;">👤 Client:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.clientName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;">📅 Dată:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.bookingDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;">👥 Participanți:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.participants}</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 0 4px; color: #666; font-size: 14px;">💰 Câștig total:</td>
+                <td style="padding: 12px 0 4px; text-align: right; color: #3b82f6; font-weight: bold; font-size: 16px;">${params.totalPrice} RON</td>
+              </tr>
+            </table>
+          </div>
+          
+          <p style="color: #555; font-size: 15px; text-align: center; margin: 32px 0;">Verifică dashboard-ul pentru a vedea detaliile complete.</p>
+          
+          <div style="margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
+            <p style="color: #888; font-size: 12px; margin: 0;">ID Rezervare principală: <span style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">${params.bookingId}</span></p>
+          </div>
+        </div>
       </div>
     `,
   });

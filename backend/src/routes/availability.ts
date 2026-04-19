@@ -42,7 +42,7 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
         COALESCE(s.is_locked, false) AS is_locked
        FROM availability_slots s
        WHERE s.experience_id = $1
-         AND COALESCE(s.is_locked, false) = false
+         AND (COALESCE(s.is_locked, false) = false OR s.capacity > 1)
          AND (s.capacity - s.booked_count) > 0
          AND s.slot_date >= COALESCE($2::date, CURRENT_DATE)
          ${to ? `AND slot_date <= $3` : ''}
@@ -204,11 +204,13 @@ router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) 
       }
     }
 
-    const lockedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    await query(
-      `UPDATE availability_slots SET is_locked = true, locked_by = $1, locked_until = $2 WHERE id = $3`,
-      [userId, lockedUntil, id]
-    );
+    if (slot.capacity === 1) {
+      const lockedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+      await query(
+        `UPDATE availability_slots SET is_locked = true, locked_by = $1, locked_until = $2 WHERE id = $3`,
+        [userId, lockedUntil, id]
+      );
+    }
 
     res.json([{ success: true }]);
   } catch (err) {
