@@ -477,13 +477,15 @@ export default function ExperienceDetail() {
                     <div className="w-full h-[350px] sm:h-[450px] rounded-lg overflow-hidden bg-muted relative">
                       <iframe 
                         src={
-                          experience.google_maps_url.match(/src="([^"]+)"/) 
+                          experience.google_maps_url.includes('<iframe') && experience.google_maps_url.match(/src="([^"]+)"/) 
                             ? experience.google_maps_url.match(/src="([^"]+)"/)[1] 
                             : experience.google_maps_url.includes('google.com/maps/embed') 
                               ? experience.google_maps_url 
-                              : (!experience.google_maps_url.startsWith('http') 
-                                  ? `https://maps.google.com/maps?q=${encodeURIComponent(experience.google_maps_url)}&t=&z=13&ie=UTF8&iwloc=&output=embed`
-                                  : experience.google_maps_url)
+                              : `https://maps.google.com/maps?q=${encodeURIComponent(
+                                  // If they pasted a normal http link to google maps, it cannot be embedded. We fall back to searching the text.
+                                  // If it's pure text, we search the text. If it is a URL, it's safer to just search the experience location.
+                                  experience.google_maps_url.startsWith('http') ? experience.location : experience.google_maps_url
+                                )}&t=&z=13&ie=UTF8&iwloc=&output=embed`
                         }
                         width="100%" 
                         height="100%" 
