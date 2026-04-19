@@ -13,8 +13,13 @@ import { useToast } from '@/hooks/use-toast';
 import { signupSchema } from '@/lib/validations';
 import { z } from 'zod';
 import { GoogleLogin } from '@react-oauth/google';
-// @ts-ignore
-import FacebookLogin from 'react-facebook-login/dist/facebook-login-render-props';
+
+declare global {
+  interface Window {
+    fbAsyncInit: () => void;
+    FB: any;
+  }
+}
 
 const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || 'your_facebook_app_id_here';
 
@@ -54,6 +59,30 @@ const Auth = () => {
     if (mode === 'reset') setShowResetForm(true);
   }, [mode]);
 
+  // Load Facebook SDK
+  useEffect(() => {
+    if (!window.FB) {
+      window.fbAsyncInit = function() {
+        window.FB.init({
+          appId      : FACEBOOK_APP_ID,
+          cookie     : true,
+          xfbml      : true,
+          version    : 'v20.0'
+        });
+      };
+      
+      const scriptId = 'facebook-jssdk';
+      if (!document.getElementById(scriptId)) {
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.src = "https://connect.facebook.net/en_US/sdk.js";
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+      }
+    }
+  }, []);
+
   // ─── Social Logins ──────────────────────────────────────────────────────────
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (credentialResponse.credential) {
@@ -64,13 +93,26 @@ const Auth = () => {
     }
   };
 
-  const handleFacebookCallback = async (response: any) => {
-    if (response.accessToken) {
-      setLoading(true);
-      const { error } = await loginWithFacebook(response.accessToken);
-      setLoading(false);
-      if (!error) navigate('/');
+  const handleFacebookClick = () => {
+    if (!window.FB) {
+      toast({ title: 'Eroare', description: 'Facebook SDK se încarcă, te rog așteaptă...', variant: 'destructive' });
+      return;
     }
+    
+    // config_id was mentioned earlier, using either config_id or standard scopes
+    // If FACEBOOK_APP_ID is a config_id, this approach via config_id works for Business login. 
+    // If it's a standard app, scope works. We pass configuration that tolerates both potentially.
+    window.FB.login((response: any) => {
+      if (response.authResponse && response.authResponse.accessToken) {
+        setLoading(true);
+        loginWithFacebook(response.authResponse.accessToken).then(({ error }) => {
+          setLoading(false);
+          if (!error) navigate('/');
+        });
+      } else {
+        console.log('User cancelled login or did not fully authorize.');
+      }
+    }, { scope: 'public_profile,email' });
   };
 
   // ─── Login ──────────────────────────────────────────────────────────────────
@@ -334,25 +376,18 @@ const Auth = () => {
                         width={400}
                       />
                     </div>
-                    <FacebookLogin
-                      appId={FACEBOOK_APP_ID}
-                      callback={handleFacebookCallback}
-                      fields="name,email,picture"
-                      render={(renderProps: any) => (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="w-full h-10 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors"
-                          onClick={renderProps.onClick}
-                          disabled={loading}
-                        >
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
-                          </svg>
-                          Continuă cu Facebook
-                        </Button>
-                      )}
-                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-10 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors"
+                      onClick={handleFacebookClick}
+                      disabled={loading}
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
+                      </svg>
+                      Continuă cu Facebook
+                    </Button>
                   </div>
                 </div>
               </TabsContent>
@@ -431,25 +466,18 @@ const Auth = () => {
                           width={400}
                         />
                       </div>
-                      <FacebookLogin
-                        appId={FACEBOOK_APP_ID}
-                        callback={handleFacebookCallback}
-                        fields="name,email,picture"
-                        render={(renderProps: any) => (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full h-10 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors"
-                            onClick={renderProps.onClick}
-                            disabled={loading}
-                          >
-                            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                              <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
-                            </svg>
-                            Continuă cu Facebook
-                          </Button>
-                        )}
-                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-10 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors"
+                        onClick={handleFacebookClick}
+                        disabled={loading}
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
+                        </svg>
+                        Continuă cu Facebook
+                      </Button>
                     </div>
                   </div>
               </TabsContent>
