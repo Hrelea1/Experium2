@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-  connectionTimeout: 10000,  // 10s max to connect
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 15000,
 });
@@ -32,11 +32,9 @@ async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMa
     console.log('\n📧 [DEV EMAIL] -----------------------------------------');
     console.log(`To: ${mailOptions.to}`);
     console.log(`Subject: ${mailOptions.subject}`);
-    if (String(mailOptions.html).includes('font-size: 40px')) {
-      // Extract OTP for easy copying in dev
-      const match = String(mailOptions.html).match(/color: #1a1a2e;">(\d+)<\/span>/);
-      if (match) console.log(`[OTP CODE]: ${match[1]}`);
-    }
+    // Extract OTP for easy copying in dev
+    const match = String(mailOptions.html).match(/letter-spacing[^>]+>\s*(\d{4,8})\s*</);
+    if (match) console.log(`[OTP CODE]: ${match[1]}`);
     console.log('------------------------------------------------------\n');
     return;
   }
@@ -61,6 +59,33 @@ export async function sendOtpEmail(email: string, otp: string, name?: string): P
         </div>
         <p style="color: #666;">Codul expiră în <strong>10 minute</strong>.</p>
         <p style="color: #666; font-size: 12px;">Dacă nu ai solicitat acest cod, ignoră acest email.</p>
+      </div>
+    `,
+  });
+}
+
+// ─── Password Reset Email ──────────────────────────────────────────────────────
+export async function sendPasswordResetEmail(email: string, otp: string, name?: string): Promise<void> {
+  await sendWithTimeout({
+    from: FROM,
+    to: email,
+    subject: '🔐 Resetare parolă Experium',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee;">
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 32px; text-align: center;">
+          <h1 style="color: #fff; margin: 0; font-size: 24px;">🔐 Resetare Parolă</h1>
+          <p style="color: rgba(255,255,255,0.7); margin: 8px 0 0;">Experium</p>
+        </div>
+        <div style="padding: 32px;">
+          <p style="color: #333; font-size: 16px;">Bună${name ? ` <strong>${name}</strong>` : ''},</p>
+          <p style="color: #555; line-height: 1.6;">Am primit o cerere de resetare a parolei pentru contul tău. Folosește codul de mai jos pentru a seta o parolă nouă:</p>
+          <div style="background: #f8f8f8; border-radius: 12px; padding: 28px; text-align: center; margin: 24px 0; border: 2px dashed #ddd;">
+            <p style="margin: 0 0 8px; color: #888; font-size: 14px;">Codul tău de resetare</p>
+            <span style="font-size: 44px; font-weight: bold; letter-spacing: 10px; color: #1a1a2e;">${otp}</span>
+          </div>
+          <p style="color: #e67e22; font-size: 14px;">⏱️ Codul este valabil <strong>10 minute</strong>.</p>
+          <p style="color: #888; font-size: 13px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">Dacă nu ai solicitat resetarea parolei, poți ignora acest email — parola ta nu se va schimba.</p>
+        </div>
       </div>
     `,
   });

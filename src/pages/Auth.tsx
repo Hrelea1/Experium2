@@ -16,7 +16,7 @@ import { z } from 'zod';
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, signIn, signUp, verifyOtp, otpLogin, resetPassword } = useAuth();
+  const { user, signIn, signUp, forgotPassword, doResetPassword } = useAuth();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -31,11 +31,13 @@ const Auth = () => {
   const [signupFullName, setSignupFullName] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // Reset password
+  // Reset password — 3 steps: email → OTP → new password
   const [resetEmail, setResetEmail] = useState('');
   const [showResetForm, setShowResetForm] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
+  const [resetStep, setResetStep] = useState<1 | 2 | 3>(1); // 1=email, 2=OTP, 3=new password
   const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const mode = searchParams.get('mode');
 
@@ -53,16 +55,7 @@ const Auth = () => {
     setLoading(true);
     const { error } = await signIn(loginEmail, loginPassword);
     setLoading(false);
-    
-    // If account not verified, switch to verify OTP mode
-    if (error && error.includes('not verified')) {
-      setResetEmail(loginEmail);
-      setShowResetForm(true);
-      setResetSent(true);
-      toast({ title: 'Cont nevalidat', description: 'Introduceți codul OTP primit pe email.' });
-    } else if (!error) {
-      navigate('/');
-    }
+    if (!error) navigate('/');
   };
 
   // ─── Signup ─────────────────────────────────────────────────────────────────
@@ -94,63 +87,96 @@ const Auth = () => {
     }
   };
 
-  // ─── Reset password / OTP Send ──────────────────────────────────────────────
-  const handleResetPassword = async (e: React.FormEvent) => {
+  // ─── Reset Step 1: Send OTP email ───────────────────────────────────────────
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await resetPassword(resetEmail);
+    const { error } = await forgotPassword(resetEmail);
     setLoading(false);
-
-    if (!error) {
-      setResetSent(true);
-    }
+    if (!error) setResetStep(2);
   };
 
-  // ─── OTP Login ──────────────────────────────────────────────────────────────
-  const handleOtpLogin = async (e: React.FormEvent) => {
+  // ─── Reset Step 2: Verify OTP → show new password form ─────────────────────
+  const handleVerifyResetOtp = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    // Use otpLogin for passwordless login, or verifyOtp for first time
-    const { error } = await otpLogin(resetEmail, otpCode);
-    setLoading(false);
+    if (otpCode.length !== 6) return;
+    setResetStep(3);
+  };
 
-    if (!error) {
-      navigate('/');
+  // ─── Reset Step 3: Set new password ────────────────────────────────────────
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: 'Parolele nu se potrivesc', variant: 'destructive' });
+      return;
     }
+    if (newPassword.length < 6) {
+      toast({ title: 'Parola trebuie să aibă minim 6 caractere', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    const { error } = await doResetPassword(resetEmail, otpCode, newPassword);
+    setLoading(false);
+    if (!error) navigate('/');
   };
 
   // ─── Reset form ──────────────────────────────────────────────────────────────
   if (showResetForm) {
+    const stepTitles = ['Resetare Parolă', 'Verificare Cod OTP', 'Parolă Nouă'];
+    const stepDescriptions = [
+      'Introdu email-ul contului tău pentru a primi un cod de resetare',
+      `Am trimis un cod OTP la ${resetEmail}. Introdu-l mai jos.`,
+      'Alege o parolă nouă pentru contul tău',
+    ];
+
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1 flex items-center justify-center px-4 py-12 pt-24">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle>Autentificare cu OTP</CardTitle>
-              <CardDescription>
-                {resetSent
-                  ? 'Verifică-ți email-ul pentru codul OTP'
-                  : 'Introdu adresa de email pentru a primi un cod OTP'}
-              </CardDescription>
+              <div className="flex items-center gap-3 mb-2">
+                {[1, 2, 3].map((s) => (
+                  <div
+                    key={s}
+                    className={`h-2 flex-1 rounded-full transition-colors ${
+                      s <= resetStep ? 'bg-primary' : 'bg-muted'
+                    }`}
+                  />
+                ))}
+              </div>
+              <CardTitle>{stepTitles[resetStep - 1]}</CardTitle>
+              <CardDescription>{stepDescriptions[resetStep - 1]}</CardDescription>
             </CardHeader>
             <CardContent>
-              {resetSent ? (
-                <form onSubmit={handleOtpLogin} className="space-y-4">
+              {resetStep === 1 && (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="otp-email">Email</Label>
-                    <Input
-                      id="otp-email"
+                    <Label htmlFor="reset-email">Email</Label>
+                    <input
+                      id="reset-email"
                       type="email"
                       placeholder="adresa@email.com"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
                       required
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     />
                   </div>
+                  <Button type="submit" className="w-full" disabled={loading || !resetEmail}>
+                    {loading ? 'Se trimite...' : 'Trimite cod de resetare'}
+                  </Button>
+                  <Button type="button" variant="ghost" className="w-full" onClick={() => setShowResetForm(false)}>
+                    Înapoi la autentificare
+                  </Button>
+                </form>
+              )}
+
+              {resetStep === 2 && (
+                <form onSubmit={handleVerifyResetOtp} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="otp-code">Cod OTP (6 cifre)</Label>
-                    <Input
+                    <input
                       id="otp-code"
                       type="text"
                       placeholder="000000"
@@ -158,33 +184,48 @@ const Auth = () => {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                       required
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 tracking-widest text-center text-lg font-bold"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading || otpCode.length !== 6 || !resetEmail}>
-                    {loading ? 'Se verifică...' : 'Autentifică-te'}
+                  <Button type="submit" className="w-full" disabled={otpCode.length !== 6}>
+                    Verifică codul
                   </Button>
-                  <Button type="button" variant="outline" className="w-full" onClick={() => { setShowResetForm(false); setResetSent(false); }}>
-                    Înapoi la autentificare cu parolă
+                  <Button type="button" variant="ghost" className="w-full" onClick={() => { setResetStep(1); setOtpCode(''); }}>
+                    Trimite un alt cod
                   </Button>
                 </form>
-              ) : (
-                <form onSubmit={handleResetPassword} className="space-y-4">
+              )}
+
+              {resetStep === 3 && (
+                <form onSubmit={handleSetNewPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email">Email</Label>
-                    <Input
-                      id="reset-email"
-                      type="email"
-                      placeholder="adresa@email.com"
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
+                    <Label htmlFor="new-password">Parolă nouă</Label>
+                    <input
+                      id="new-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
                       required
+                      minLength={6}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Se trimite...' : 'Trimite cod OTP'}
-                  </Button>
-                  <Button type="button" variant="ghost" className="w-full" onClick={() => setShowResetForm(false)}>
-                    Înapoi la autentificare
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-new-password">Confirmă parola nouă</Label>
+                    <input
+                      id="confirm-new-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading || !newPassword || newPassword !== confirmNewPassword}>
+                    {loading ? 'Se resetează...' : '🔐 Resetează Parola'}
                   </Button>
                 </form>
               )}

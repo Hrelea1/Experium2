@@ -15,13 +15,13 @@ export function PushNotificationSettings() {
       await unsubscribe();
       toast({ title: 'Notificări dezactivate', description: 'Nu vei mai primi notificări push.' });
     } else {
-      const success = await subscribe();
-      if (success) {
+      const result = await subscribe();
+      if (result.success) {
         toast({ title: 'Notificări activate!', description: 'Vei primi notificări push pentru rezervări noi.' });
       } else if (permission === 'denied') {
         toast({ title: 'Permisiune refuzată', description: 'Activează notificările din setările browser-ului.', variant: 'destructive' });
       } else {
-        toast({ title: 'Eroare', description: 'Nu am putut activa notificările push.', variant: 'destructive' });
+        toast({ title: 'Eroare', description: result.error || 'Nu am putut activa notificările push.', variant: 'destructive' });
       }
     }
   };

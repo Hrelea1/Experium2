@@ -49,13 +49,13 @@ export function usePushSubscription() {
     }
   };
 
-  const subscribe = async () => {
-    if (!user || !isSupported) return false;
+  const subscribe = async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user || !isSupported) return { success: false, error: 'Nu este suportat' };
 
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm);
-      if (perm !== 'granted') return false;
+      if (perm !== 'granted') return { success: false, error: 'Permisiune refuzată' };
 
       const reg = await navigator.serviceWorker.register('/sw-push.js');
       await navigator.serviceWorker.ready;
@@ -76,7 +76,7 @@ export function usePushSubscription() {
       }
 
       const { publicKey } = await res.json();
-      if (!publicKey) throw new Error('No VAPID key found in response. Is VAPID_PUBLIC_KEY set in the backend environment?');
+      if (!publicKey) throw new Error('Nu am putut obține cheia VAPID din server.');
 
       // Subscribe to PushManager
       const sub = await reg.pushManager.subscribe({
@@ -94,13 +94,13 @@ export function usePushSubscription() {
         body: JSON.stringify(sub)
       });
 
-      if (!saveRes.ok) throw new Error('Failed to save push subscription');
+      if (!saveRes.ok) throw new Error('Eroare la salvarea abonamentului pe server');
 
       setIsSubscribed(true);
-      return true;
-    } catch (err) {
+      return { success: true };
+    } catch (err: any) {
       console.error('Push subscription failed', err);
-      return false;
+      return { success: false, error: err.message || 'Eroare necunoscută' };
     }
   };
 

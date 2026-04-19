@@ -64,8 +64,11 @@ router.put('/read-all', requireAuth, async (req: Request, res: Response) => {
 });
 
 // ─── Web Push Subscriptions ───────────────────────────────────────────────────
+const VAPID_PUBLIC_KEY_FALLBACK = 'BNdrDaQUzMKERGw_lgXWq4MxNtsgECGJt880L7Jor0j_fNrSfM24hvzxGiVcujVtafjkaCJH9Rj_nf8NdiPXcuw';
+
 router.get('/push/vapid-key', requireAuth, (_req: Request, res: Response) => {
-  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+  const publicKey = process.env.VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY_FALLBACK;
+  res.json({ publicKey });
 });
 
 router.post('/push/subscribe', requireAuth, async (req: Request, res: Response) => {

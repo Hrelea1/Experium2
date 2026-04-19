@@ -128,6 +128,24 @@ export const auth = {
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
     });
   },
+
+  /** Send password reset OTP email */
+  async forgotPassword(email: string) {
+    return request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  /** Reset password with OTP — returns token + user (auto-login) */
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<{ token: string; user: User }> {
+    const result = await request<{ token: string; user: User }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp, new_password: newPassword }),
+    });
+    tokenStore.set(result.token);
+    return result;
+  },
 };
 
 // ─── Experiences ──────────────────────────────────────────────────────────────

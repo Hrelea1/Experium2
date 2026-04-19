@@ -13,6 +13,8 @@ interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<{ error: string | null; user?: User }>;
   otpLogin: (email: string, otp: string) => Promise<{ error: string | null }>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
+  forgotPassword: (email: string) => Promise<{ error: string | null }>;
+  doResetPassword: (email: string, otp: string, newPassword: string) => Promise<{ error: string | null }>;
   refreshUser: () => Promise<void>;
 }
 
@@ -121,14 +123,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ─── resetPassword ─────────────────────────────────────────────────────────
-  // Sends an OTP to the email to use as password reset flow
+  // Legacy: sends an OTP login code (kept for backward compat)
   const resetPassword = async (email: string) => {
+    return forgotPassword(email);
+  };
+
+  // ─── forgotPassword ────────────────────────────────────────────────────────
+  const forgotPassword = async (email: string) => {
     try {
-      await authApi.sendOtp(email);
+      await authApi.forgotPassword(email);
       toast({
         title: 'Email trimis',
-        description: 'Verifică inbox-ul pentru codul OTP de resetare.',
+        description: 'Verifică inbox-ul pentru codul de resetare a parolei.',
       });
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Eroare la trimiterea codului de resetare';
+      toast({ title: 'Eroare', description: message, variant: 'destructive' });
+      return { error: message };
+    }
+  };
+
+  // ─── doResetPassword ───────────────────────────────────────────────────────
+  const doResetPassword = async (email: string, otp: string, newPassword: string) => {
+    try {
+      const result = await authApi.resetPassword(email, otp, newPassword);
+      setUser(result.user);
+      toast({ title: 'Parolă resetată!', description: 'Te-ai autentificat cu noua parolă.' });
       return { error: null };
     } catch (err: any) {
       const message = err.message ?? 'Eroare la resetarea parolei';
@@ -148,6 +169,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       verifyOtp,
       otpLogin,
       resetPassword,
+      forgotPassword,
+      doResetPassword,
       refreshUser,
     }}>
       {children}

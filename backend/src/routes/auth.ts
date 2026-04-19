@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { query, queryOne } from '../db';
 import { signToken, requireAuth } from '../middleware/auth';
 import { generateAndStoreOtp, verifyOtp } from '../services/otp';
-import { sendOtpEmail } from '../services/email';
+import { sendOtpEmail, sendPasswordResetEmail } from '../services/email';
 
 const router = Router();
 
@@ -211,6 +211,70 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
   } catch (err) {
     console.error('[auth/change-password]', err);
     res.status(500).json({ error: 'Password change failed' });
+  }
+});
+
+// ─── POST /auth/forgot-password ───────────────────────────────────────────────
+// Send a password reset OTP to the user's email
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+
+    const user = await queryOne<{ full_name: string }>(
+      'SELECT full_name FROM users WHERE email = $1 AND is_verified = true',
+      [email]
+    );
+
+    // Always respond success to avoid email enumeration
+    if (!user) {
+      return res.json({ message: 'If the email exists, a reset code has been sent.' });
+    }
+
+    const otp = await generateAndStoreOtp(email);
+    await sendPasswordResetEmail(email, otp, user.full_name);
+
+    res.json({ message: 'Reset code sent to email' });
+  } catch (err) {
+    console.error('[auth/forgot-password]', err);
+    res.status(500).json({ error: 'Failed to send reset code' });
+  }
+});
+
+// ─── POST /auth/reset-password ────────────────────────────────────────────────
+// Verify OTP and set a new password — then log in user directly
+router.post('/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { email, otp, new_password } = req.body;
+    if (!email || !otp || !new_password) {
+      return res.status(400).json({ error: 'Email, OTP and new password required' });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const valid = await verifyOtp(email, otp);
+    if (!valid) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+    const hash = await bcrypt.hash(new_password, 12);
+    const user = await queryOne<{ id: string; full_name: string; role: string; avatar_url: string | null }>(
+      `UPDATE users SET password_hash = $1, updated_at = now()
+       WHERE email = $2
+       RETURNING id, full_name, role`,
+      [hash, email]
+    );
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const token = signToken({ userId: user.id, email, role: user.role as 'user' });
+    res.json({
+      token,
+      user: { id: user.id, email, full_name: user.full_name, role: user.role, avatar_url: null },
+      message: 'Password reset successfully'
+    });
+  } catch (err) {
+    console.error('[auth/reset-password]', err);
+    res.status(500).json({ error: 'Password reset failed' });
   }
 });
 
