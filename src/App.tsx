@@ -52,12 +52,18 @@ import { ScrollToTop } from "./components/ScrollToTop";
 import { CookieBanner } from "./components/CookieBanner";
 import DataProcessingAgreement from "./pages/DataProcessingAgreement";
 
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
 const queryClient = new QueryClient();
 
+// Get Client ID from environment variables, fallback for local dev
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here';
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <CartProvider>
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <CartProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -123,6 +129,7 @@ const App = () => (
       </CartProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </GoogleOAuthProvider>
 );
 
 export default App;

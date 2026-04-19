@@ -12,11 +12,16 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { signupSchema } from '@/lib/validations';
 import { z } from 'zod';
+import { GoogleLogin } from '@react-oauth/google';
+// @ts-ignore
+import FacebookLogin from 'react-facebook-login/dist/facebook-login-render-props';
+
+const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || 'your_facebook_app_id_here';
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, signIn, signUp, forgotPassword, doResetPassword } = useAuth();
+  const { user, signIn, signUp, forgotPassword, doResetPassword, loginWithGoogle, loginWithFacebook } = useAuth();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -48,6 +53,68 @@ const Auth = () => {
   useEffect(() => {
     if (mode === 'reset') setShowResetForm(true);
   }, [mode]);
+
+  // ─── Social Logins ──────────────────────────────────────────────────────────
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (credentialResponse.credential) {
+      setLoading(true);
+      const { error } = await loginWithGoogle(credentialResponse.credential);
+      setLoading(false);
+      if (!error) navigate('/');
+    }
+  };
+
+  const handleFacebookCallback = async (response: any) => {
+    if (response.accessToken) {
+      setLoading(true);
+      const { error } = await loginWithFacebook(response.accessToken);
+      setLoading(false);
+      if (!error) navigate('/');
+    }
+  };
+
+  const SocialLogins = () => (
+    <div className="mt-6 flex flex-col space-y-4">
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-card px-2 text-muted-foreground">Sau continuă cu</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex justify-center w-full">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => toast({ title: 'Eroare', description: 'Autentificarea cu Google a eșuat.', variant: 'destructive' })}
+            theme="outline"
+            size="large"
+            width="100%"
+          />
+        </div>
+        <FacebookLogin
+          appId={FACEBOOK_APP_ID}
+          callback={handleFacebookCallback}
+          fields="name,email,picture"
+          render={(renderProps: any) => (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 border-[#1877F2] text-[#1877F2] hover:bg-[#1877F2] hover:text-white transition-colors"
+              onClick={renderProps.onClick}
+              disabled={loading}
+            >
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path fillRule="evenodd" d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" clipRule="evenodd" />
+              </svg>
+              Continuă cu Facebook
+            </Button>
+          )}
+        />
+      </div>
+    </div>
+  );
 
   // ─── Login ──────────────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
@@ -290,6 +357,7 @@ const Auth = () => {
                     {loading ? 'Se autentifică...' : 'Autentifică-te'}
                   </Button>
                 </form>
+                <SocialLogins />
               </TabsContent>
 
               {/* ── Signup tab ── */}
@@ -347,6 +415,7 @@ const Auth = () => {
                       {loading ? 'Se creează contul...' : 'Creează cont'}
                     </Button>
                   </form>
+                  <SocialLogins />
               </TabsContent>
             </Tabs>
           </CardContent>

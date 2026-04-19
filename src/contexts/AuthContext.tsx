@@ -15,6 +15,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   forgotPassword: (email: string) => Promise<{ error: string | null }>;
   doResetPassword: (email: string, otp: string, newPassword: string) => Promise<{ error: string | null }>;
+  loginWithGoogle: (token: string) => Promise<{ error: string | null }>;
+  loginWithFacebook: (token: string) => Promise<{ error: string | null }>;
   refreshUser: () => Promise<void>;
 }
 
@@ -158,6 +160,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // ─── loginWithGoogle ───────────────────────────────────────────────────────
+  const loginWithGoogle = async (token: string) => {
+    try {
+      const result = await authApi.googleLogin(token);
+      setUser(result.user);
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Autentificare cu Google eșuată';
+      toast({ title: 'Eroare', description: message, variant: 'destructive' });
+      return { error: message };
+    }
+  };
+
+  // ─── loginWithFacebook ─────────────────────────────────────────────────────
+  const loginWithFacebook = async (token: string) => {
+    try {
+      const result = await authApi.facebookLogin(token);
+      setUser(result.user);
+      return { error: null };
+    } catch (err: any) {
+      const message = err.message ?? 'Autentificare cu Facebook eșuată';
+      toast({ title: 'Eroare', description: message, variant: 'destructive' });
+      return { error: message };
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -171,6 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resetPassword,
       forgotPassword,
       doResetPassword,
+      loginWithGoogle,
+      loginWithFacebook,
       refreshUser,
     }}>
       {children}

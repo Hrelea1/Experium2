@@ -4,6 +4,11 @@ import { query, queryOne } from '../db';
 import { signToken, requireAuth } from '../middleware/auth';
 import { generateAndStoreOtp, verifyOtp } from '../services/otp';
 import { sendOtpEmail, sendPasswordResetEmail } from '../services/email';
+import { OAuth2Client } from 'google-auth-library';
+import crypto from 'crypto';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const facebookAppId = process.env.FACEBOOK_APP_ID;
 
 const router = Router();
 

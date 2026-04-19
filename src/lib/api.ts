@@ -146,6 +146,26 @@ export const auth = {
     tokenStore.set(result.token);
     return result;
   },
+
+  /** Login with Google */
+  async googleLogin(token: string): Promise<{ token: string; user: User }> {
+    const result = await request<{ token: string; user: User }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+    tokenStore.set(result.token);
+    return result;
+  },
+
+  /** Login with Facebook */
+  async facebookLogin(token: string): Promise<{ token: string; user: User }> {
+    const result = await request<{ token: string; user: User }>('/auth/facebook', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+    tokenStore.set(result.token);
+    return result;
+  },
 };
 
 // ─── Experiences ──────────────────────────────────────────────────────────────
