@@ -283,4 +283,115 @@ router.post('/reset-password', async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /auth/google ────────────────────────────────────────────────────────
+router.post('/google', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Google token required' });
+
+    const { OAuth2Client } = await import('google-auth-library');
+    const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res.status(400).json({ error: 'Invalid Google token' });
+    }
+
+    const { email, name, picture } = payload;
+
+    let user = await queryOne<{ id: string; role: string; full_name: string; avatar_url: string | null }>(
+      `SELECT u.id, u.role, u.full_name, p.avatar_url
+       FROM users u LEFT JOIN profiles p ON p.id = u.id
+       WHERE u.email = $1`,
+      [email]
+    );
+
+    if (!user) {
+      const userRow = await queryOne<{ id: string; role: string }>(
+        `INSERT INTO users (email, password_hash, full_name, is_verified)
+         VALUES ($1, NULL, $2, true) RETURNING id, role`,
+        [email, name || 'User']
+      );
+      if (!userRow) return res.status(500).json({ error: 'Failed to create user' });
+
+      await query(
+        `INSERT INTO profiles (id, email, full_name, avatar_url)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO UPDATE SET avatar_url = COALESCE(profiles.avatar_url, EXCLUDED.avatar_url)`,
+        [userRow.id, email, name || 'User', picture || null]
+      );
+
+      user = { id: userRow.id, role: userRow.role, full_name: name || 'User', avatar_url: picture || null };
+    } else if (picture && !user.avatar_url) {
+      await query(`UPDATE profiles SET avatar_url = $1 WHERE id = $2`, [picture, user.id]);
+      user.avatar_url = picture;
+    }
+
+    const jwtToken = signToken({ userId: user.id, email, role: user.role as 'user' });
+    res.json({ token: jwtToken, user: { id: user.id, email, full_name: user.full_name, role: user.role, avatar_url: user.avatar_url } });
+  } catch (err) {
+    console.error('[auth/google]', err);
+    res.status(500).json({ error: 'Google login failed' });
+  }
+});
+
+// ─── POST /auth/facebook ──────────────────────────────────────────────────────
+router.post('/facebook', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Facebook token required' });
+
+    const response = await fetch(`https://graph.facebook.com/me?access_token=${token}&fields=id,name,email,picture.type(large)`);
+    const data = await response.json() as any;
+
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || 'Invalid Facebook token');
+    }
+
+    const email = data.email || `fb_${data.id}@facebook.experium.ro`;
+    const name = data.name;
+    const picture = data.picture?.data?.url;
+
+    let user = await queryOne<{ id: string; role: string; full_name: string; avatar_url: string | null }>(
+      `SELECT u.id, u.role, u.full_name, p.avatar_url
+       FROM users u LEFT JOIN profiles p ON p.id = u.id
+       WHERE u.email = $1`,
+      [email]
+    );
+
+    if (!user) {
+      const userRow = await queryOne<{ id: string; role: string }>(
+        `INSERT INTO users (email, password_hash, full_name, is_verified)
+         VALUES ($1, NULL, $2, true) RETURNING id, role`,
+        [email, name || 'User']
+      );
+      if (!userRow) return res.status(500).json({ error: 'Failed to create user' });
+
+      await query(
+        `INSERT INTO profiles (id, email, full_name, avatar_url)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (id) DO UPDATE SET avatar_url = COALESCE(profiles.avatar_url, EXCLUDED.avatar_url)`,
+        [userRow.id, email, name || 'User', picture || null]
+      );
+
+      user = { id: userRow.id, role: userRow.role, full_name: name || 'User', avatar_url: picture || null };
+    } else if (picture && !user.avatar_url) {
+      await query(`UPDATE profiles SET avatar_url = $1 WHERE id = $2`, [picture, user.id]);
+      user.avatar_url = picture;
+    }
+
+    const jwtToken = signToken({ userId: user.id, email, role: user.role as 'user' });
+    res.json({ token: jwtToken, user: { id: user.id, email, full_name: user.full_name, role: user.role, avatar_url: user.avatar_url } });
+  } catch (err) {
+    console.error('[auth/facebook]', err);
+    res.status(500).json({ error: 'Facebook login failed' });
+  }
+});
+
 export default router;
+
