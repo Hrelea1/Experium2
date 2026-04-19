@@ -40,7 +40,7 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-2 md:col-span-3 lg:col-span-2">
             <Link to="/" className="flex items-center gap-1 mb-4">
-              <span 
+              <span
                 className="font-bold text-2xl flex items-baseline"
                 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
               >
@@ -55,7 +55,7 @@ export function Footer() {
             {/* Contact Info */}
             <div className="space-y-3 mb-6">
               <a href="tel:+40721234567" className="block text-secondary-foreground/70 hover:text-primary transition-colors">
-                +40 721 234 567
+                +40 732696106
               </a>
               <a href="mailto:office@experium.ro" className="block text-secondary-foreground/70 hover:text-primary transition-colors">
                 office@experium.ro
