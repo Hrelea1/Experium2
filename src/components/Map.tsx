@@ -28,15 +28,22 @@ const Map = ({ experiences, userLocation, onExperienceClick }: MapProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch token (no auth required)
+  // Fetch token (local env first, then backend fallback)
   useEffect(() => {
     const fetchToken = async () => {
       try {
+        const envToken = import.meta.env.VITE_MAPBOX_TOKEN;
+        if (envToken) {
+          setMapboxToken(envToken);
+          setLoading(false);
+          return;
+        }
+
         const { token } = await api.config.getMapboxToken();
         if (token) {
           setMapboxToken(token);
         } else {
-          setError('Token Mapbox nu este configurat în Supabase secrets.');
+          setError('Mapbox token not set.');
         }
       } catch (err) {
         console.error('Map token error:', err);
@@ -164,7 +171,7 @@ const Map = ({ experiences, userLocation, onExperienceClick }: MapProps) => {
           <p className="font-medium text-foreground mb-1">Hartă indisponibilă</p>
           <p className="text-sm text-muted-foreground">{error}</p>
           <p className="text-xs text-muted-foreground mt-3 bg-muted-foreground/10 rounded p-2">
-            Adaugă <code>MAPBOX_TOKEN</code> în Supabase → Project Settings → Edge Functions → Secrets
+            Adaugă <code>VITE_MAPBOX_TOKEN=...</code> în fișierul <code>.env</code> din rădăcina proiectului.
           </p>
         </div>
       </div>
