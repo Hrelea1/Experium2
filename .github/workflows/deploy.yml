@@ -20,8 +20,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,11 +31,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build project
         env:
           VITE_API_URL: https://experium2-production.up.railway.app
+          VITE_GOOGLE_CLIENT_ID: 814021188774-dtt61a4ttqvjefsbmhed0j1d4di1nhag.apps.googleusercontent.com
+          VITE_FACEBOOK_APP_ID: 25652357304439970
         run: npm run build
 
       - name: Setup GitHub Pages
