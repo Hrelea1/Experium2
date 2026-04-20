@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,37 +47,16 @@ const ManageBookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          experiences (
-            title
-          )
-        `)
-        .order('booking_date', { ascending: false });
+      const bData = await api.admin.getBookings();
+      setBookings(bData);
 
-      if (error) throw error;
-
-      const bookingsData = data || [];
-      setBookings(bookingsData);
-
-      // Fetch user profiles separately
-      const userIds = [...new Set(bookingsData.map(b => b.user_id))];
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', userIds);
-
-        if (!profilesError && profiles) {
-          const profilesMap: Record<string, UserProfile> = {};
-          profiles.forEach(p => {
-            profilesMap[p.id] = { full_name: p.full_name, email: p.email };
-          });
-          setUserProfiles(profilesMap);
+      const profilesMap: Record<string, UserProfile> = {};
+      bData.forEach((b: any) => {
+        if (b.user_profile) {
+          profilesMap[b.user_id] = b.user_profile;
         }
-      }
+      });
+      setUserProfiles(profilesMap);
     } catch (error: any) {
       toast({
         title: 'Eroare',
@@ -91,12 +70,7 @@ const ManageBookings = () => {
 
   const updateBookingStatus = async (id: string, newStatus: 'pending' | 'confirmed' | 'cancelled' | 'completed') => {
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.admin.updateBookingStatus(id, newStatus);
 
       toast({
         title: 'Succes',

@@ -433,6 +433,58 @@ export const admin = {
   async setStarStatus(userId: string, is_starred: boolean) {
     return request(`/admin/users/${userId}/star`, { method: 'PUT', body: JSON.stringify({ is_starred }) });
   },
+
+  async getBookings() {
+    return request('/admin/bookings');
+  },
+
+  async updateBookingStatus(bookingId: string, status: string) {
+    return request(`/admin/bookings/${bookingId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  },
+
+  async getApplications() {
+    return request('/admin/applications');
+  },
+
+  async updateApplicationStatus(applicationId: string, status: string) {
+    return request(`/admin/applications/${applicationId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  },
+
+  async getContentAudit() {
+    return request('/admin/content-audit');
+  },
+};
+
+// ─── Blog ──────────────────────────────────────────────────────────────────────
+export const blog = {
+  async getCategories() {
+    return request('/blog/categories');
+  },
+  async getPosts() {
+    return request('/blog/posts');
+  },
+  async getPost(idOrSlug: string) {
+    return request(`/blog/posts/${idOrSlug}`);
+  },
+  async createPost(data: any) {
+    return request('/blog/posts', { method: 'POST', body: JSON.stringify(data) });
+  },
+  async updatePost(id: string, data: any) {
+    return request(`/blog/posts/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+  async deletePost(id: string) {
+    return request(`/blog/posts/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ─── Partners ──────────────────────────────────────────────────────────────────
+export const partners = {
+  async apply(data: any): Promise<{ success: boolean; id?: string }> {
+    return request('/partners/apply', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

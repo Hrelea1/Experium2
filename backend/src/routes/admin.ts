@@ -154,6 +154,80 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
   }
 });
 
+// ─── GET /admin/bookings ────────────────────────────────────────────────────────
+router.get('/bookings', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { query } = require('../db');
+    const bookings = await query(`
+      SELECT b.*, e.title as experience_title, u.first_name, u.last_name, u.email
+      FROM bookings b
+      LEFT JOIN experiences e ON e.id = b.experience_id
+      LEFT JOIN users u ON u.id = b.user_id
+      ORDER BY b.created_at DESC
+    `);
+    
+    const formatted = bookings.map((b: any) => ({
+      ...b,
+      experiences: { title: b.experience_title },
+      user_profile: { full_name: `${b.first_name || ''} ${b.last_name || ''}`.trim(), email: b.email }
+    }));
+    
+    res.json(formatted);
+  } catch (err) {
+    console.error('[GET /admin/bookings]', err);
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// ─── PATCH /admin/bookings/:id/status ──────────────────────────────────────────
+router.patch('/bookings/:id/status', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { query } = require('../db');
+    await query('UPDATE bookings SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[PATCH /admin/bookings/:id]', err);
+    res.status(500).json({ error: 'Failed to update booking status' });
+  }
+});
+
+// ─── GET /admin/applications ───────────────────────────────────────────────────
+router.get('/applications', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { query } = require('../db');
+    const apps = await query('SELECT * FROM partner_applications ORDER BY created_at DESC');
+    res.json(apps);
+  } catch (err) {
+    console.error('[GET /admin/applications]', err);
+    res.status(500).json({ error: 'Failed to fetch applications' });
+  }
+});
+
+// ─── PATCH /admin/applications/:id/status ──────────────────────────────────────
+router.patch('/applications/:id/status', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { query } = require('../db');
+    await query('UPDATE partner_applications SET status = $1, updated_at = now() WHERE id = $2', [req.body.status, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[PATCH /admin/applications/:id]', err);
+    res.status(500).json({ error: 'Failed to update application status' });
+  }
+});
+
+// ─── GET /admin/content-audit ──────────────────────────────────────────────────
+router.get('/content-audit', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const { query } = require('../db');
+    // Note: the schema created created_at, but frontend expects changed_at. Adjusting alias.
+    const logs = await query('SELECT id, section_key, old_content, new_content, changed_by, created_at AS changed_at FROM homepage_content_audit ORDER BY created_at DESC LIMIT 50');
+    res.json(logs);
+  } catch (err) {
+    console.error('[GET /admin/content-audit]', err);
+    res.status(500).json({ error: 'Failed to fetch content audit logs' });
+  }
+});
+
 // ─── GET /admin/stats ─────────────────────────────────────────────────────────
 router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
   try {

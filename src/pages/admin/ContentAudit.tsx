@@ -1,7 +1,7 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Loader2, History, User, Calendar } from "lucide-react";
 import { format } from "date-fns";
 
@@ -18,13 +18,7 @@ export default function ContentAudit() {
   const { data: logs, isLoading } = useQuery({
     queryKey: ["content-audit"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("homepage_content_audit")
-        .select("*")
-        .order("changed_at", { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
+      const data = await api.admin.getContentAudit();
       return data as AuditLog[];
     },
   });

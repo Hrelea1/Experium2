@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,16 +43,16 @@ const Blog = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [postsRes, catsRes] = await Promise.all([
-        supabase
-          .from("blog_posts")
-          .select("id, title, slug, meta_description, featured_image, author, tags, published_at, category_id")
-          .eq("status", "published")
-          .order("published_at", { ascending: false }),
-        supabase.from("blog_categories").select("*").order("name"),
-      ]);
-      if (postsRes.data) setPosts(postsRes.data);
-      if (catsRes.data) setCategories(catsRes.data);
+      try {
+        const [postsData, catsData] = await Promise.all([
+          api.blog.getPosts(),
+          api.blog.getCategories(),
+        ]);
+        if (postsData) setPosts(postsData);
+        if (catsData) setCategories(catsData);
+      } catch (err) {
+        console.error("Failed to fetch blog data", err);
+      }
       setLoading(false);
     };
     fetchData();

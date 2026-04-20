@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 const Partners = () => {
   const { toast } = useToast();
@@ -77,25 +77,26 @@ const Partners = () => {
     }
     setLoading(true);
 
-    const { error } = await supabase.from("partner_applications").insert({
-      full_name: formData.full_name,
-      business_name: formData.business_name,
-      email: formData.email,
-      phone: formData.phone,
-      city: formData.city,
-      experience_type: formData.experience_type,
-      description: formData.description,
-      website: formData.website || null,
-      gdpr_consent: formData.gdpr_consent,
-      terms_accepted: formData.terms_accepted,
-    });
+    try {
+      await api.partners.apply({
+        full_name: formData.full_name,
+        business_name: formData.business_name,
+        email: formData.email,
+        phone: formData.phone,
+        city: formData.city,
+        experience_type: formData.experience_type,
+        description: formData.description,
+        website: formData.website || null,
+        gdpr_consent: formData.gdpr_consent,
+        terms_accepted: formData.terms_accepted,
+      });
 
-    setLoading(false);
-    if (error) {
-      toast({ title: "Eroare", description: "Nu s-a putut trimite aplicația. Încearcă din nou.", variant: "destructive" });
-    } else {
+      setLoading(false);
       toast({ title: "Aplicație trimisă cu succes! 🎉", description: "Echipa noastră te va contacta în curând." });
       setFormData({ full_name: "", business_name: "", email: "", phone: "", city: "", experience_type: "", description: "", website: "", gdpr_consent: false, terms_accepted: false });
+    } catch (error) {
+      setLoading(false);
+      toast({ title: "Eroare", description: "Nu s-a putut trimite aplicația. Încearcă din nou.", variant: "destructive" });
     }
   };
 

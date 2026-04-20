@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -39,11 +39,12 @@ const ManageBlog = () => {
 
   const fetchPosts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("blog_posts")
-      .select("id, title, slug, status, author, category_id, published_at, created_at, tags")
-      .order("created_at", { ascending: false });
-    if (!error && data) setPosts(data);
+    try {
+      const data = await api.blog.getPosts();
+      setPosts(data || []);
+    } catch (e) {
+      toast({ title: "Eroare la încărcare blog", variant: "destructive" });
+    }
     setLoading(false);
   };
 
@@ -51,12 +52,12 @@ const ManageBlog = () => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const { error } = await supabase.from("blog_posts").delete().eq("id", deleteId);
-    if (error) {
-      toast({ title: "Eroare", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await api.blog.deletePost(deleteId);
       toast({ title: "Articol șters" });
       fetchPosts();
+    } catch (e: any) {
+      toast({ title: "Eroare", description: e.message, variant: "destructive" });
     }
     setDeleteId(null);
   };
@@ -65,10 +66,12 @@ const ManageBlog = () => {
     const newStatus = post.status === "published" ? "draft" : "published";
     const update: any = { status: newStatus };
     if (newStatus === "published") update.published_at = new Date().toISOString();
-    const { error } = await supabase.from("blog_posts").update(update).eq("id", post.id);
-    if (!error) {
+    try {
+      await api.blog.updatePost(post.id, update);
       toast({ title: newStatus === "published" ? "Articol publicat" : "Articol trecut în ciornă" });
       fetchPosts();
+    } catch (e) {
+      toast({ title: "Eroare", variant: "destructive" });
     }
   };
 

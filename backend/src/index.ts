@@ -19,6 +19,8 @@ import notificationRoutes from './routes/notifications';
 import checkoutRoutes from './routes/checkout';
 import configRoutes from './routes/config';
 import reviewRoutes from './routes/reviews';
+import blogRoutes from './routes/blog';
+import partnerRoutes from './routes/partners';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -59,6 +61,8 @@ app.use('/notifications', notificationRoutes);
 app.use('/checkout', checkoutRoutes);
 app.use('/config', configRoutes);
 app.use('/reviews', reviewRoutes);
+app.use('/blog', blogRoutes);
+app.use('/partners', partnerRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

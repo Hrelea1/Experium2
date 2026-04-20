@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,35 +43,26 @@ const BlogPost = () => {
   useEffect(() => {
     const fetchPost = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("blog_posts")
-        .select("*")
-        .eq("slug", slug)
-        .single();
+      try {
+        if (!slug) return;
+        const data = await api.blog.getPost(slug);
+        if (data) {
+          setPost(data);
+          document.title = data.meta_title || data.title;
 
-      if (data && !error) {
-        setPost(data);
-        // Update page title
-        document.title = data.meta_title || data.title;
+          if (data.category_id) {
+            const cats = await api.blog.getCategories();
+            const cat = cats?.find((c: any) => c.id === data.category_id);
+            if (cat) setCategoryName(cat.name);
+          }
 
-        // Fetch category name
-        if (data.category_id) {
-          const { data: cat } = await supabase
-            .from("blog_categories")
-            .select("name")
-            .eq("id", data.category_id)
-            .single();
-          if (cat) setCategoryName(cat.name);
+          const allPosts = await api.blog.getPosts();
+          if (allPosts) {
+            setRelated(allPosts.filter((p: any) => p.id !== data.id).slice(0, 3));
+          }
         }
-
-        // Fetch related posts (same category or tags overlap)
-        const { data: relatedData } = await supabase
-          .from("blog_posts")
-          .select("id, title, slug, featured_image, meta_description")
-          .eq("status", "published")
-          .neq("id", data.id)
-          .limit(3);
-        if (relatedData) setRelated(relatedData);
+      } catch (err) {
+        console.error("Post fetch error", err);
       }
       setLoading(false);
     };

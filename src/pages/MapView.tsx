@@ -6,7 +6,7 @@ import Map from '@/components/Map';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 
 interface MapExperience {
   id: string;
@@ -26,14 +26,9 @@ export default function MapView() {
   useEffect(() => {
     // Fetch experiences with coordinates from DB
     const fetchExperiences = async () => {
-      const { data } = await supabase
-        .from('experiences')
-        .select('id, title, location_name, price, latitude, longitude')
-        .eq('is_active', true)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-
-      if (data) {
+      try {
+        const result = await api.experiences.list({ limit: 1000 } as any);
+        const data = result.data || [];
         setExperiences(
           data
             .filter((e: any) => e.latitude && e.longitude)
@@ -45,6 +40,8 @@ export default function MapView() {
               coordinates: [Number(e.longitude), Number(e.latitude)] as [number, number],
             }))
         );
+      } catch (err) {
+        console.error("Failed to fetch experiences for map", err);
       }
       setIsLoading(false);
     };

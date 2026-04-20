@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,10 +44,7 @@ const ManagePartnerApplications = () => {
 
   const fetchApps = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("partner_applications")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const data = await api.admin.getApplications();
     if (data) setApps(data);
     setLoading(false);
   };
@@ -55,10 +52,12 @@ const ManagePartnerApplications = () => {
   useEffect(() => { fetchApps(); }, []);
 
   const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("partner_applications").update({ status }).eq("id", id);
-    if (!error) {
+    try {
+      await api.admin.updateApplicationStatus(id, status);
       toast({ title: "Status actualizat" });
       fetchApps();
+    } catch {
+      toast({ title: "Eroare la actualizare", variant: "destructive" });
     }
   };
 

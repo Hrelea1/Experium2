@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,15 +45,15 @@ const BlogEditor = () => {
   });
 
   useEffect(() => {
-    supabase.from("blog_categories").select("*").order("name").then(({ data }) => {
+    api.blog.getCategories().then((data) => {
       if (data) setCategories(data);
     });
   }, []);
 
   useEffect(() => {
-    if (!isEdit) return;
-    supabase.from("blog_posts").select("*").eq("id", id).single().then(({ data, error }) => {
-      if (data && !error) {
+    if (!isEdit || !id) return;
+    api.blog.getPost(id).then((data) => {
+      if (data) {
         setForm({
           title: data.title,
           slug: data.slug,
@@ -109,19 +109,18 @@ const BlogEditor = () => {
     };
     if (publishNow) payload.published_at = new Date().toISOString();
 
-    let error;
-    if (isEdit) {
-      ({ error } = await supabase.from("blog_posts").update(payload).eq("id", id));
-    } else {
-      ({ error } = await supabase.from("blog_posts").insert(payload));
-    }
-
-    setLoading(false);
-    if (error) {
-      toast({ title: "Eroare", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      if (isEdit && id) {
+        await api.blog.updatePost(id, payload);
+      } else {
+        await api.blog.createPost(payload);
+      }
       toast({ title: publishNow ? "Articol publicat!" : "Articol salvat!" });
       navigate("/admin/blog");
+    } catch (error: any) {
+      toast({ title: "Eroare", description: error.message || "Eroare la salvare", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 

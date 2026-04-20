@@ -164,6 +164,8 @@ CREATE TABLE IF NOT EXISTS experiences (
   is_featured       BOOLEAN DEFAULT false,
   provider_type     TEXT NOT NULL DEFAULT 'service' CHECK (provider_type IN ('accommodation', 'service')),
   google_maps_url   TEXT,
+  latitude          NUMERIC(10, 7),
+  longitude         NUMERIC(10, 7),
   created_at        TIMESTAMPTZ DEFAULT now(),
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
@@ -473,8 +475,92 @@ BEGIN
     SELECT id FROM categories WHERE slug IN ('spa-si-relaxare', 'gastronomie', 'aventura-si-sport', 'natura')
   );
 
-  -- 3. Delete all other categories
+    -- 3. Delete all other categories
   DELETE FROM categories
   WHERE slug NOT IN ('spa-si-relaxare', 'gastronomie', 'aventura-si-sport', 'natura');
 END $$;
+
+-- ADD MISSING MAP COLUMNS
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name='experiences' AND column_name='latitude'
+  ) THEN
+    ALTER TABLE experiences ADD COLUMN latitude NUMERIC(15, 7);
+    ALTER TABLE experiences ADD COLUMN longitude NUMERIC(15, 7);
+  END IF;
+END $$;
+
+-- =============================================================================
+-- BLOG MODULE
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS blog_categories (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL UNIQUE,
+  slug          TEXT NOT NULL UNIQUE,
+  description   TEXT,
+  display_order INTEGER DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS blog_posts (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title         TEXT NOT NULL,
+  slug          TEXT NOT NULL UNIQUE,
+  content       TEXT,
+  excerpt       TEXT,
+  cover_image   TEXT,
+  featured_image TEXT,
+  meta_title    TEXT,
+  meta_description TEXT,
+  status        TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+  author        TEXT,
+  category_id   UUID REFERENCES blog_categories(id) ON DELETE SET NULL,
+  tags          TEXT[] DEFAULT '{}'::text[],
+  published_at  TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  updated_at    TIMESTAMPTZ DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS blog_posts_updated_at ON blog_posts;
+CREATE TRIGGER blog_posts_updated_at BEFORE UPDATE ON blog_posts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- PARTNER APPLICATIONS
+-- =============================================================================
+DROP TABLE IF EXISTS partner_applications CASCADE;
+CREATE TABLE IF NOT EXISTS partner_applications (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name       TEXT NOT NULL,
+  business_name   TEXT NOT NULL,
+  email           TEXT NOT NULL,
+  phone           TEXT NOT NULL,
+  city            TEXT NOT NULL,
+  experience_type TEXT NOT NULL,
+  description     TEXT,
+  website         TEXT,
+  gdpr_consent    BOOLEAN NOT NULL DEFAULT false,
+  terms_accepted  BOOLEAN NOT NULL DEFAULT false,
+  status          TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'approved', 'rejected')),
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  updated_at      TIMESTAMPTZ DEFAULT now()
+);
+
+DROP TRIGGER IF EXISTS partner_app_updated_at ON partner_applications;
+CREATE TRIGGER partner_app_updated_at BEFORE UPDATE ON partner_applications
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- CONTENT AUDIT
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS homepage_content_audit (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  section_key  TEXT NOT NULL,
+  old_content  JSONB,
+  new_content  JSONB,
+  changed_by   TEXT,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
 

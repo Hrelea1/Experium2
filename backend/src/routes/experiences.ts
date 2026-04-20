@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAuth, requireAdmin, optionalAuth, requireRole } from '../middleware/auth';
 import { query, queryOne, pool } from '../db';
+import { extractGoogleMapsCoords } from '../utils/mapUtils';
 
 const router = Router();
 
@@ -64,7 +65,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const rows = await query(
       `SELECT
         e.id, e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.pricing_tiers,
-        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url,
+        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url, e.latitude, e.longitude,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
@@ -96,6 +97,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       weekend_price: r.weekend_price ? Number(r.weekend_price) : null,
       avg_rating: Number(r.avg_rating),
       total_reviews: Number(r.total_reviews),
+      latitude: r.latitude ? Number(r.latitude) : null,
+      longitude: r.longitude ? Number(r.longitude) : null,
     }));
 
     res.json({ data: formattedRows, total: parseInt(countResult?.count ?? '0', 10) });
@@ -116,7 +119,7 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
         ep.id,
         ep.experience_id,
         e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.pricing_tiers,
-        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url,
+        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url, e.latitude, e.longitude,
         e.provider_type,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
@@ -155,6 +158,8 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
         is_active: r.is_active,
         created_at: r.created_at,
         google_maps_url: r.google_maps_url,
+        latitude: r.latitude ? Number(r.latitude) : null,
+        longitude: r.longitude ? Number(r.longitude) : null,
         category_name: r.category_name,
         category_slug: r.category_slug,
         category_icon: r.category_icon,
@@ -181,7 +186,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
         e.id, e.title, e.description, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.includes, e.pricing_tiers,
         e.category_id, e.region_id, e.county_id, e.city_id, e.location_name,
         e.duration_minutes, e.max_participants, e.min_participants, e.min_age,
-        e.avg_rating, e.total_reviews, e.is_active, e.is_featured, e.google_maps_url,
+        e.avg_rating, e.total_reviews, e.is_active, e.is_featured, e.google_maps_url, e.latitude, e.longitude,
         e.created_at, e.updated_at,
         ep.provider_user_id AS provider_id,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
@@ -241,6 +246,8 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
       weekend_price: experience.weekend_price ? Number(experience.weekend_price) : null,
       avg_rating: Number(experience.avg_rating),
       total_reviews: Number(experience.total_reviews),
+      latitude: experience.latitude ? Number(experience.latitude) : null,
+      longitude: experience.longitude ? Number(experience.longitude) : null,
       is_assisted: Boolean(experience.is_assisted),
       provider_id: providerRow?.provider_user_id ?? null,
     };
@@ -273,17 +280,27 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
       actualProviderId = req.user!.userId;
     }
 
+    let lat = null;
+    let lng = null;
+    if (google_maps_url) {
+      const coords = await extractGoogleMapsCoords(google_maps_url);
+      if (coords) {
+        lat = coords.lat;
+        lng = coords.lng;
+      }
+    }
+
     await client.query('BEGIN');
 
     // 1. Insert experience
     const expRes = await client.query(
       `INSERT INTO experiences
         (title, description, short_description, price, original_price, child_price, child_price_description, weekend_price, includes, pricing_tiers, category_id, region_id,
-         county_id, city_id, location_name, google_maps_url, duration_minutes, max_participants, min_participants, min_age, is_featured)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+         county_id, city_id, location_name, google_maps_url, latitude, longitude, duration_minutes, max_participants, min_participants, min_age, is_featured)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
        RETURNING id`,
       [title, description, short_description, price, original_price ?? null, child_price ?? null, child_price_description ?? null, weekend_price ?? null, includes ?? [], pricing_tiers ? JSON.stringify(pricing_tiers) : '[]', category_id, region_id,
-       county_id ?? null, city_id ?? null, location_name, google_maps_url ?? null, duration_minutes ?? null,
+       county_id ?? null, city_id ?? null, location_name, google_maps_url ?? null, lat, lng, duration_minutes ?? null,
        max_participants ?? 10, min_participants ?? 1, min_age ?? null, is_featured ?? false]
     );
     const experienceId = expRes.rows[0].id;
@@ -342,6 +359,21 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
     const allowed = ['title','description','short_description','price','original_price','child_price','child_price_description','weekend_price','includes','pricing_tiers',
       'category_id','region_id','county_id','city_id','location_name', 'google_maps_url',
       'duration_minutes','max_participants','min_participants','min_age','is_featured','is_active'];
+
+    if ('google_maps_url' in fields) {
+      if (fields.google_maps_url) {
+        const coords = await extractGoogleMapsCoords(fields.google_maps_url);
+        if (coords) {
+          fields.latitude = coords.lat;
+          fields.longitude = coords.lng;
+          allowed.push('latitude', 'longitude');
+        }
+      } else {
+        fields.latitude = null;
+        fields.longitude = null;
+        allowed.push('latitude', 'longitude');
+      }
+    }
 
     const client = await pool.connect();
     

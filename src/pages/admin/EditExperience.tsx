@@ -46,6 +46,7 @@ type ExperienceRow = {
   weekend_price: number | null;
   category_id: string;
   region_id: string;
+  google_maps_url: string | null;
   duration_minutes: number | null;
   max_participants: number | null;
   min_participants: number | null;
@@ -142,6 +143,7 @@ export default function EditExperience() {
   const [shortDescription, setShortDescription] = useState("");
   const [description, setDescription] = useState("");
   const [locationName, setLocationName] = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [regionId, setRegionId] = useState<string>("");
   const [providerId, setProviderId] = useState<string>("none");
@@ -229,6 +231,7 @@ export default function EditExperience() {
           is_active: exp.is_active ?? true,
           is_featured: exp.is_featured ?? false,
           provider_id: exp.provider_id ?? "none",
+          google_maps_url: exp.google_maps_url || null,
         };
 
         setOriginalExperience(expRow);
@@ -243,6 +246,7 @@ export default function EditExperience() {
         setDescription(expRow.description ?? "");
         setIncludes(Array.isArray(expRow.includes) ? expRow.includes : []);
         setLocationName(expRow.location_name ?? "");
+        setGoogleMapsUrl(expRow.google_maps_url ?? "");
         setCategoryId(expRow.category_id ?? "");
         setRegionId(expRow.region_id ?? "");
         setProviderId(expRow.provider_id ?? "none");
@@ -395,6 +399,7 @@ export default function EditExperience() {
       patch.child_price_description = childPriceDescription.trim() || null;
     }
     if (locationName.trim() !== originalExperience.location_name) patch.location_name = locationName.trim();
+    if ((googleMapsUrl.trim() || null) !== (originalExperience.google_maps_url ?? null)) patch.google_maps_url = googleMapsUrl.trim() || null;
     if (categoryId !== originalExperience.category_id) patch.category_id = categoryId;
     if (regionId !== originalExperience.region_id) patch.region_id = regionId;
 
@@ -566,6 +571,15 @@ export default function EditExperience() {
                       id="location"
                       value={locationName}
                       onChange={(e) => setLocationName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="google_maps_url">Link Google Maps (pt hartă coordonate precise)</Label>
+                    <Input
+                      id="google_maps_url"
+                      value={googleMapsUrl}
+                      onChange={(e) => setGoogleMapsUrl(e.target.value)}
                     />
                   </div>
                 </div>

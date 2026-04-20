@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,29 +40,16 @@ const ManageOrders = () => {
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`*, experiences(title)`)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const bData = data || [];
+      const bData = await api.admin.getBookings();
       setBookings(bData);
 
-      const userIds = [...new Set(bData.map(b => b.user_id))];
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', userIds);
-
-        if (profiles) {
-          const map: Record<string, UserProfile> = {};
-          profiles.forEach(p => { map[p.id] = { full_name: p.full_name, email: p.email }; });
-          setUserProfiles(map);
+      const profilesMap: Record<string, UserProfile> = {};
+      bData.forEach((b: any) => {
+        if (b.user_profile) {
+          profilesMap[b.user_id] = b.user_profile;
         }
-      }
+      });
+      setUserProfiles(profilesMap);
     } catch (error: any) {
       toast({ title: 'Eroare', description: 'Nu am putut încărca comenzile', variant: 'destructive' });
     } finally {
