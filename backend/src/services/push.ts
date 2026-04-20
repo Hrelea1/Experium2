@@ -1,8 +1,8 @@
 import webpush from 'web-push';
 import { query } from '../db';
 
-const pkey = process.env.VAPID_PUBLIC_KEY || 'BII1rdENXJ-1Ove4xpRX4PjAfWwycuqq6hyLa4p0PnucBAoJAnlmmMmCneD0uiYw3BU3yobxkrx-5CL1jb2y7bg';
-const skey = process.env.VAPID_PRIVATE_KEY || '2k6PXxffhSdz_HwCVG67eybk6ZjgWT9AZKlh4b7nweY';
+const pkey = process.env.VAPID_PUBLIC_KEY || 'BP3xUbSA2Mr0KrzU5MBQY8xrVVBYUCMfgnHEhUJiRqYVdf5kFTBS_Uab6IXDI16smCynOpKa9dukgfvMRuRkhzw';
+const skey = process.env.VAPID_PRIVATE_KEY || 'u2EpiCjfwwhWZODAZfxUoTy6k4GlGCA8xQHtEVwQ0_M';
 
 webpush.setVapidDetails(
   'mailto:support@experium.ro',
