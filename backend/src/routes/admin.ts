@@ -157,23 +157,93 @@ router.delete('/users/:id', requireAdmin, async (req: Request, res: Response) =>
 // ─── GET /admin/stats ─────────────────────────────────────────────────────────
 router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const [users, bookings, vouchers, revenue] = await Promise.all([
+    const { query } = require('../db');
+    const [
+      users,
+      bookings,
+      vouchers,
+      revenue,
+      experiences,
+      recentBookings,
+      recentVouchers
+    ] = await Promise.all([
+      // Users count
       queryOne<{ count: string }>('SELECT COUNT(*) AS count FROM users WHERE is_verified = true'),
-      queryOne<{ count: string; pending: string }>(`
+      // Bookings counts
+      queryOne<{ count: string; pending: string; upcoming: string }>(`
         SELECT 
           COUNT(*) AS count,
-          COUNT(*) FILTER (WHERE status = 'pending') AS pending
+          COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+          COUNT(*) FILTER (WHERE status = 'confirmed' AND booking_date >= CURRENT_TIMESTAMP) AS upcoming
         FROM bookings`),
-      queryOne<{ count: string }>('SELECT COUNT(*) AS count FROM vouchers WHERE status = $1', ['active']),
-      queryOne<{ total: string }>('SELECT COALESCE(SUM(total_price), 0) AS total FROM bookings WHERE status = $1', ['confirmed']),
+      // Vouchers count
+      queryOne<{ count: string; active: string }>(`
+        SELECT 
+          COUNT(*) AS count,
+          COUNT(*) FILTER (WHERE status = 'active') AS active
+        FROM vouchers`),
+      // Revenue (from vouchers purchase_price to match frontend, or from bookings)
+      // The frontend used voucher purchase_price for revenue total. So we will sum vouchers.
+      queryOne<{ total: string }>('SELECT COALESCE(SUM(purchase_price), 0) AS total FROM vouchers'),
+      // Experiences
+      queryOne<{ count: string; active: string }>(`
+        SELECT 
+          COUNT(*) AS count,
+          COUNT(*) FILTER (WHERE is_active = true) AS active
+        FROM experiences`),
+      // Recent bookings
+      query(`
+        SELECT 
+          b.id, b.booking_date, b.status, b.participants, b.total_price, b.user_id,
+          e.title AS experience_title, e.location_name
+        FROM bookings b
+        LEFT JOIN experiences e ON e.id = b.experience_id
+        ORDER BY b.booking_date DESC
+        LIMIT 10`),
+      // Recent vouchers
+      query(`
+        SELECT 
+          v.id, v.code, v.status, v.purchase_price, v.issue_date,
+          e.title AS experience_title, e.location_name
+        FROM vouchers v
+        LEFT JOIN experiences e ON e.id = v.experience_id
+        ORDER BY v.issue_date DESC
+        LIMIT 10`)
     ]);
 
     res.json({
       total_users: parseInt(users?.count ?? '0'),
       total_bookings: parseInt(bookings?.count ?? '0'),
       pending_bookings: parseInt(bookings?.pending ?? '0'),
-      active_vouchers: parseInt(vouchers?.count ?? '0'),
-      confirmed_revenue: parseFloat(revenue?.total ?? '0'),
+      upcoming_bookings: parseInt(bookings?.upcoming ?? '0'),
+      total_vouchers: parseInt(vouchers?.count ?? '0'),
+      active_vouchers: parseInt(vouchers?.active ?? '0'),
+      total_experiences: parseInt(experiences?.count ?? '0'),
+      active_experiences: parseInt(experiences?.active ?? '0'),
+      total_revenue: parseFloat(revenue?.total ?? '0'),
+      recent_bookings: recentBookings.map((b: any) => ({
+        id: b.id,
+        booking_date: b.booking_date,
+        status: b.status,
+        participants: b.participants,
+        total_price: b.total_price,
+        user_id: b.user_id,
+        experiences: {
+          title: b.experience_title,
+          location_name: b.location_name
+        }
+      })),
+      recent_vouchers: recentVouchers.map((v: any) => ({
+        id: v.id,
+        code: v.code,
+        status: v.status,
+        purchase_price: v.purchase_price,
+        issue_date: v.issue_date,
+        experiences: {
+          title: v.experience_title,
+          location_name: v.location_name
+        }
+      })),
     });
   } catch (err) {
     console.error('[admin/stats GET]', err);

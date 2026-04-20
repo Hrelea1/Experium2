@@ -25,6 +25,15 @@ router.get('/test-403', (req: Request, res: Response) => {
   res.status(403).json({ error: 'This is a test 403 from Express' });
 });
 
+router.get('/db-test', async (req: Request, res: Response) => {
+  try {
+    const { queryOne } = require('../db');
+    const user = await queryOne('SELECT email, role FROM users WHERE email = $1', ['hrelea001@gmail.com']);
+    res.json({ user });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 /**
  * GET /config/test-email?to=email@example.com

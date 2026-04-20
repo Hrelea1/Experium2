@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { api } from '@/lib/api';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Gift, Calendar, ShoppingBag, Users, TrendingUp, DollarSign, MapPin } from 'lucide-react';
@@ -65,97 +65,21 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      // Fetch experiences stats
-      const { count: totalExp } = await supabase
-        .from('experiences')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: activeExp } = await supabase
-        .from('experiences')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
-
-      // Fetch bookings stats
-      const { count: totalBook } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: upcomingBook } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'confirmed')
-        .gte('booking_date', new Date().toISOString());
-
-      // Fetch vouchers stats
-      const { count: totalVouch } = await supabase
-        .from('vouchers')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: activeVouch } = await supabase
-        .from('vouchers')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
-
-      // Fetch profiles count as users
-      const { count: totalUsr } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      // Calculate revenue from vouchers
-      const { data: vouchers } = await supabase
-        .from('vouchers')
-        .select('purchase_price');
-
-      const revenue = vouchers?.reduce((sum, v) => sum + Number(v.purchase_price), 0) || 0;
-
-      // Fetch recent bookings (last 10)
-      const { data: bookingsData } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          booking_date,
-          status,
-          participants,
-          total_price,
-          user_id,
-          experiences (
-            title,
-            location_name
-          )
-        `)
-        .order('booking_date', { ascending: false })
-        .limit(10);
-
-      // Fetch recent vouchers (last 10)
-      const { data: vouchersData } = await supabase
-        .from('vouchers')
-        .select(`
-          id,
-          code,
-          status,
-          purchase_price,
-          issue_date,
-          experiences (
-            title,
-            location_name
-          )
-        `)
-        .order('issue_date', { ascending: false })
-        .limit(10);
+      const data = await api.admin.getStats();
 
       setStats({
-        totalExperiences: totalExp || 0,
-        activeExperiences: activeExp || 0,
-        totalBookings: totalBook || 0,
-        upcomingBookings: upcomingBook || 0,
-        totalVouchers: totalVouch || 0,
-        activeVouchers: activeVouch || 0,
-        totalUsers: totalUsr || 0,
-        totalRevenue: revenue,
+        totalExperiences: data.total_experiences || 0,
+        activeExperiences: data.active_experiences || 0,
+        totalBookings: data.total_bookings || 0,
+        upcomingBookings: data.upcoming_bookings || 0,
+        totalVouchers: data.total_vouchers || 0,
+        activeVouchers: data.active_vouchers || 0,
+        totalUsers: data.total_users || 0,
+        totalRevenue: data.total_revenue || 0,
       });
 
-      if (bookingsData) setRecentBookings(bookingsData as Booking[]);
-      if (vouchersData) setRecentVouchers(vouchersData as Voucher[]);
+      if (data.recent_bookings) setRecentBookings(data.recent_bookings);
+      if (data.recent_vouchers) setRecentVouchers(data.recent_vouchers);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
