@@ -493,6 +493,13 @@ export const provider = {
       body: JSON.stringify(data),
     });
   },
+
+  async updateSlotCapacity(slotId: string, capacity: number): Promise<{ message: string; capacity: number }> {
+    return request(`/availability/slots/${slotId}/capacity`, {
+      method: 'PATCH',
+      body: JSON.stringify({ capacity }),
+    });
+  },
 };
 
 // ─── Default export ───────────────────────────────────────────────────────────

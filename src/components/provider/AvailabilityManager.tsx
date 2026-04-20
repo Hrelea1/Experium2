@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   ChevronLeft, ChevronRight, Calendar, Clock, Users, Check,
-  Zap, RotateCcw, AlertCircle, Lock, Unlock, Settings, Trash2
+  Zap, RotateCcw, AlertCircle, Lock, Unlock, Settings, Trash2, Pencil
 } from 'lucide-react';
 import {
   format, addDays, startOfWeek, endOfWeek, eachDayOfInterval,
@@ -28,7 +28,9 @@ interface Slot {
   slot_date: string;
   start_time: string;
   end_time: string;
+  capacity: number;
   max_participants: number;
+  booked_count: number;
   booked_participants: number;
   is_available: boolean;
   is_locked?: boolean;
@@ -259,53 +261,64 @@ function SlotPill({
   slot,
   pending,
   onToggle,
+  onEditCapacity,
 }: {
   slot: Slot;
   pending: boolean;
   onToggle: () => void;
+  onEditCapacity: (slot: Slot) => void;
 }) {
   const booked     = slot.booked_participants > 0;
   const locked     = slot.is_locked || !slot.is_available;
-  const pct        = Math.round((slot.booked_participants / Math.max(1, slot.max_participants)) * 100);
+  const capacity   = slot.capacity ?? slot.max_participants;
+  const pct        = Math.round((slot.booked_participants / Math.max(1, capacity)) * 100);
 
   return (
-    <button
-      type="button"
-      disabled={booked || pending}
-      onClick={onToggle}
-      title={
-        booked    ? `Rezervat (${slot.booked_participants} / ${slot.max_participants})` :
-        locked    ? 'Indisponibil — apasă pentru a reactiva' :
-                    'Disponibil — apasă pentru a bloca'
-      }
-      className={cn(
-        'relative w-full text-left px-2 py-1.5 rounded-md border text-[10px] font-medium transition-all duration-200 select-none overflow-hidden',
-        pending && 'opacity-50 cursor-wait',
-        booked
-          ? 'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200 cursor-not-allowed'
-          : locked
-          ? 'bg-muted/70 border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/40'
-          : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-destructive/10 hover:border-destructive/40'
-      )}
-    >
-      {/* Booking fill indicator */}
-      {booked && (
-        <div
-          className="absolute inset-0 bg-orange-300/30 dark:bg-orange-500/20"
-          style={{ width: `${pct}%` }}
-        />
-      )}
-      <span className="relative flex items-center justify-between gap-1">
-        <span className="font-mono leading-none">{slot.start_time.slice(0, 5)}</span>
-        {booked ? (
-          <Users className="h-2.5 w-2.5 flex-shrink-0" />
-        ) : locked ? (
-          <Lock className="h-2.5 w-2.5 flex-shrink-0 opacity-60" />
-        ) : (
-          <Unlock className="h-2.5 w-2.5 flex-shrink-0 opacity-40" />
+    <div className="relative w-full group">
+      <button
+        type="button"
+        disabled={booked || pending}
+        onClick={onToggle}
+        title={
+          booked    ? `Rezervat (${slot.booked_participants} / ${capacity})` :
+          locked    ? 'Indisponibil — apasă pentru a reactiva' :
+                      'Disponibil — apasă pentru a bloca'
+        }
+        className={cn(
+          'relative w-full text-left px-2 py-1.5 rounded-md border text-[10px] font-medium transition-all duration-200 select-none overflow-hidden',
+          pending && 'opacity-50 cursor-wait',
+          booked
+            ? 'bg-orange-100 dark:bg-orange-900/30 border-orange-300 dark:border-orange-700 text-orange-800 dark:text-orange-200 cursor-not-allowed'
+            : locked
+            ? 'bg-muted/70 border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/40'
+            : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-destructive/10 hover:border-destructive/40'
         )}
-      </span>
-    </button>
+      >
+        {/* Booking fill indicator */}
+        {booked && (
+          <div
+            className="absolute inset-0 bg-orange-300/30 dark:bg-orange-500/20"
+            style={{ width: `${pct}%` }}
+          />
+        )}
+        <span className="relative flex items-center justify-between gap-1">
+          <span className="font-mono leading-none">{slot.start_time.slice(0, 5)}</span>
+          <span className="flex items-center gap-0.5">
+            <Users className="h-2 w-2 flex-shrink-0 opacity-60" />
+            <span className="text-[8px] font-normal">{slot.booked_participants}/{capacity}</span>
+          </span>
+        </span>
+      </button>
+      {/* Edit capacity button — visible on hover */}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onEditCapacity(slot); }}
+        title="Editează capacitatea"
+        className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 rounded p-0.5 hover:bg-primary/10"
+      >
+        <Pencil className="h-2 w-2 text-primary" />
+      </button>
+    </div>
   );
 }
 
@@ -316,11 +329,13 @@ function CalendarView({
   slots,
   pendingIds,
   onToggleSlot,
+  onEditCapacity,
   onRefetch,
 }: {
   slots: Slot[];
   pendingIds: Set<string>;
   onToggleSlot: (slot: Slot) => void;
+  onEditCapacity: (slot: Slot) => void;
   onRefetch: () => void;
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -452,6 +467,7 @@ function CalendarView({
                     slot={s}
                     pending={pendingIds.has(s.id)}
                     onToggle={() => onToggleSlot(s)}
+                    onEditCapacity={onEditCapacity}
                   />
                 ))}
               </div>
@@ -482,6 +498,10 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
   const [generating, setGenerating] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [view, setView] = useState<'wizard' | 'calendar'>('calendar');
+  const [editingSlot, setEditingSlot] = useState<Slot | null>(null);
+  const [editCapacity, setEditCapacity] = useState<number>(10);
+  const [savingCapacity, setSavingCapacity] = useState(false);
+  const capacityInputRef = useRef<HTMLInputElement>(null);
 
   const fetchSlots = useCallback(async () => {
     setLoading(true);
@@ -569,6 +589,29 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
     } catch (err: any) {
       toast({ title: 'Eroare', description: err.message || 'Eroare la ștergerea sloturilor libere', variant: 'destructive' });
       setLoading(false);
+    }
+  };
+
+  const handleEditCapacity = (slot: Slot) => {
+    setEditingSlot(slot);
+    setEditCapacity(slot.capacity ?? slot.max_participants);
+    setTimeout(() => capacityInputRef.current?.focus(), 50);
+  };
+
+  const handleSaveCapacity = async () => {
+    if (!editingSlot) return;
+    setSavingCapacity(true);
+    try {
+      await api.provider.updateSlotCapacity(editingSlot.id, editCapacity);
+      setSlots(prev => prev.map(s =>
+        s.id === editingSlot.id ? { ...s, capacity: editCapacity, max_participants: editCapacity } : s
+      ));
+      toast({ title: '✅ Capacitate actualizată', description: `Slotul ${editingSlot.start_time.slice(0, 5)} → ${editCapacity} locuri` });
+      setEditingSlot(null);
+    } catch (err: any) {
+      toast({ title: 'Eroare', description: err.message || 'Nu s-a putut actualiza capacitatea', variant: 'destructive' });
+    } finally {
+      setSavingCapacity(false);
     }
   };
 
@@ -664,12 +707,47 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
             </Button>
           </div>
         ) : (
-          <CalendarView
-            slots={slots}
-            pendingIds={pendingIds}
-            onToggleSlot={handleToggleSlot}
-            onRefetch={fetchSlots}
-          />
+          <>
+            {/* Inline capacity edit modal */}
+            {editingSlot && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingSlot(null)}>
+                <div className="bg-background rounded-2xl shadow-2xl p-6 w-full max-w-xs space-y-4" onClick={e => e.stopPropagation()}>
+                  <div>
+                    <h3 className="font-semibold text-base">Editează capacitatea</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Slot {editingSlot.slot_date} · {editingSlot.start_time.slice(0,5)}–{editingSlot.end_time.slice(0,5)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Rezervări existente: <strong>{editingSlot.booked_participants}</strong></p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5 text-sm"><Users className="h-3.5 w-3.5" /> Locuri totale</Label>
+                    <Input
+                      ref={capacityInputRef}
+                      type="number"
+                      min={editingSlot.booked_participants || 1}
+                      max={500}
+                      value={editCapacity}
+                      onChange={e => setEditCapacity(Math.max(editingSlot.booked_participants || 1, parseInt(e.target.value) || 1))}
+                      className="text-center font-mono text-xl h-12"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setEditingSlot(null)}>Anulează</Button>
+                    <Button className="flex-1" disabled={savingCapacity} onClick={handleSaveCapacity}>
+                      {savingCapacity ? 'Se salvează...' : 'Salvează'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <CalendarView
+              slots={slots}
+              pendingIds={pendingIds}
+              onToggleSlot={handleToggleSlot}
+              onEditCapacity={handleEditCapacity}
+              onRefetch={fetchSlots}
+            />
+          </>
         )}
       </CardContent>
     </Card>

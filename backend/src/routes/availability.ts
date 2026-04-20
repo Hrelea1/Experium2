@@ -165,6 +165,43 @@ router.delete('/slots/:id', requireRole('admin', 'provider'), async (req: Reques
   }
 });
 
+// ─── PATCH /availability/slots/:id/capacity ───────────────────────────────────
+router.patch('/slots/:id/capacity', requireRole('admin', 'provider'), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { capacity } = req.body;
+    const userId = req.user!.userId;
+    const isAdmin = req.user!.role === 'admin';
+
+    const newCap = Number(capacity);
+    if (!capacity || isNaN(newCap) || newCap < 1) {
+      return res.status(400).json({ error: 'capacity must be a positive integer' });
+    }
+
+    const whereCol = isAdmin
+      ? 'WHERE id = $2'
+      : 'WHERE id = $2 AND provider_user_id = $3';
+    const params: any[] = isAdmin ? [newCap, id] : [newCap, id, userId];
+
+    const slot = await queryOne<{ booked_count: number; capacity: number }>(
+      `SELECT booked_count, capacity FROM availability_slots WHERE id = $1`,
+      [id]
+    );
+    if (!slot) return res.status(404).json({ error: 'Slot not found' });
+    if (newCap < slot.booked_count) {
+      return res.status(400).json({
+        error: `Capacitatea nu poate fi mai mică decât numărul de rezervări existente (${slot.booked_count})`
+      });
+    }
+
+    await query(`UPDATE availability_slots SET capacity = $1 ${whereCol}`, params);
+    res.json({ message: 'Capacity updated', capacity: newCap });
+  } catch (err) {
+    console.error('[availability PATCH /slots/:id/capacity]', err);
+    res.status(500).json({ error: 'Failed to update capacity' });
+  }
+});
+
 // ─── POST /availability/slots/:id/lock ────────────────────────────────────────
 router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) => {
   try {
