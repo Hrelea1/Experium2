@@ -91,6 +91,16 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false,
       ADD COLUMN IF NOT EXISTS phone TEXT,
       ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{}'::jsonb;
+
+      CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        endpoint TEXT NOT NULL,
+        keys_p256dh TEXT NOT NULL,
+        keys_auth TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE (user_id, endpoint)
+      );
     `);
     
     // Fix existing slots with NULL values that prevent them from showing up
