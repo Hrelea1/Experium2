@@ -1,0 +1,17 @@
+{
+  "name": "Experium",
+  "short_name": "Experium",
+  "description": "Marketplace de Experiențe Cadou din România",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "gcm_sender_id": "103953800507",
+  "icons": [
+    {
+      "src": "./favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
