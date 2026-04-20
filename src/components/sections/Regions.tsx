@@ -72,7 +72,7 @@ export function Regions() {
     const dbMatch = (dbRegions || []).find((r) => r.slug.toLowerCase() === def.slug.toLowerCase());
     return {
       ...def,
-      experiences: dbMatch?.experience_count || def.experiences,
+      experiences: dbMatch?.experience_count ?? def.experiences,
     };
   });
 
