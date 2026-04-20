@@ -530,7 +530,6 @@ CREATE TRIGGER blog_posts_updated_at BEFORE UPDATE ON blog_posts
 -- =============================================================================
 -- PARTNER APPLICATIONS
 -- =============================================================================
-DROP TABLE IF EXISTS partner_applications CASCADE;
 CREATE TABLE IF NOT EXISTS partner_applications (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   full_name       TEXT NOT NULL,

@@ -101,6 +101,17 @@ export async function testConnection(): Promise<void> {
         created_at TIMESTAMPTZ DEFAULT now(),
         UNIQUE (user_id, endpoint)
       );
+
+      ALTER TABLE partner_applications 
+      DROP COLUMN IF EXISTS company_name CASCADE,
+      DROP COLUMN IF EXISTS cui CASCADE,
+      DROP COLUMN IF EXISTS contact_name CASCADE,
+      ADD COLUMN IF NOT EXISTS full_name TEXT NOT NULL DEFAULT 'Unknown',
+      ADD COLUMN IF NOT EXISTS business_name TEXT NOT NULL DEFAULT 'Unknown',
+      ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT 'Unknown',
+      ADD COLUMN IF NOT EXISTS experience_type TEXT NOT NULL DEFAULT 'Unknown',
+      ADD COLUMN IF NOT EXISTS gdpr_consent BOOLEAN NOT NULL DEFAULT true,
+      ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN NOT NULL DEFAULT true;
     `);
     
     // Fix existing slots with NULL values that prevent them from showing up
