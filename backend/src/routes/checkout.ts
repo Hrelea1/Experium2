@@ -74,13 +74,15 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
     const userId = metadata.userId;
 
     let successCount = 0;
+    const emailResults: string[] = [];
+
     for (const item of items) {
       const bookingDate = `${item.slotDate}T${item.startTime}`;
 
       // ── 48-hour advance booking enforcement ─────────────────
       const hoursUntil = (new Date(bookingDate).getTime() - Date.now()) / 3_600_000;
       if (hoursUntil < 48) {
-        console.warn(`[checkout] Slot rejected (< 48h): ${bookingDate}`);
+        console.warn(`[checkout] Slot rejected (<48h): ${bookingDate}`);
         continue; // skip this item — slot too close
       }
       
@@ -94,23 +96,25 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
 
       if (booking) {
         successCount++;
-        // Trigger notifications in background (separated so client email always sends)
-        (async () => {
-          try {
-            const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
 
-            // 1. Get client info (always available)
-            const clientInfo = await queryOne<{ email: string; full_name: string; phone: string | null; title: string }>(
-              `SELECT u.email, p.full_name, p.phone, e.title
-               FROM users u
-               LEFT JOIN profiles p ON p.id = u.id
-               JOIN experiences e ON e.id = $2
-               WHERE u.id = $1`,
-              [userId, item.experienceId]
-            );
+        // ── Send notifications (awaited, not fire-and-forget) ──────
+        try {
+          const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
 
-            if (clientInfo) {
-              // Client Email — always send
+          // 1. Get client info (always available)
+          const clientInfo = await queryOne<{ email: string; full_name: string; phone: string | null; title: string }>(
+            `SELECT u.email, p.full_name, p.phone, e.title
+             FROM users u
+             LEFT JOIN profiles p ON p.id = u.id
+             JOIN experiences e ON e.id = $2
+             WHERE u.id = $1`,
+            [userId, item.experienceId]
+          );
+
+          if (clientInfo) {
+            // Client Email — always send
+            try {
+              console.log(`[checkout] Sending confirmation email to ${clientInfo.email} for booking ${booking.id}...`);
               await sendBookingConfirmation({
                 email: clientInfo.email,
                 name: clientInfo.full_name ?? 'Client',
@@ -119,32 +123,44 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
                 participants: Number(item.participants),
                 totalPrice: Number(item.totalPrice),
                 bookingId: booking.id,
-              }).catch(err => console.error('[checkout] Client email error:', err));
+              });
+              console.log(`[checkout] ✅ Client email sent successfully to ${clientInfo.email}`);
+              emailResults.push(`client_email:${clientInfo.email}:OK`);
+            } catch (emailErr: any) {
+              console.error(`[checkout] ❌ Client email FAILED for ${clientInfo.email}:`, emailErr.message, emailErr.code || '');
+              emailResults.push(`client_email:${clientInfo.email}:FAIL:${emailErr.message}`);
+            }
 
-              // Client SMS
-              if (clientInfo.phone) {
+            // Client SMS
+            if (clientInfo.phone) {
+              try {
                 const smsBody = getBookingConfirmedSms({
                   title: clientInfo.title,
                   date: dateStr,
                   participants: Number(item.participants),
                   bookingId: booking.id
                 });
-                await sendSms(clientInfo.phone, smsBody).catch(err => console.error('[checkout] SMS error:', err));
+                await sendSms(clientInfo.phone, smsBody);
+                console.log(`[checkout] ✅ Client SMS sent to ${clientInfo.phone}`);
+              } catch (smsErr: any) {
+                console.error(`[checkout] ❌ Client SMS FAILED:`, smsErr.message);
               }
+            }
 
-              // 2. Get provider info (may not exist)
-              const providerInfo = await queryOne<{ provider_email: string; provider_name: string; provider_user_id: string }>(
-                `SELECT pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
-                 FROM experience_providers ep
-                 JOIN users pu ON pu.id = ep.provider_user_id
-                 LEFT JOIN profiles pp ON pp.id = ep.provider_user_id
-                 WHERE ep.experience_id = $1 AND ep.is_active = true
-                 LIMIT 1`,
-                [item.experienceId]
-              );
+            // 2. Get provider info (may not exist)
+            const providerInfo = await queryOne<{ provider_email: string; provider_name: string; provider_user_id: string }>(
+              `SELECT pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
+               FROM experience_providers ep
+               JOIN users pu ON pu.id = ep.provider_user_id
+               LEFT JOIN profiles pp ON pp.id = ep.provider_user_id
+               WHERE ep.experience_id = $1 AND ep.is_active = true
+               LIMIT 1`,
+              [item.experienceId]
+            );
 
-              if (providerInfo) {
-                // Provider Email
+            if (providerInfo) {
+              // Provider Email
+              try {
                 await sendProviderBookingNotification({
                   providerEmail: providerInfo.provider_email,
                   providerName: providerInfo.provider_name ?? 'Furnizor',
@@ -154,30 +170,38 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
                   participants: Number(item.participants),
                   totalPrice: Number(item.totalPrice),
                   bookingId: booking.id,
-                }).catch(err => console.error('[checkout] Provider email error:', err));
-
-                // Provider DB Notification + Web Push
-                await createProviderNotification(
-                  providerInfo.provider_user_id,
-                  `Rezervare nouă — ${clientInfo.title}`,
-                  `Ai o rezervare nouă de la ${clientInfo.full_name ?? 'Client'} pentru data ${dateStr}.`,
-                  'booking_confirmed',
-                  booking.id
-                ).catch(err => console.error('[checkout] Provider notification error:', err));
-              } else {
-                console.warn(`[checkout] No active provider for experience ${item.experienceId}, skipping provider notification`);
+                });
+                console.log(`[checkout] ✅ Provider email sent to ${providerInfo.provider_email}`);
+                emailResults.push(`provider_email:${providerInfo.provider_email}:OK`);
+              } catch (provEmailErr: any) {
+                console.error(`[checkout] ❌ Provider email FAILED:`, provEmailErr.message);
+                emailResults.push(`provider_email:${providerInfo.provider_email}:FAIL:${provEmailErr.message}`);
               }
+
+              // Provider DB Notification + Web Push
+              await createProviderNotification(
+                providerInfo.provider_user_id,
+                `Rezervare nouă — ${clientInfo.title}`,
+                `Ai o rezervare nouă de la ${clientInfo.full_name ?? 'Client'} pentru data ${dateStr}.`,
+                'booking_confirmed',
+                booking.id
+              ).catch(err => console.error('[checkout] Provider notification error:', err));
             } else {
-              console.error(`[checkout] Could not find client info for user ${userId}`);
+              console.warn(`[checkout] No active provider for experience ${item.experienceId}, skipping provider notification`);
             }
-          } catch (err) {
-            console.error('[checkout] Notification error:', err);
+          } else {
+            console.error(`[checkout] ❌ Could not find client info for user ${userId}, experience ${item.experienceId}`);
+            emailResults.push(`client_info:NOT_FOUND`);
           }
-        })();
+        } catch (notifErr: any) {
+          console.error('[checkout] ❌ Notification block error:', notifErr.message);
+          emailResults.push(`notification_error:${notifErr.message}`);
+        }
       }
     }
 
-    res.json({ success: true, successCount });
+    console.log(`[checkout] ✅ verify-session complete: ${successCount} bookings, email results:`, emailResults);
+    res.json({ success: true, successCount, emailResults });
   } catch (err: any) {
     console.error('Verify checkout error:', err);
     res.status(500).json({ error: err.message });
