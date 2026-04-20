@@ -39,7 +39,8 @@ export function usePushSubscription() {
   const checkSubscription = async () => {
     if (!user) return;
     try {
-      const reg = await navigator.serviceWorker.getRegistration('/sw-push.js');
+      const swUrl = window.location.pathname.startsWith('/Experium2') ? '/Experium2/sw-push.js' : '/sw-push.js';
+      const reg = await navigator.serviceWorker.getRegistration(swUrl);
       if (reg) {
         const sub = await (reg as any).pushManager?.getSubscription();
         setIsSubscribed(!!sub);
@@ -57,7 +58,8 @@ export function usePushSubscription() {
       setPermission(perm);
       if (perm !== 'granted') return { success: false, error: 'Permisiune refuzată' };
 
-      const reg = await navigator.serviceWorker.register('/sw-push.js');
+      const swUrl = window.location.pathname.startsWith('/Experium2') ? '/Experium2/sw-push.js' : '/sw-push.js';
+      const reg = await navigator.serviceWorker.register(swUrl);
       await navigator.serviceWorker.ready;
 
       // Unsubscribe existing if any
@@ -106,7 +108,8 @@ export function usePushSubscription() {
 
   const unsubscribe = async () => {
     try {
-      const reg = await navigator.serviceWorker.getRegistration('/sw-push.js');
+      const swUrl = window.location.pathname.startsWith('/Experium2') ? '/Experium2/sw-push.js' : '/sw-push.js';
+      const reg = await navigator.serviceWorker.getRegistration(swUrl);
       if (reg) {
         const sub = await reg.pushManager.getSubscription();
         if (sub) {
