@@ -21,6 +21,15 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+/** Resolve the correct SW path based on deployment context */
+function getSwUrl(): string {
+  // GitHub Pages deploys under /Experium2/
+  if (window.location.pathname.startsWith('/Experium2')) {
+    return '/Experium2/sw-push.js';
+  }
+  return '/sw-push.js';
+}
+
 export function usePushSubscription() {
   const { user } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -39,10 +48,9 @@ export function usePushSubscription() {
   const checkSubscription = async () => {
     if (!user) return;
     try {
-      const swUrl = window.location.pathname.startsWith('/Experium2') ? '/Experium2/sw-push.js' : '/sw-push.js';
-      const reg = await navigator.serviceWorker.getRegistration(swUrl);
+      const reg = await navigator.serviceWorker.getRegistration(getSwUrl());
       if (reg) {
-        const sub = await (reg as any).pushManager?.getSubscription();
+        const sub = await reg.pushManager?.getSubscription();
         setIsSubscribed(!!sub);
       }
     } catch {
@@ -58,20 +66,36 @@ export function usePushSubscription() {
       setPermission(perm);
       if (perm !== 'granted') return { success: false, error: 'Permisiune refuzată' };
 
-      const swUrl = window.location.pathname.startsWith('/Experium2') ? '/Experium2/sw-push.js' : '/sw-push.js';
+      // Register service worker
+      const swUrl = getSwUrl();
+      console.log('[Push] Registering SW at:', swUrl);
       const reg = await navigator.serviceWorker.register(swUrl);
+
+      // Wait for SW to be fully active before subscribing
       await navigator.serviceWorker.ready;
+      // Give the SW a moment to fully activate
+      if (reg.installing || reg.waiting) {
+        await new Promise<void>((resolve) => {
+          const sw = reg.installing || reg.waiting;
+          if (!sw) { resolve(); return; }
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'activated') resolve();
+          });
+          // Safety timeout
+          setTimeout(resolve, 3000);
+        });
+      }
 
       // Unsubscribe existing if any
       const existing = await reg.pushManager.getSubscription();
       if (existing) await existing.unsubscribe();
 
-      // Get VAPID key
+      // Get VAPID key from backend
       const token = tokenStore.get();
       const res = await fetch(`${API_BASE}/notifications/push/vapid-key`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      
+
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(`Failed to fetch VAPID key: ${res.status} ${errText}`);
@@ -80,11 +104,15 @@ export function usePushSubscription() {
       const { publicKey } = await res.json();
       if (!publicKey) throw new Error('Nu am putut obține cheia VAPID din server.');
 
+      console.log('[Push] Subscribing with VAPID key:', publicKey.substring(0, 20) + '...');
+
       // Subscribe to PushManager
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
+
+      console.log('[Push] Subscription created, saving to backend...');
 
       // Save to backend
       const saveRes = await fetch(`${API_BASE}/notifications/push/subscribe`, {
@@ -99,17 +127,17 @@ export function usePushSubscription() {
       if (!saveRes.ok) throw new Error('Eroare la salvarea abonamentului pe server');
 
       setIsSubscribed(true);
+      console.log('[Push] ✅ Successfully subscribed');
       return { success: true };
     } catch (err: any) {
-      console.error('Push subscription failed', err);
+      console.error('[Push] Subscription failed:', err);
       return { success: false, error: err.message || 'Eroare necunoscută' };
     }
   };
 
   const unsubscribe = async () => {
     try {
-      const swUrl = window.location.pathname.startsWith('/Experium2') ? '/Experium2/sw-push.js' : '/sw-push.js';
-      const reg = await navigator.serviceWorker.getRegistration(swUrl);
+      const reg = await navigator.serviceWorker.getRegistration(getSwUrl());
       if (reg) {
         const sub = await reg.pushManager.getSubscription();
         if (sub) {

@@ -64,7 +64,7 @@ router.put('/read-all', requireAuth, async (req: Request, res: Response) => {
 });
 
 // ─── Web Push Subscriptions ───────────────────────────────────────────────────
-const VAPID_PUBLIC_KEY_FALLBACK = 'BNdrDaQUzMKERGw_lgXWq4MxNtsgECGJt880L7Jor0j_fNrSfM24hvzxGiVcujVtafjkaCJH9Rj_nf8NdiPXcuw';
+const VAPID_PUBLIC_KEY_FALLBACK = 'BII1rdENXJ-1Ove4xpRX4PjAfWwycuqq6hyLa4p0PnucBAoJAnlmmMmCneD0uiYw3BU3yobxkrx-5CL1jb2y7bg';
 
 router.get('/push/vapid-key', requireAuth, (_req: Request, res: Response) => {
   const publicKey = process.env.VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY_FALLBACK;
