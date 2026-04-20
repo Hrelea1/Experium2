@@ -94,65 +94,86 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
 
       if (booking) {
         successCount++;
-        // Trigger notifications in background
-        queryOne<{ email: string; full_name: string; title: string; phone: string | null; provider_email: string; provider_name: string; provider_user_id: string }>(
-          `SELECT u.email, p.full_name, p.phone, e.title, pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
-           FROM users u
-           LEFT JOIN profiles p ON p.id = u.id
-           JOIN experiences e ON e.id = $2
-           JOIN experience_providers ep ON ep.experience_id = e.id AND ep.is_active = true
-           JOIN users pu ON pu.id = ep.provider_user_id
-           LEFT JOIN profiles pp ON pp.id = ep.provider_user_id
-           WHERE u.id = $1`,
-          [userId, item.experienceId]
-        ).then(async (info) => {
-          if (info) {
+        // Trigger notifications in background (separated so client email always sends)
+        (async () => {
+          try {
             const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
-            
-            // Client Email
-            await sendBookingConfirmation({
-              email: info.email,
-              name: info.full_name ?? 'Client',
-              experienceTitle: info.title,
-              bookingDate: dateStr,
-              participants: Number(item.participants),
-              totalPrice: Number(item.totalPrice),
-              bookingId: booking.id,
-            });
 
-            // Provider Email
-            await sendProviderBookingNotification({
-              providerEmail: info.provider_email,
-              providerName: info.provider_name ?? 'Furnizor',
-              experienceTitle: info.title,
-              clientName: info.full_name ?? 'Client',
-              bookingDate: dateStr,
-              participants: Number(item.participants),
-              totalPrice: Number(item.totalPrice),
-              bookingId: booking.id,
-            });
-
-            // Provider DB Notification + Web Push
-            await createProviderNotification(
-              info.provider_user_id,
-              `Rezervare nouă — ${info.title}`,
-              `Ai o rezervare nouă de la ${info.full_name ?? 'Client'} pentru data ${dateStr}.`,
-              'booking_confirmed',
-              booking.id
+            // 1. Get client info (always available)
+            const clientInfo = await queryOne<{ email: string; full_name: string; phone: string | null; title: string }>(
+              `SELECT u.email, p.full_name, p.phone, e.title
+               FROM users u
+               LEFT JOIN profiles p ON p.id = u.id
+               JOIN experiences e ON e.id = $2
+               WHERE u.id = $1`,
+              [userId, item.experienceId]
             );
 
-            // Client SMS
-            if (info.phone) {
-              const smsBody = getBookingConfirmedSms({
-                title: info.title,
-                date: dateStr,
+            if (clientInfo) {
+              // Client Email — always send
+              await sendBookingConfirmation({
+                email: clientInfo.email,
+                name: clientInfo.full_name ?? 'Client',
+                experienceTitle: clientInfo.title,
+                bookingDate: dateStr,
                 participants: Number(item.participants),
-                bookingId: booking.id
-              });
-              await sendSms(info.phone, smsBody);
+                totalPrice: Number(item.totalPrice),
+                bookingId: booking.id,
+              }).catch(err => console.error('[checkout] Client email error:', err));
+
+              // Client SMS
+              if (clientInfo.phone) {
+                const smsBody = getBookingConfirmedSms({
+                  title: clientInfo.title,
+                  date: dateStr,
+                  participants: Number(item.participants),
+                  bookingId: booking.id
+                });
+                await sendSms(clientInfo.phone, smsBody).catch(err => console.error('[checkout] SMS error:', err));
+              }
+
+              // 2. Get provider info (may not exist)
+              const providerInfo = await queryOne<{ provider_email: string; provider_name: string; provider_user_id: string }>(
+                `SELECT pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
+                 FROM experience_providers ep
+                 JOIN users pu ON pu.id = ep.provider_user_id
+                 LEFT JOIN profiles pp ON pp.id = ep.provider_user_id
+                 WHERE ep.experience_id = $1 AND ep.is_active = true
+                 LIMIT 1`,
+                [item.experienceId]
+              );
+
+              if (providerInfo) {
+                // Provider Email
+                await sendProviderBookingNotification({
+                  providerEmail: providerInfo.provider_email,
+                  providerName: providerInfo.provider_name ?? 'Furnizor',
+                  experienceTitle: clientInfo.title,
+                  clientName: clientInfo.full_name ?? 'Client',
+                  bookingDate: dateStr,
+                  participants: Number(item.participants),
+                  totalPrice: Number(item.totalPrice),
+                  bookingId: booking.id,
+                }).catch(err => console.error('[checkout] Provider email error:', err));
+
+                // Provider DB Notification + Web Push
+                await createProviderNotification(
+                  providerInfo.provider_user_id,
+                  `Rezervare nouă — ${clientInfo.title}`,
+                  `Ai o rezervare nouă de la ${clientInfo.full_name ?? 'Client'} pentru data ${dateStr}.`,
+                  'booking_confirmed',
+                  booking.id
+                ).catch(err => console.error('[checkout] Provider notification error:', err));
+              } else {
+                console.warn(`[checkout] No active provider for experience ${item.experienceId}, skipping provider notification`);
+              }
+            } else {
+              console.error(`[checkout] Could not find client info for user ${userId}`);
             }
+          } catch (err) {
+            console.error('[checkout] Notification error:', err);
           }
-        }).catch(console.error);
+        })();
       }
     }
 
