@@ -35,6 +35,16 @@ router.get('/db-test', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/db-test-cols', async (req: Request, res: Response) => {
+  try {
+    const { pool } = require('../db');
+    const result = await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'experiences'");
+    res.json(result.rows.map((r: any) => r.column_name));
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /**
  * GET /config/test-email?to=email@example.com
  * Diagnostic endpoint — sends a test email and returns detailed SMTP result.
