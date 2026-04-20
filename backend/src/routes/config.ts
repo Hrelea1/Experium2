@@ -20,6 +20,12 @@ router.get('/mapbox', (req: Request, res: Response) => {
   res.json({ token });
 });
 
+router.options('/test-403', (req, res) => res.sendStatus(200));
+router.get('/test-403', (req: Request, res: Response) => {
+  res.status(403).json({ error: 'This is a test 403 from Express' });
+});
+
+
 /**
  * GET /config/test-email?to=email@example.com
  * Diagnostic endpoint — sends a test email and returns detailed SMTP result.
