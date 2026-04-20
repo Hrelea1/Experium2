@@ -45,12 +45,14 @@ export function useAvailabilitySlots(experienceId: string) {
       const normalised: AvailabilitySlot[] = data.map((s) => ({
         ...s,
         max_participants: s.capacity,
-        booked_participants: s.booked_count,
+        // available_spots is authoritative — derive booked_participants from it
+        booked_participants: s.capacity - s.available_spots,
         is_available: !s.is_locked && s.available_spots > 0,
         locked_by: null,
         locked_until: null,
         slot_type: "regular",
       }));
+
 
       setSlots(normalised);
     } catch (err) {

@@ -85,7 +85,33 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
         console.warn(`[checkout] Slot rejected (<48h): ${bookingDate}`);
         continue; // skip this item — slot too close
       }
-      
+
+      // ── Capacity check + atomic slot reservation ─────────────
+      // Find the matching slot and reserve capacity atomically.
+      // We lock with FOR UPDATE to prevent race conditions.
+      const slotCheck = await queryOne<{ id: string; available: number }>(
+        `SELECT id, (capacity - booked_count) AS available
+         FROM availability_slots
+         WHERE experience_id = $1
+           AND slot_date = $2::date
+           AND start_time = $3::time
+         LIMIT 1
+         FOR UPDATE`,
+        [item.experienceId, item.slotDate, item.startTime]
+      );
+
+      if (!slotCheck) {
+        console.warn(`[checkout] No matching slot found for experience ${item.experienceId} at ${item.slotDate} ${item.startTime}`);
+        emailResults.push(`slot_not_found:${item.experienceId}:${item.slotDate}:${item.startTime}`);
+        continue;
+      }
+
+      if (slotCheck.available < item.participants) {
+        console.warn(`[checkout] Slot ${slotCheck.id} is full. Available: ${slotCheck.available}, requested: ${item.participants}`);
+        emailResults.push(`slot_full:${slotCheck.id}:available=${slotCheck.available}:requested=${item.participants}`);
+        continue;
+      }
+
       const booking = await queryOne<{ id: string }>(
         `INSERT INTO bookings
           (user_id, experience_id, booking_date, participants, participant_details, total_price, payment_method, status)
@@ -97,7 +123,17 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
       if (booking) {
         successCount++;
 
+        // ── Atomically increment booked_count on the slot ──────
+        await query(
+          `UPDATE availability_slots
+           SET booked_count = booked_count + $1
+           WHERE id = $2`,
+          [item.participants, slotCheck.id]
+        );
+        console.log(`[checkout] ✅ Slot ${slotCheck.id} booked_count incremented by ${item.participants}`);
+
         // ── Send notifications (awaited, not fire-and-forget) ──────
+
         try {
           const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
 

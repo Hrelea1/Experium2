@@ -23,22 +23,7 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
       `SELECT s.id, s.experience_id, TO_CHAR(s.slot_date, 'YYYY-MM-DD') AS slot_date, s.start_time,
         COALESCE(s.end_time, s.start_time + interval '1 hour') AS end_time,
         s.capacity, s.booked_count,
-        (s.capacity - s.booked_count - COALESCE(
-          (SELECT SUM(b.participants) 
-           FROM bookings b 
-           LEFT JOIN availability_requests ar ON ar.booking_id = b.id 
-           WHERE b.experience_id = s.experience_id 
-             AND b.booking_date::date = s.slot_date 
-             AND b.booking_date::time = s.start_time 
-             AND (
-                b.status IN ('confirmed', 'completed')
-                OR (
-                   ar.id IS NOT NULL 
-                   AND ar.expires_at > NOW()
-                   AND (ar.status = 'pending' OR (ar.status = 'confirmed' AND b.status = 'pending'))
-                )
-             )
-        ), 0)) AS available_spots,
+        (s.capacity - s.booked_count) AS available_spots,
         COALESCE(s.is_locked, false) AS is_locked
        FROM availability_slots s
        WHERE s.experience_id = $1
@@ -50,6 +35,7 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
       [experience_id, from || null, ...(to ? [to] : [])]
     );
     res.json(rows);
+
   } catch (err) {
     console.error('[availability GET]', err);
     res.status(500).json({ error: 'Failed to fetch availability' });
