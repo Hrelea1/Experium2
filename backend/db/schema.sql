@@ -563,3 +563,19 @@ CREATE TABLE IF NOT EXISTS homepage_content_audit (
   created_at   TIMESTAMPTZ DEFAULT now()
 );
 
+-- =============================================================================
+-- NEWSLETTER SUBSCRIBERS
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email             TEXT NOT NULL UNIQUE,
+  gdpr_consent      BOOLEAN NOT NULL DEFAULT false,
+  gdpr_consent_date TIMESTAMPTZ,
+  segment           TEXT NOT NULL DEFAULT 'general',
+  is_active         BOOLEAN NOT NULL DEFAULT true,
+  created_at        TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_newsletter_email ON newsletter_subscribers(email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_active ON newsletter_subscribers(is_active);
+

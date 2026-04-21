@@ -112,6 +112,17 @@ export async function testConnection(): Promise<void> {
       ADD COLUMN IF NOT EXISTS experience_type TEXT NOT NULL DEFAULT 'Unknown',
       ADD COLUMN IF NOT EXISTS gdpr_consent BOOLEAN NOT NULL DEFAULT true,
       ADD COLUMN IF NOT EXISTS terms_accepted BOOLEAN NOT NULL DEFAULT true;
+
+      CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+        id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email             TEXT NOT NULL UNIQUE,
+        gdpr_consent      BOOLEAN NOT NULL DEFAULT false,
+        gdpr_consent_date TIMESTAMPTZ,
+        segment           TEXT NOT NULL DEFAULT 'general',
+        is_active         BOOLEAN NOT NULL DEFAULT true,
+        created_at        TIMESTAMPTZ DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_newsletter_email ON newsletter_subscribers(email);
     `);
     
     // Fix existing slots with NULL values that prevent them from showing up

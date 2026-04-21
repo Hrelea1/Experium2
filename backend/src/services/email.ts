@@ -308,6 +308,51 @@ export async function sendProviderVoucherNotification(params: {
   });
 }
 
+// ─── Newsletter Welcome Email ─────────────────────────────────────────────────
+export async function sendNewsletterWelcome(email: string): Promise<void> {
+  await sendWithTimeout({
+    from: FROM,
+    to: email,
+    subject: '🎉 Bun venit în comunitatea Experium!',
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 40px 32px; text-align: center;">
+          <h1 style="color: #fff; margin: 0; font-size: 26px; letter-spacing: -0.5px;">🎉 Bun venit la Experium!</h1>
+          <p style="color: rgba(255,255,255,0.75); margin: 10px 0 0; font-size: 15px;">Experimente memorabile te așteaptă</p>
+        </div>
+        <div style="padding: 36px 32px;">
+          <p style="color: #333; font-size: 16px; line-height: 1.6; margin-top: 0;">
+            Mulțumim că te-ai abonat la newsletter-ul nostru! 🙌
+          </p>
+          <p style="color: #555; font-size: 15px; line-height: 1.7;">
+            De acum vei fi primul care află despre:
+          </p>
+          <ul style="color: #555; font-size: 15px; line-height: 2; padding-left: 20px;">
+            <li>🆕 Experiențe noi adăugate pe platformă</li>
+            <li>💥 Oferte exclusive și reduceri speciale</li>
+            <li>📅 Evenimente și activități de sezon</li>
+            <li>🎁 Surprize doar pentru abonații noștri</li>
+          </ul>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="https://hrelea1.github.io/Experium2" 
+               style="background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: white; padding: 14px 36px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
+              🔍 Explorează experiențele
+            </a>
+          </div>
+
+          <div style="margin-top: 32px; border-top: 1px solid #eee; padding-top: 20px;">
+            <p style="color: #aaa; font-size: 12px; margin: 0; line-height: 1.6;">
+              Ai primit acest email deoarece te-ai abonat la newsletter-ul Experium.<br/>
+              Poți să te dezabonezi oricând răspunzând la acest email cu "Dezabonare".
+            </p>
+          </div>
+        </div>
+      </div>
+    `,
+  });
+}
+
 // ─── Admin Alert: Booking Declined by Provider ───────────────────────────────
 export async function sendBookingDeclinedAdminAlert(params: {
   adminEmail: string;

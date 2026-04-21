@@ -3,8 +3,9 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { useHomepageContent } from "@/hooks/useHomepageContent";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://experium2-production.up.railway.app';
 
 export function Newsletter() {
   const [email, setEmail] = useState("");
@@ -31,30 +32,39 @@ export function Newsletter() {
     }
 
     setIsLoading(true);
-    const { error } = await supabase.from("newsletter_subscribers").insert({
-      email,
-      gdpr_consent: true,
-      gdpr_consent_date: new Date().toISOString(),
-      segment: "general",
-    });
-    setIsLoading(false);
+    try {
+      const res = await fetch(`${API_BASE}/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, gdpr_consent: true }),
+      });
 
-    if (error) {
-      if (error.code === "23505") {
-        toast({ title: "Deja abonat", description: "Acest email este deja înregistrat." });
-      } else {
-        toast({ title: "Eroare", description: "Nu am putut salva abonamentul.", variant: "destructive" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        // 409 = duplicate (backend returns 500 from ON CONFLICT DO NOTHING + no row affected — treat gracefully)
+        if (res.status === 409 || data?.error?.includes('deja')) {
+          toast({ title: "Deja abonat", description: "Acest email este deja înregistrat." });
+        } else {
+          toast({ title: "Eroare", description: data?.error ?? "Nu am putut salva abonamentul.", variant: "destructive" });
+        }
+        return;
       }
-      return;
-    }
 
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setEmail("");
-      setGdprConsent(false);
-    }, 3000);
+      setIsSubmitted(true);
+      toast({ title: "✅ Abonat cu succes!", description: "Verifică emailul — ți-am trimis un mesaj de bun venit." });
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setEmail("");
+        setGdprConsent(false);
+      }, 4000);
+    } catch {
+      toast({ title: "Eroare de rețea", description: "Nu am putut contacta serverul. Încearcă din nou.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <section id="contact" className="py-12 lg:py-16 bg-background relative overflow-hidden">
