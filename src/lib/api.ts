@@ -572,6 +572,8 @@ export const api = {
   provider,
   checkout,
   config,
+  blog,
+  partners,
 };
 
 export default api;
