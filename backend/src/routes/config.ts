@@ -25,19 +25,6 @@ router.get('/test-403', (req: Request, res: Response) => {
   res.status(403).json({ error: 'This is a test 403 from Express' });
 });
 
-// Temporary SMTP diagnostics (no auth) — remove after verification
-router.get('/smtp-check', async (req: Request, res: Response) => {
-  res.json({
-    smtp_host: process.env.SMTP_HOST ?? 'NOT_SET',
-    smtp_port: process.env.SMTP_PORT ?? 'NOT_SET',
-    smtp_user_set: !!process.env.SMTP_USER,
-    smtp_pass_set: !!process.env.SMTP_PASS,
-    email_from: process.env.EMAIL_FROM ?? 'NOT_SET',
-    admin_email: process.env.ADMIN_EMAIL ?? 'NOT_SET',
-    is_dummy: !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com',
-  });
-});
-
 router.get('/db-test', async (req: Request, res: Response) => {
   try {
     const { queryOne } = require('../db');
