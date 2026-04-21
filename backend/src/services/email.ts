@@ -307,3 +307,76 @@ export async function sendProviderVoucherNotification(params: {
     `,
   });
 }
+
+// ─── Admin Alert: Booking Declined by Provider ───────────────────────────────
+export async function sendBookingDeclinedAdminAlert(params: {
+  adminEmail: string;
+  bookingId: string;
+  clientName: string;
+  clientEmail: string;
+  experienceTitle: string;
+  bookingDate: string;
+  totalPrice: number;
+  providerName: string;
+  providerEmail: string;
+}): Promise<void> {
+  await sendWithTimeout({
+    from: FROM,
+    to: params.adminEmail,
+    subject: `⚠️ Rezervare refuzată de furnizor — ${params.experienceTitle}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+        <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 28px 32px; text-align: center;">
+          <h1 style="color: #fff; margin: 0; font-size: 22px;">⚠️ Rezervare Refuzată de Furnizor</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">Experium Admin — Notificare automată</p>
+        </div>
+        <div style="padding: 28px 32px;">
+          <p style="color: #333; font-size: 15px; margin-top: 0;">Un furnizor a refuzat o rezervare. Detalii mai jos:</p>
+
+          <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin: 20px 0; border: 1px solid #eaeaea;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 13px; width: 40%;">📋 ID Rezervare:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; font-family: monospace; font-size: 12px; background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${params.bookingId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 13px;">🎯 Experiență:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600; font-size: 13px;">${params.experienceTitle}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 13px;">📅 Data rezervată:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600; font-size: 13px;">${params.bookingDate}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 13px;">💰 Valoare:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #ef4444; font-weight: bold; font-size: 15px;">${params.totalPrice} RON</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0 4px; color: #666; font-size: 13px; font-weight: 600; border-top: 2px solid #eee;">👤 Client:</td>
+                <td style="padding: 10px 0 4px; text-align: right; color: #1a1a2e; font-size: 13px; border-top: 2px solid #eee;">${params.clientName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #666; font-size: 13px;">📧 Email client:</td>
+                <td style="padding: 4px 0; text-align: right; color: #2563eb; font-size: 13px;"><a href="mailto:${params.clientEmail}" style="color:#2563eb;">${params.clientEmail}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 0 4px; color: #666; font-size: 13px; font-weight: 600; border-top: 2px solid #eee;">🏢 Furnizor:</td>
+                <td style="padding: 10px 0 4px; text-align: right; color: #1a1a2e; font-size: 13px; border-top: 2px solid #eee;">${params.providerName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #666; font-size: 13px;">📧 Email furnizor:</td>
+                <td style="padding: 4px 0; text-align: right; color: #2563eb; font-size: 13px;"><a href="mailto:${params.providerEmail}" style="color:#2563eb;">${params.providerEmail}</a></td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="color: #e67e22; font-size: 14px; font-weight: 500;">⚡ Acțiune recomandată: Contactează clientul și furnizorul pentru a rezolva situația.</p>
+
+          <div style="margin-top: 24px; border-top: 1px solid #eee; padding-top: 16px;">
+            <p style="color: #aaa; font-size: 11px; margin: 0;">Acesta este un email automat generat de platforma Experium.</p>
+          </div>
+        </div>
+      </div>
+    `,
+  });
+}

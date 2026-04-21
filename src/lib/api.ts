@@ -453,6 +453,10 @@ export const admin = {
   async getContentAudit() {
     return request('/admin/content-audit');
   },
+
+  async getDeclinedBookings(): Promise<any[]> {
+    return request('/admin/declined-bookings');
+  },
 };
 
 // ─── Blog ──────────────────────────────────────────────────────────────────────

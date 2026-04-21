@@ -21,7 +21,7 @@ import { PushNotificationSettings } from '@/components/provider/PushNotification
 import { useProviderNotifications } from '@/hooks/useProviderNotifications';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, isSameDay } from 'date-fns';
 import { ro } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
 import { ExperienceImage } from '@/components/ExperienceImage';
@@ -70,7 +70,7 @@ function NotificationsHistory() {
   
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <div>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
@@ -133,7 +133,6 @@ function ExperienceDetailView({
   onSlotAdded: () => void;
   onSlotDeleted: (id: string) => void;
 }) {
-  // Live preview data
   const [images, setImages] = useState<Array<{ id: string; image_url: string; is_primary: boolean; focal_x: number; focal_y: number }>>([]);
   const [fullExperience, setFullExperience] = useState<{
     description: string;
@@ -154,7 +153,6 @@ function ExperienceDetailView({
   const exp = experience.experience;
   const slots = availabilitySlots.filter(s => s.experience_id === experience.experience_id);
 
-  // Fetch images, full details, and services
   useEffect(() => {
     const fetchPreviewData = async () => {
       try {
@@ -189,26 +187,25 @@ function ExperienceDetailView({
   const primaryImage = images.find(i => i.is_primary) || images[0];
   const currentImage = images[previewImageIdx] || primaryImage;
 
-
   return (
     <div className="space-y-6">
-      {/* Back button */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+      {/* Back button + action buttons — stacked on mobile */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button variant="ghost" size="sm" onClick={onBack} className="self-start">
           <ArrowLeft className="h-4 w-4 mr-1" />
-          Înapoi la lista experiențe
+          Înapoi
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild className="flex-1 sm:flex-none">
             <Link to={`/provider/experience/${experience.experience_id}/edit`}>
               <Wrench className="h-3.5 w-3.5 mr-1" />
-              Editează Experiența
+              Editează
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="flex-1 sm:flex-none">
             <Link to={`/experience/${experience.experience_id}`} target="_blank">
               <ExternalLink className="h-3.5 w-3.5 mr-1" />
-              Vezi pagina publică
+              Pagina publică
             </Link>
           </Button>
         </div>
@@ -216,13 +213,14 @@ function ExperienceDetailView({
 
       {/* ═══ LIVE PREVIEW SECTION ═══ */}
       <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-primary/5 to-accent/5 px-6 py-3 border-b border-border">
+        <div className="bg-gradient-to-r from-primary/5 to-accent/5 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2 text-sm font-medium text-primary">
             <Eye className="h-4 w-4" />
             Preview Live — Cum vede clientul experiența ta
           </div>
         </div>
         <CardContent className="p-0">
+          {/* Stacked layout on mobile, side-by-side on md+ */}
           <div className="grid md:grid-cols-2">
             {/* Image Gallery Preview */}
             <div className="relative">
@@ -244,7 +242,7 @@ function ExperienceDetailView({
                           key={img.id}
                           onClick={() => setPreviewImageIdx(idx)}
                           className={cn(
-                            "w-16 h-12 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all",
+                            "w-14 h-10 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all",
                             idx === previewImageIdx ? "border-primary ring-1 ring-primary/30" : "border-transparent opacity-70 hover:opacity-100"
                           )}
                         >
@@ -270,10 +268,9 @@ function ExperienceDetailView({
             </div>
 
             {/* Details Preview */}
-            <div className="p-6 space-y-4">
-              {/* Title & Location */}
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
                   {fullExperience?.category_name && (
                     <Badge variant="secondary" className="text-xs">
                       <Tag className="h-3 w-3 mr-1" />
@@ -284,15 +281,13 @@ function ExperienceDetailView({
                     {exp.is_active ? 'Activ' : 'Inactiv'}
                   </Badge>
                 </div>
-                <h2 className="text-xl font-bold text-foreground mt-2">{exp.title}</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-foreground mt-2">{exp.title}</h2>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {exp.location_name}
-                  {fullExperience?.address && ` · ${fullExperience.address}`}
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{exp.location_name}{fullExperience?.address && ` · ${fullExperience.address}`}</span>
                 </div>
               </div>
 
-              {/* Rating */}
               {fullExperience?.avg_rating && fullExperience.avg_rating > 0 && (
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 text-sm">
@@ -305,8 +300,7 @@ function ExperienceDetailView({
                 </div>
               )}
 
-              {/* Price */}
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-primary">{exp.price} Lei</span>
                 {fullExperience?.original_price && (
                   <span className="text-muted-foreground line-through">{fullExperience.original_price} Lei</span>
@@ -314,8 +308,7 @@ function ExperienceDetailView({
                 <span className="text-sm text-muted-foreground">/ persoană</span>
               </div>
 
-              {/* Quick Info Row */}
-              <div className="flex flex-wrap gap-3 text-sm">
+              <div className="flex flex-wrap gap-2 text-sm">
                 <Badge variant="outline" className="flex items-center gap-1">
                   {exp.provider_type === 'accommodation' ? (
                     <><Building2 className="h-3 w-3" /> Cazare</>
@@ -344,14 +337,12 @@ function ExperienceDetailView({
 
               <Separator />
 
-              {/* Short Description */}
               {fullExperience?.short_description && (
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {fullExperience.short_description}
                 </p>
               )}
 
-              {/* Includes */}
               {fullExperience && fullExperience.includes.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-foreground mb-1.5 uppercase tracking-wide">Include</p>
@@ -366,7 +357,6 @@ function ExperienceDetailView({
                 </div>
               )}
 
-              {/* Services */}
               {services.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-foreground mb-1.5 uppercase tracking-wide">Servicii extra</p>
@@ -389,7 +379,6 @@ function ExperienceDetailView({
       </Card>
 
       {/* ═══ AVAILABILITY SECTION ═══ */}
-      {/* New unified Availability Manager */}
       <AvailabilityManager
         experienceId={experience.experience_id}
         experienceTitle={exp.title}
@@ -397,6 +386,90 @@ function ExperienceDetailView({
         onSlotsUpdated={onSlotAdded}
       />
     </div>
+  );
+}
+
+/* ── Booking Card for mobile ── */
+function BookingCard({
+  booking,
+  clientName,
+  actionLoading,
+  onAction,
+}: {
+  booking: SalesBooking;
+  clientName: string;
+  actionLoading: string | null;
+  onAction: (id: string, action: 'confirm' | 'decline') => void;
+}) {
+  const hoursSince = (Date.now() - new Date(booking.created_at).getTime()) / 3_600_000;
+  const canReject = hoursSince < 24;
+  const hoursLeft = Math.max(0, 24 - hoursSince);
+
+  const statusLabel: Record<string, string> = {
+    confirmed: 'Confirmată',
+    completed: 'Finalizată',
+    cancelled: 'Anulată',
+    pending: 'În așteptare',
+  };
+  const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    confirmed: 'default',
+    completed: 'secondary',
+    cancelled: 'destructive',
+    pending: 'outline',
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{booking.experience_title || 'N/A'}</p>
+            <p className="text-xs text-muted-foreground">{clientName}</p>
+          </div>
+          <Badge variant={statusVariant[booking.status] ?? 'outline'} className="shrink-0 text-xs">
+            {statusLabel[booking.status] ?? booking.status}
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            {format(new Date(booking.booking_date), 'dd MMM yyyy', { locale: ro })}
+          </span>
+          <span className="font-bold text-primary">{booking.total_price} Lei</span>
+        </div>
+
+        {/* Show action buttons for any booking within 24h window that isn't already cancelled/completed */}
+        {canReject && !['cancelled', 'completed'].includes(booking.status) && (
+          <div className="space-y-2 pt-1 border-t border-border">
+            {booking.status === 'pending' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 w-full h-9 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                onClick={() => onAction(booking.id, 'confirm')}
+                disabled={actionLoading === booking.id}
+              >
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Confirmă
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-9 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+              onClick={() => onAction(booking.id, 'decline')}
+              disabled={actionLoading === booking.id}
+            >
+              <XCircle className="w-4 h-4 mr-1" />
+              Refuză rezervarea
+            </Button>
+            <p className="text-[10px] text-amber-600 font-medium text-center">
+              ⏱ Mai ai {Math.floor(hoursLeft)}h {Math.round((hoursLeft % 1) * 60)}m să refuzi
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -416,11 +489,6 @@ export default function ProviderDashboard() {
 
   useEffect(() => {
     if (user) fetchData();
-  }, [user]);
-
-  useEffect(() => {
-    // Note: custom backend doesn't support realtime yet, so we rely on periodic fetch or manual triggers
-    // fetchData(); 
   }, [user]);
 
   const fetchData = async () => {
@@ -445,7 +513,6 @@ export default function ProviderDashboard() {
           totalBookings: bData.length,
         });
 
-        // Clients are already included in the new backend route
         const map: Record<string, string> = {};
         bData.forEach(b => { 
           if (b.user_id) map[b.user_id] = b.client_name || b.client_email || 'N/A'; 
@@ -474,7 +541,6 @@ export default function ProviderDashboard() {
     setActionLoading(bookingId);
     try {
       await api.bookings.updateStatus(bookingId, action === 'confirm' ? 'confirmed' : 'declined');
-      
       toast({ 
         title: "Succes", 
         description: action === 'confirm' ? "Rezervarea a fost confirmată!" : "Rezervarea a fost respinsă."
@@ -488,6 +554,7 @@ export default function ProviderDashboard() {
   };
 
   const activeExperience = assignedExperiences.find(e => e.experience_id === activeExperienceId);
+  const todaysBookings = salesBookings.filter(b => isSameDay(new Date(b.booking_date), new Date()));
 
   if (loading) {
     return (
@@ -507,39 +574,75 @@ export default function ProviderDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="pt-24 pb-16">
-        <div className="container">
-          <div className="flex items-center justify-between mb-8">
+        <div className="container px-4">
+          {/* Header — stacked on mobile */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
             <div>
-              <h1 className="text-3xl font-bold">Dashboard Furnizor</h1>
-              <p className="text-muted-foreground">Gestionează experiențele, disponibilitatea și rezervările</p>
+              <h1 className="text-2xl sm:text-3xl font-bold">Dashboard Furnizor</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Gestionează experiențele, disponibilitatea și rezervările</p>
             </div>
-            <Button onClick={() => navigate('/provider/create')}>
+            <Button onClick={() => navigate('/provider/create')} className="sm:shrink-0">
               <PlusCircle className="h-4 w-4 mr-2" />
               Experiență Nouă
             </Button>
           </div>
 
           <Tabs defaultValue="sales" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="sales">
-                <TrendingUp className="h-4 w-4 mr-1" />
-                Vânzări
-              </TabsTrigger>
-              <TabsTrigger value="experiences">Experiențe</TabsTrigger>
-              <TabsTrigger value="bookings">Rezervări</TabsTrigger>
-              <TabsTrigger value="notifications">
-                <Bell className="h-4 w-4 mr-1" />
-                Notificări
-              </TabsTrigger>
-            </TabsList>
+            {/* Horizontally scrollable tab list on mobile */}
+            <div className="overflow-x-auto -mx-4 px-4">
+              <TabsList className="w-max min-w-full sm:w-auto">
+                <TabsTrigger value="sales" className="flex items-center gap-1.5 whitespace-nowrap">
+                  <TrendingUp className="h-4 w-4" />
+                  Vânzări
+                </TabsTrigger>
+                <TabsTrigger value="experiences" className="whitespace-nowrap">Experiențe</TabsTrigger>
+                <TabsTrigger value="bookings" className="whitespace-nowrap">Rezervări</TabsTrigger>
+                <TabsTrigger value="notifications" className="flex items-center gap-1.5 whitespace-nowrap">
+                  <Bell className="h-4 w-4" />
+                  Notificări
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* Sales Overview Tab */}
             <TabsContent value="sales">
-              <div className="grid sm:grid-cols-3 gap-6 mb-6">
+              {/* Rezervările de Azi */}
+              {todaysBookings.length > 0 ? (
+                <div className="mb-8 bg-primary/5 p-4 sm:p-6 rounded-xl border border-primary/20">
+                  <h3 className="text-lg font-bold flex items-center gap-2 mb-4 text-primary">
+                    <CalendarDays className="h-5 w-5" />
+                    Rezervările de azi ({todaysBookings.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {todaysBookings.map((b) => (
+                      <BookingCard
+                        key={`today-${b.id}`}
+                        booking={b}
+                        clientName={userProfiles[b.user_id] || 'N/A'}
+                        actionLoading={actionLoading}
+                        onAction={handleBookingAction}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-8 flex items-center gap-3 bg-muted/50 p-4 rounded-xl border border-border">
+                   <div className="bg-background p-2 rounded-full shadow-sm">
+                     <CalendarDays className="h-5 w-5 text-muted-foreground" />
+                   </div>
+                   <div>
+                     <p className="font-medium text-sm">Nicio rezervare pentru ziua de azi.</p>
+                     <p className="text-xs text-muted-foreground">Te poți relaxa, nu ai clienți programați astăzi.</p>
+                   </div>
+                </div>
+              )}
+
+              {/* Stat cards — single column on mobile, 3 cols on sm+ */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <BarChart3 className="h-6 w-6 text-primary" />
                       </div>
                       <div>
@@ -552,7 +655,7 @@ export default function ProviderDashboard() {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <CalendarDays className="h-6 w-6 text-primary" />
                       </div>
                       <div>
@@ -565,7 +668,7 @@ export default function ProviderDashboard() {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <TrendingUp className="h-6 w-6 text-primary" />
                       </div>
                       <div>
@@ -586,88 +689,105 @@ export default function ProviderDashboard() {
                   {salesBookings.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">Nicio rezervare încă.</p>
                   ) : (
-                    <Table className="min-w-[800px]">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Experiență</TableHead>
-                          <TableHead>Data Rezervării</TableHead>
-                          <TableHead>Client</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Valoare</TableHead>
-                          <TableHead className="text-right">Acțiuni</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      {/* Desktop table — hidden on mobile */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table className="min-w-[700px]">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Experiență</TableHead>
+                              <TableHead>Data</TableHead>
+                              <TableHead>Client</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Valoare</TableHead>
+                              <TableHead className="text-right">Acțiuni</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {salesBookings.map((b) => (
+                              <TableRow key={b.id}>
+                                <TableCell className="font-medium">{b.experience_title || 'N/A'}</TableCell>
+                                <TableCell>{format(new Date(b.booking_date), 'dd MMM yyyy', { locale: ro })}</TableCell>
+                                <TableCell>{userProfiles[b.user_id] || 'N/A'}</TableCell>
+                                <TableCell>
+                                  <Badge variant={
+                                    b.status === 'confirmed' ? 'default' :
+                                    b.status === 'completed' ? 'secondary' :
+                                    b.status === 'cancelled' ? 'destructive' : 'outline'
+                                  }>
+                                    {b.status === 'confirmed' ? 'Confirmată' :
+                                     b.status === 'completed' ? 'Finalizată' :
+                                     b.status === 'cancelled' ? 'Anulată' : 'În așteptare'}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right font-medium">{b.total_price} Lei</TableCell>
+                                <TableCell className="text-right">
+                                  {b.status === 'pending' && (() => {
+                                    const hoursSince = (Date.now() - new Date(b.created_at).getTime()) / 3_600_000;
+                                    const canReject = hoursSince < 24;
+                                    const hoursLeft = Math.max(0, 24 - hoursSince);
+                                    return (
+                                      <div className="flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-2">
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                                            onClick={() => handleBookingAction(b.id, 'confirm')} 
+                                            disabled={actionLoading === b.id}
+                                          >
+                                            <CheckCircle2 className="w-4 h-4 mr-1" />
+                                            Confirmă
+                                          </Button>
+                                          <Button 
+                                            size="sm" 
+                                            variant="outline" 
+                                            className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                                            onClick={() => handleBookingAction(b.id, 'decline')} 
+                                            disabled={actionLoading === b.id || !canReject}
+                                          >
+                                            <XCircle className="w-4 h-4 mr-1" />
+                                            Respinge
+                                          </Button>
+                                        </div>
+                                        {canReject ? (
+                                          <span className="text-[10px] text-amber-600 font-medium">
+                                            ⏱ {Math.floor(hoursLeft)}h {Math.round((hoursLeft % 1) * 60)}m pentru respingere
+                                          </span>
+                                        ) : (
+                                          <span className="text-[10px] text-muted-foreground">
+                                            Fereastra de respingere a expirat
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile cards — hidden on md+ */}
+                      <div className="md:hidden space-y-3">
                         {salesBookings.map((b) => (
-                          <TableRow key={b.id}>
-                            <TableCell className="font-medium">{b.experience_title || 'N/A'}</TableCell>
-                            <TableCell>{format(new Date(b.booking_date), 'dd MMM yyyy', { locale: ro })}</TableCell>
-                            <TableCell>{userProfiles[b.user_id] || 'N/A'}</TableCell>
-                            <TableCell>
-                              <Badge variant={
-                                b.status === 'confirmed' ? 'default' :
-                                b.status === 'completed' ? 'secondary' :
-                                b.status === 'cancelled' ? 'destructive' : 'outline'
-                              }>
-                                {b.status === 'confirmed' ? 'Confirmată' :
-                                 b.status === 'completed' ? 'Finalizată' :
-                                 b.status === 'cancelled' ? 'Anulată' : 'În așteptare'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">{b.total_price} Lei</TableCell>
-                            <TableCell className="text-right">
-                              {b.status === 'pending' && (() => {
-                                const hoursSince = (Date.now() - new Date(b.created_at).getTime()) / 3_600_000;
-                                const canReject = hoursSince < 24;
-                                const hoursLeft = Math.max(0, 24 - hoursSince);
-                                return (
-                                  <div className="flex flex-col items-end gap-1">
-                                    <div className="flex items-center gap-2">
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="h-8 px-2 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-                                        onClick={() => handleBookingAction(b.id, 'confirm')} 
-                                        disabled={actionLoading === b.id}
-                                      >
-                                        <CheckCircle2 className="w-4 h-4 mr-1" />
-                                        Confirmă
-                                      </Button>
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
-                                        onClick={() => handleBookingAction(b.id, 'decline')} 
-                                        disabled={actionLoading === b.id || !canReject}
-                                        title={!canReject ? 'Fereastra de 24h pentru respingere a expirat' : undefined}
-                                      >
-                                        <XCircle className="w-4 h-4 mr-1" />
-                                        Respinge
-                                      </Button>
-                                    </div>
-                                    {canReject ? (
-                                      <span className="text-[10px] text-amber-600 font-medium">
-                                        ⏱ {Math.floor(hoursLeft)}h {Math.round((hoursLeft % 1) * 60)}m pentru respingere
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-muted-foreground">
-                                        Fereastra de respingere a expirat
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </TableCell>
-                          </TableRow>
+                          <BookingCard
+                            key={b.id}
+                            booking={b}
+                            clientName={userProfiles[b.user_id] || 'N/A'}
+                            actionLoading={actionLoading}
+                            onAction={handleBookingAction}
+                          />
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Experiences Tab — now with detail view */}
+            {/* Experiences Tab */}
             <TabsContent value="experiences">
               {activeExperience ? (
                 <ExperienceDetailView
@@ -678,7 +798,7 @@ export default function ProviderDashboard() {
                   onSlotDeleted={deleteSlot}
                 />
               ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {assignedExperiences.length === 0 ? (
                     <Card className="col-span-full">
                       <CardContent className="pt-6 text-center">
@@ -695,19 +815,19 @@ export default function ProviderDashboard() {
                       return (
                         <Card
                           key={exp.id}
-                          className="cursor-pointer hover:border-primary/50 transition-colors"
+                          className="cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98]"
                           onClick={() => setActiveExperienceId(exp.experience_id)}
                         >
                           <CardContent className="pt-6">
-                            <div className="flex items-start justify-between mb-2">
-                              <h4 className="font-semibold">{exp.experience?.title}</h4>
-                              <Badge variant={exp.experience?.is_active ? 'default' : 'secondary'}>
+                            <div className="flex items-start justify-between mb-2 gap-2">
+                              <h4 className="font-semibold text-sm leading-snug">{exp.experience?.title}</h4>
+                              <Badge variant={exp.experience?.is_active ? 'default' : 'secondary'} className="shrink-0 text-xs">
                                 {exp.experience?.is_active ? 'Activ' : 'Inactiv'}
                               </Badge>
                             </div>
                             <p className="text-sm text-muted-foreground">{exp.experience?.location_name}</p>
-                            <div className="flex items-center gap-3 mt-3">
-                              <Badge variant="outline" className="flex items-center gap-1">
+                            <div className="flex items-center gap-2 mt-3 flex-wrap">
+                              <Badge variant="outline" className="flex items-center gap-1 text-xs">
                                 {exp.experience?.provider_type === 'accommodation' ? (
                                   <><Building2 className="h-3 w-3" /> Cazare</>
                                 ) : (
@@ -724,7 +844,7 @@ export default function ProviderDashboard() {
                             <div className="flex items-center justify-between mt-3">
                               <p className="text-lg font-bold text-primary">{exp.experience?.price} Lei</p>
                               <span className="text-xs text-muted-foreground">
-                                {slotCount} {slotCount === 1 ? 'slot' : 'sloturi'} active
+                                {slotCount} {slotCount === 1 ? 'slot' : 'sloturi'}
                               </span>
                             </div>
                           </CardContent>

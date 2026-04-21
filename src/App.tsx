@@ -32,6 +32,7 @@ import ExperienceBuilder from "./pages/admin/ExperienceBuilder";
 import ContentEditor from "./pages/admin/ContentEditor";
 import ContentAudit from "./pages/admin/ContentAudit";
 import EditExperience from "./pages/admin/EditExperience";
+import DeclinedBookings from "./pages/admin/DeclinedBookings";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
@@ -120,6 +121,7 @@ const App = () => (
               <Route path="/admin/blog/create" element={<BlogEditor />} />
               <Route path="/admin/blog/:id/edit" element={<BlogEditor />} />
               <Route path="/admin/partner-applications" element={<ManagePartnerApplications />} />
+              <Route path="/admin/declined-bookings" element={<DeclinedBookings />} />
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

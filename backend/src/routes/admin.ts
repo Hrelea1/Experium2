@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../db';
 import { requireAdmin } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
+import { sendBookingDeclinedAdminAlert } from '../services/email';
 
 const router = Router();
 
@@ -347,6 +348,42 @@ router.post('/categories', requireAdmin, async (req: Request, res: Response) => 
     res.status(201).json({ id: row!.id });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create category' });
+  }
+});
+
+// ─── GET /admin/declined-bookings ────────────────────────────────────────────
+router.get('/declined-bookings', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const rows = await query(
+      `SELECT
+        b.id               AS booking_id,
+        b.total_price,
+        b.participants,
+        b.booking_date,
+        b.cancellation_reason,
+        b.updated_at       AS declined_at,
+        b.created_at,
+        e.title            AS experience_title,
+        u.email            AS client_email,
+        p.full_name        AS client_name,
+        p.phone            AS client_phone,
+        pu.email           AS provider_email,
+        pp.full_name       AS provider_name
+       FROM bookings b
+       JOIN experiences e ON e.id = b.experience_id
+       JOIN users u ON u.id = b.user_id
+       LEFT JOIN profiles p ON p.id = u.id
+       LEFT JOIN experience_providers ep ON ep.experience_id = e.id AND ep.is_active = true
+       LEFT JOIN users pu ON pu.id = ep.provider_user_id
+       LEFT JOIN profiles pp ON pp.id = ep.provider_user_id
+       WHERE b.status = 'cancelled'
+         AND b.cancellation_reason = 'Provider declined'
+       ORDER BY b.updated_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('[GET /admin/declined-bookings]', err);
+    res.status(500).json({ error: 'Failed to fetch declined bookings' });
   }
 });
 

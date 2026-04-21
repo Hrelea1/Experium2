@@ -8,7 +8,8 @@ import {
   Home,
   FileEdit,
   BookOpen,
-  Handshake
+  Handshake,
+  XCircle
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -32,6 +33,7 @@ const mainItems = [
   { title: "Experiențe", url: "/admin/experiences", icon: Gift },
   { title: "Rezervări", url: "/admin/bookings", icon: Calendar },
   { title: "Comenzi", url: "/admin/orders", icon: ShoppingBag },
+  { title: "Refuzate de Furnizori", url: "/admin/declined-bookings", icon: XCircle },
   { title: "Aplicații Parteneri", url: "/admin/partner-applications", icon: Handshake },
   { title: "Roluri", url: "/admin/roles", icon: Users },
 ];
