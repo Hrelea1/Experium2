@@ -1,21 +1,91 @@
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
-import { requireAuth } from '../middleware/auth';
+import { optionalAuth } from '../middleware/auth';
 import { query, queryOne } from '../db';
 import { sendBookingConfirmation, sendProviderBookingNotification } from '../services/email';
 import { sendSms, getBookingConfirmedSms } from '../services/sms';
 import { createProviderNotification } from '../services/providerNotifications';
+import crypto from 'crypto';
 
 const router = Router();
 const stripeToken = process.env.STRIPE_SECRET_KEY || 'sk_test_51O...';
 const stripe = new Stripe(stripeToken, { apiVersion: '2023-10-16' as any });
 
-router.post('/create-session', requireAuth, async (req: Request, res: Response) => {
+// ─── Helper: find existing user by email or create a guest account ────────────
+async function resolveUserId(params: {
+  loggedInUserId?: string;
+  guestEmail?: string;
+  guestName?: string;
+  guestPhone?: string;
+}): Promise<string | null> {
+  // If already logged in, use that account
+  if (params.loggedInUserId) return params.loggedInUserId;
+
+  if (!params.guestEmail) return null;
+
+  const email = params.guestEmail.toLowerCase().trim();
+
+  // Amazon behavior: find existing account by email → reuse it
+  const existing = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
+  if (existing) {
+    // Update profile name/phone if provided and profile exists
+    if (params.guestName || params.guestPhone) {
+      await query(
+        `INSERT INTO profiles (id, full_name, phone)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE
+           SET full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
+               phone     = COALESCE(EXCLUDED.phone, profiles.phone)`,
+        [existing.id, params.guestName ?? null, params.guestPhone ?? null]
+      );
+    }
+    console.log(`[checkout] Guest email matched existing user: ${existing.id}`);
+    return existing.id;
+  }
+
+  // No account found → create a guest user with a random password
+  const randomPassword = crypto.randomBytes(24).toString('hex');
+  const bcrypt = require('bcryptjs');
+  const hashed = await bcrypt.hash(randomPassword, 10);
+
+  const newUser = await queryOne<{ id: string }>(
+    `INSERT INTO users (email, password_hash, role, is_verified)
+     VALUES ($1, $2, 'user', true)
+     RETURNING id`,
+    [email, hashed]
+  );
+
+  if (!newUser) return null;
+
+  // Create profile
+  await query(
+    `INSERT INTO profiles (id, full_name, phone) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [newUser.id, params.guestName ?? null, params.guestPhone ?? null]
+  );
+
+  console.log(`[checkout] Created guest user ${newUser.id} for email ${email}`);
+  return newUser.id;
+}
+
+// ─── POST /checkout/create-session ───────────────────────────────────────────
+router.post('/create-session', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { items, success_url, cancel_url } = req.body;
-    
+    const { items, success_url, cancel_url, guestEmail, guestName, guestPhone } = req.body;
+
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'No items provided' });
+    }
+
+    // Resolve the user (logged-in or guest)
+    const userId = await resolveUserId({
+      loggedInUserId: req.user?.userId,
+      guestEmail,
+      guestName,
+      guestPhone,
+    });
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Trebuie să furnizezi un email valid pentru a continua.' });
     }
 
     const line_items = items.map((item: any) => ({
@@ -24,7 +94,7 @@ router.post('/create-session', requireAuth, async (req: Request, res: Response) 
         product_data: {
           name: item.title || 'Experiență',
         },
-        unit_amount: Math.round(item.totalPrice * 100), // convert lei to bani
+        unit_amount: Math.round(item.totalPrice * 100),
       },
       quantity: 1,
     }));
@@ -33,10 +103,12 @@ router.post('/create-session', requireAuth, async (req: Request, res: Response) 
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
-      success_url: success_url + "?session_id={CHECKOUT_SESSION_ID}",
+      success_url: success_url + '?session_id={CHECKOUT_SESSION_ID}',
       cancel_url,
+      customer_email: guestEmail || undefined, // pre-fill Stripe email for guests
       metadata: {
-        userId: req.user!.userId,
+        userId,
+        isGuest: req.user ? 'false' : 'true',
         itemsMetadata: JSON.stringify(items.map((i: any) => ({
           experienceId: i.experienceId,
           slotDate: i.slotDate,
@@ -55,7 +127,9 @@ router.post('/create-session', requireAuth, async (req: Request, res: Response) 
   }
 });
 
-router.post('/verify-session', requireAuth, async (req: Request, res: Response) => {
+// ─── POST /checkout/verify-session ───────────────────────────────────────────
+// Uses optionalAuth — works for both logged-in users and guests
+router.post('/verify-session', optionalAuth, async (req: Request, res: Response) => {
   try {
     const { session_id } = req.body;
     if (!session_id) return res.status(400).json({ error: 'No session_id provided' });
@@ -83,12 +157,10 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
       const hoursUntil = (new Date(bookingDate).getTime() - Date.now()) / 3_600_000;
       if (hoursUntil < 48) {
         console.warn(`[checkout] Slot rejected (<48h): ${bookingDate}`);
-        continue; // skip this item — slot too close
+        continue;
       }
 
       // ── Capacity check + atomic slot reservation ─────────────
-      // Find the matching slot and reserve capacity atomically.
-      // We lock with FOR UPDATE to prevent race conditions.
       const slotCheck = await queryOne<{ id: string; available: number }>(
         `SELECT id, (capacity - booked_count) AS available
          FROM availability_slots
@@ -132,12 +204,10 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
         );
         console.log(`[checkout] ✅ Slot ${slotCheck.id} booked_count incremented by ${item.participants}`);
 
-        // ── Send notifications (awaited, not fire-and-forget) ──────
-
+        // ── Send notifications ──────
         try {
           const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
 
-          // 1. Get client info (always available)
           const clientInfo = await queryOne<{ email: string; full_name: string; phone: string | null; title: string }>(
             `SELECT u.email, p.full_name, p.phone, e.title
              FROM users u
@@ -148,7 +218,7 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
           );
 
           if (clientInfo) {
-            // Client Email — always send
+            // Client Email
             try {
               console.log(`[checkout] Sending confirmation email to ${clientInfo.email} for booking ${booking.id}...`);
               await sendBookingConfirmation({
@@ -183,7 +253,7 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
               }
             }
 
-            // 2. Get provider info (may not exist)
+            // Provider notification
             const providerInfo = await queryOne<{ provider_email: string; provider_name: string; provider_user_id: string }>(
               `SELECT pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
                FROM experience_providers ep
@@ -195,7 +265,6 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
             );
 
             if (providerInfo) {
-              // Provider Email
               try {
                 await sendProviderBookingNotification({
                   providerEmail: providerInfo.provider_email,
@@ -214,7 +283,6 @@ router.post('/verify-session', requireAuth, async (req: Request, res: Response) 
                 emailResults.push(`provider_email:${providerInfo.provider_email}:FAIL:${provEmailErr.message}`);
               }
 
-              // Provider DB Notification + Web Push
               await createProviderNotification(
                 providerInfo.provider_user_id,
                 `Rezervare nouă — ${clientInfo.title}`,

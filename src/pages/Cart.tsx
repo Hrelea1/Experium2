@@ -1,45 +1,45 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, ArrowRight, Trash2, CalendarDays, Clock, Users, MapPin, CreditCard, AlertTriangle, Phone } from "lucide-react";
+import { ShoppingBag, ArrowRight, Trash2, CalendarDays, Clock, Users, MapPin, CreditCard, Phone, UserCircle, Mail, User, LogIn } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useTranslation } from "react-i18next";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCheckout } from "@/hooks/useCheckout";
+import { useCheckout, GuestInfo } from "@/hooks/useCheckout";
 import { BillingForm, BillingData } from "@/components/booking/BillingForm";
 import { useToast } from "@/hooks/use-toast";
 import { ExperienceImage } from "@/components/ExperienceImage";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { Separator } from "@/components/ui/separator";
+import { api } from "@/lib/api";
 
 export default function Cart() {
-  const { t } = useTranslation();
   const { items, removeItem, subtotal } = useCart();
   const { user } = useAuth();
   const { processCheckout, isProcessing } = useCheckout();
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
   const [currentStep, setCurrentStep] = useState(1);
   const [billingData, setBillingData] = useState<BillingData | null>(null);
+
+  // Guest form state
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+
+  // Logged-in user phone
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [isUpdatingPhone, setIsUpdatingPhone] = useState(false);
 
   useEffect(() => {
     if (user) {
-      const fetchProfile = async () => {
-        const { data } = await supabase.from('profiles').select('phone').eq('id', user.id).single();
-        if (data?.phone) {
-          setPhoneNumber(data.phone);
-        }
-      };
-      fetchProfile();
+      api.auth.getUser().then((u) => {
+        if (u?.phone) setPhoneNumber(u.phone);
+      }).catch(() => {});
     }
   }, [user]);
 
@@ -48,24 +48,36 @@ export default function Cart() {
 
   const nextStep = () => {
     if (currentStep === 1) {
-      if (!user) {
-        toast({ title: "Autentificare necesară", description: "Te rugăm să te autentifici pentru a continua.", variant: "destructive" });
-        navigate("/auth");
-        return;
-      }
       if (items.some(i => isSlotExpired(i.addedAt))) {
         toast({ title: "Sloturi expirate", description: "Unele rezervări au expirat. Te rugăm să le elimini.", variant: "destructive" });
         return;
       }
     }
     if (currentStep === 2) {
-      if (!billingData?.billing_email || !billingData?.billing_phone) {
-        toast({ title: "Date incomplete", description: "Te rugăm să completezi datele de facturare.", variant: "destructive" });
-        return;
-      }
-      if (!phoneNumber.trim()) {
-        toast({ title: "Telefon necesar", description: "Introdu un număr de telefon pentru contact.", variant: "destructive" });
-        return;
+      if (!user) {
+        // Guest validation
+        if (!guestName.trim()) {
+          toast({ title: "Nume necesar", description: "Introdu numele tău complet.", variant: "destructive" });
+          return;
+        }
+        if (!guestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+          toast({ title: "Email invalid", description: "Introdu o adresă de email validă.", variant: "destructive" });
+          return;
+        }
+        if (!guestPhone.trim()) {
+          toast({ title: "Telefon necesar", description: "Introdu un număr de telefon pentru contact.", variant: "destructive" });
+          return;
+        }
+      } else {
+        // Logged-in user validation
+        if (!billingData?.billing_email || !billingData?.billing_phone) {
+          toast({ title: "Date incomplete", description: "Te rugăm să completezi datele de facturare.", variant: "destructive" });
+          return;
+        }
+        if (!phoneNumber.trim()) {
+          toast({ title: "Telefon necesar", description: "Introdu un număr de telefon pentru contact.", variant: "destructive" });
+          return;
+        }
       }
     }
     setCurrentStep(prev => Math.min(prev + 1, 3));
@@ -89,10 +101,6 @@ export default function Cart() {
   };
 
   const handleFinalCheckout = async () => {
-    setIsUpdatingPhone(true);
-    await supabase.from('profiles').update({ phone: phoneNumber }).eq('id', user.id);
-    setIsUpdatingPhone(false);
-
     const checkoutItems = items.map(item => ({
       experienceId: item.experienceId,
       slotId: item.slotId,
@@ -104,7 +112,11 @@ export default function Cart() {
       participantDetails: [...(item.selectedTiers || []), ...(item.services || [])],
     }));
 
-    await processCheckout(checkoutItems);
+    const guestInfo: GuestInfo | undefined = !user
+      ? { email: guestEmail.trim(), name: guestName.trim(), phone: guestPhone.trim() }
+      : undefined;
+
+    await processCheckout(checkoutItems, guestInfo);
   };
 
   const formatDate = (dateStr?: string) => {
@@ -175,6 +187,7 @@ export default function Cart() {
             {/* Main Content Area */}
             <div className="lg:col-span-8">
               <AnimatePresence mode="wait">
+                {/* Step 1 — Cart Items */}
                 {currentStep === 1 && (
                   <motion.div key="step1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-6">
                     <div className="flex items-center justify-between">
@@ -207,10 +220,10 @@ export default function Cart() {
                                   </div>
                                 </div>
                               </div>
-                                <div className="flex justify-between items-end border-t border-border/50 pt-4">
-                                  <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal</div>
-                                  <div className="text-xl font-black">{getItemTotal(item)} Lei</div>
-                                </div>
+                              <div className="flex justify-between items-end border-t border-border/50 pt-4">
+                                <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subtotal</div>
+                                <div className="text-xl font-black">{getItemTotal(item)} Lei</div>
+                              </div>
                             </div>
                           </div>
                         </CardContent>
@@ -218,42 +231,123 @@ export default function Cart() {
                     ))}
                     <div className="flex justify-end pt-4">
                       <Button size="xl" onClick={nextStep} className="w-full sm:w-auto rounded-2xl px-6 sm:px-10 shadow-lg shadow-primary/20 group">
-                        Continuă la facturare <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                        Continuă la detalii <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </div>
                   </motion.div>
                 )}
 
+                {/* Step 2 — Details (Guest form OR Billing form) */}
                 {currentStep === 2 && (
                   <motion.div key="step2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-8">
-                    <Card className="border-none shadow-premium overflow-hidden bg-card">
-                      <div className="p-6 border-b border-border/50 bg-muted/30">
-                        <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
-                          <CreditCard className="w-6 h-6 text-primary" />
-                          Date facturare și contact
-                        </h2>
-                      </div>
-                      <CardContent className="p-5 sm:p-8 space-y-8">
-                        <div className="grid gap-6">
-                           <BillingForm onChange={setBillingData} />
-                           <div className="space-y-4 pt-4 border-t border-border/50">
+
+                    {!user ? (
+                      /* ── Guest Checkout Form ── */
+                      <Card className="border-none shadow-premium overflow-hidden bg-card">
+                        <div className="p-6 border-b border-border/50 bg-muted/30">
+                          <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                            <UserCircle className="w-6 h-6 text-primary" />
+                            Detalii contact
+                          </h2>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Nu este nevoie de cont. Confirmarea rezervării va fi trimisă pe email.
+                          </p>
+                        </div>
+                        <CardContent className="p-5 sm:p-8 space-y-6">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                              <User className="w-4 h-4 text-primary" />
+                              Nume complet *
+                            </Label>
+                            <Input
+                              id="guest-name"
+                              placeholder="Ion Popescu"
+                              value={guestName}
+                              onChange={e => setGuestName(e.target.value)}
+                              className="h-12 text-base rounded-xl"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                              <Mail className="w-4 h-4 text-primary" />
+                              Adresă email *
+                            </Label>
+                            <Input
+                              id="guest-email"
+                              type="email"
+                              placeholder="ion@exemplu.ro"
+                              value={guestEmail}
+                              onChange={e => setGuestEmail(e.target.value)}
+                              className="h-12 text-base rounded-xl"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Confirmarea și detaliile rezervării vor fi trimise pe acest email.
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-primary" />
+                              Număr de telefon *
+                            </Label>
+                            <Input
+                              id="guest-phone"
+                              placeholder="+40 7XX XXX XXX"
+                              value={guestPhone}
+                              onChange={e => setGuestPhone(e.target.value)}
+                              className="h-12 text-base rounded-xl"
+                            />
+                            <p className="text-xs text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/10">
+                              Îți vom trimite un SMS cu confirmarea imediat după plată.
+                            </p>
+                          </div>
+
+                          <Separator />
+
+                          <div className="flex items-center justify-center gap-2 py-1">
+                            <LogIn className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              Ai deja cont?{' '}
+                              <Link to="/auth" className="text-primary font-semibold hover:underline">
+                                Autentifică-te
+                              </Link>
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      /* ── Logged-in Billing Form ── */
+                      <Card className="border-none shadow-premium overflow-hidden bg-card">
+                        <div className="p-6 border-b border-border/50 bg-muted/30">
+                          <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                            <CreditCard className="w-6 h-6 text-primary" />
+                            Date facturare și contact
+                          </h2>
+                        </div>
+                        <CardContent className="p-5 sm:p-8 space-y-8">
+                          <div className="grid gap-6">
+                            <BillingForm onChange={setBillingData} />
+                            <div className="space-y-4 pt-4 border-t border-border/50">
                               <Label className="text-sm font-bold flex items-center gap-2">
                                 <Phone className="w-4 h-4 text-primary" />
                                 Număr de contact pentru SMS
                               </Label>
-                              <Input 
-                                placeholder="+40 7XX XXX XXX" 
-                                value={phoneNumber} 
-                                onChange={(e) => setPhoneNumber(e.target.value)} 
+                              <Input
+                                placeholder="+40 7XX XXX XXX"
+                                value={phoneNumber}
+                                onChange={e => setPhoneNumber(e.target.value)}
                                 className="h-12 text-lg rounded-xl border-border bg-muted/20 focus:bg-background transition-all"
                               />
                               <p className="text-xs text-muted-foreground bg-primary/5 p-3 rounded-lg border border-primary/10">
                                 Îți vom trimite un SMS cu confirmarea și detaliile accesului imediat după plată.
                               </p>
-                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     <div className="flex flex-col-reverse sm:flex-row justify-between pt-4 gap-4">
                       <Button variant="ghost" onClick={prevStep} className="rounded-2xl px-6 font-bold h-12 sm:h-auto">Înapoi</Button>
                       <Button size="xl" onClick={nextStep} className="w-full sm:w-auto rounded-2xl px-6 sm:px-10 shadow-lg shadow-primary/20 group">
@@ -263,13 +357,26 @@ export default function Cart() {
                   </motion.div>
                 )}
 
+                {/* Step 3 — Payment */}
                 {currentStep === 3 && (
                   <motion.div key="step3" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-10">
                     <div className="text-center space-y-2">
                       <h2 className="text-3xl font-black">Ultimul pas</h2>
                       <p className="text-muted-foreground">Verifică detaliile înainte de a finaliza plata securizată.</p>
                     </div>
-                    
+
+                    {/* Guest info summary */}
+                    {!user && (
+                      <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2 flex items-center gap-1.5">
+                          <UserCircle className="w-3.5 h-3.5" /> Date contact
+                        </p>
+                        <p className="text-sm font-semibold">{guestName}</p>
+                        <p className="text-sm text-muted-foreground">{guestEmail}</p>
+                        <p className="text-sm text-muted-foreground">{guestPhone}</p>
+                      </div>
+                    )}
+
                     <div className="bg-primary/5 rounded-3xl sm:rounded-[2rem] p-5 sm:p-8 border border-primary/10">
                       <div className="space-y-6">
                         <div className="flex flex-col space-y-4">
@@ -287,7 +394,7 @@ export default function Cart() {
                             </div>
                           ))}
                         </div>
-                        
+
                         <div className="pt-6 mt-6 border-t-2 border-dashed border-primary/20">
                           <div className="flex justify-between items-center bg-white dark:bg-card p-5 sm:p-6 rounded-2xl shadow-sm gap-4">
                             <div className="flex flex-col">
@@ -301,14 +408,14 @@ export default function Cart() {
                     </div>
 
                     <div className="flex flex-col items-center space-y-6">
-                      <Button size="xl" onClick={handleFinalCheckout} disabled={isProcessing || isUpdatingPhone} className="w-full sm:w-80 h-16 rounded-2xl text-xl font-bold shadow-xl shadow-primary/30 animate-pulse-glow">
+                      <Button size="xl" onClick={handleFinalCheckout} disabled={isProcessing} className="w-full sm:w-80 h-16 rounded-2xl text-xl font-bold shadow-xl shadow-primary/30 animate-pulse-glow">
                         {isProcessing ? "Se procesează..." : "Plătește în siguranță"}
                       </Button>
                       <div className="flex flex-col items-center space-y-2">
-                         <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                           <CreditCard className="w-4 h-4" /> Plată securizată prin Stripe
-                         </span>
-                         <Button variant="link" onClick={prevStep} className="text-muted-foreground font-bold hover:text-primary">E vreo greșeală? Modifică datele</Button>
+                        <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                          <CreditCard className="w-4 h-4" /> Plată securizată prin Stripe
+                        </span>
+                        <Button variant="link" onClick={prevStep} className="text-muted-foreground font-bold hover:text-primary">E vreo greșeală? Modifică datele</Button>
                       </div>
                     </div>
                   </motion.div>
@@ -316,7 +423,7 @@ export default function Cart() {
               </AnimatePresence>
             </div>
 
-            {/* Sidebar Summary (Visible in steps 1 & 2) */}
+            {/* Sidebar Summary */}
             <div className="lg:col-span-4 sticky top-32">
               <Card className="border-none shadow-premium bg-card overflow-hidden">
                 <div className="p-6 bg-gradient-to-br from-primary to-primary-dark text-white">
@@ -339,10 +446,10 @@ export default function Cart() {
                       <span className="text-2xl font-black text-primary">{subtotal} Lei</span>
                     </div>
                   </div>
-                  
+
                   {currentStep < 3 && (
-                    <Button 
-                      className="w-full rounded-xl shadow-lg shadow-primary/10 group" 
+                    <Button
+                      className="w-full rounded-xl shadow-lg shadow-primary/10 group"
                       variant="secondary"
                       onClick={() => navigate("/")}
                     >
@@ -351,10 +458,10 @@ export default function Cart() {
                   )}
                 </CardContent>
               </Card>
-              
+
               <div className="mt-6 p-6 rounded-[2rem] bg-primary/5 border border-primary/10 text-center space-y-3">
                 <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Phone className="w-5 h-5 text-primary" />
+                  <Phone className="w-5 h-5 text-primary" />
                 </div>
                 <p className="text-xs font-black text-primary uppercase tracking-[0.2em]">Asistență</p>
                 <p className="text-sm font-bold text-foreground leading-relaxed">Suntem aici pentru a te ajuta să finalizezi rezervarea perfectă.</p>

@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { tokenStore } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -22,7 +21,8 @@ export default function PaymentSuccess() {
 
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
-    if (!sessionId || !user || processedRef.current) return;
+    // Works for both logged-in users and guests — userId is in Stripe metadata
+    if (!sessionId || processedRef.current) return;
 
     processedRef.current = true;
 
@@ -46,9 +46,14 @@ export default function PaymentSuccess() {
         setBookingCount(data.successCount || 1);
         setStatus("success");
 
+        // Redirect logged-in users to their bookings; guests to homepage
         setTimeout(() => {
-          navigate("/my-bookings", { replace: true });
-        }, 3000);
+          if (user) {
+            navigate("/my-bookings", { replace: true });
+          } else {
+            navigate("/", { replace: true });
+          }
+        }, 4000);
       } catch (err: any) {
         console.error("Payment verification error:", err);
         setErrorMsg(err.message || "A apărut o eroare la verificarea plății");
@@ -57,7 +62,8 @@ export default function PaymentSuccess() {
     };
 
     verifyPayment();
-  }, [searchParams, user, navigate, clearCart]);
+  }, [searchParams, navigate, clearCart, user]);
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,9 +84,17 @@ export default function PaymentSuccess() {
               <h1 className="text-2xl font-bold mb-2">
                 {bookingCount === 1 ? 'Rezervare confirmată! 🎉' : `${bookingCount} rezervări confirmate! 🎉`}
               </h1>
-              <p className="text-muted-foreground">Redirecționare către rezervările tale...</p>
+              {user ? (
+                <p className="text-muted-foreground">Redirecționare către rezervările tale...</p>
+              ) : (
+                <p className="text-muted-foreground">
+                  Detaliile rezervării au fost trimise pe email.<br />
+                  Redirecționare către pagina principală...
+                </p>
+              )}
             </motion.div>
           )}
+
 
           {status === "error" && (
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-20">

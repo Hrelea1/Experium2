@@ -438,24 +438,29 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
     // ── Admin alert when provider declines ────────────────────────────────────
     if (status === 'declined' && prevBooking) {
       const dateStr = new Date(prevBooking.booking_date).toLocaleString('ro-RO');
-      queryOne<{ client_email: string; client_name: string; title: string; provider_email: string; provider_name: string }>(`
-        SELECT
-          u.email AS client_email, p.full_name AS client_name,
-          e.title,
-          pu.email AS provider_email, pp.full_name AS provider_name
-        FROM bookings b
-        JOIN users u ON u.id = b.user_id
-        LEFT JOIN profiles p ON p.id = u.id
-        JOIN experiences e ON e.id = b.experience_id
-        LEFT JOIN experience_providers ep ON ep.experience_id = e.id AND ep.is_active = true
-        LEFT JOIN users pu ON pu.id = ep.provider_user_id
-        LEFT JOIN profiles pp ON pp.id = pu.id
-        WHERE b.id = $1`, [id]
-      ).then(async (info) => {
-        if (info) {
-          const adminEmail = process.env.ADMIN_EMAIL ?? process.env.EMAIL_FROM ?? 'contact@experium.ro';
+
+      // Fetch booking details + all admin emails in parallel
+      Promise.all([
+        queryOne<{ client_email: string; client_name: string; title: string; provider_email: string; provider_name: string }>(`
+          SELECT
+            u.email AS client_email, p.full_name AS client_name,
+            e.title,
+            pu.email AS provider_email, pp.full_name AS provider_name
+          FROM bookings b
+          JOIN users u ON u.id = b.user_id
+          LEFT JOIN profiles p ON p.id = u.id
+          JOIN experiences e ON e.id = b.experience_id
+          LEFT JOIN experience_providers ep ON ep.experience_id = e.id AND ep.is_active = true
+          LEFT JOIN users pu ON pu.id = ep.provider_user_id
+          LEFT JOIN profiles pp ON pp.id = pu.id
+          WHERE b.id = $1`, [id]),
+        query<{ email: string }>(`SELECT email FROM users WHERE role = 'admin'`),
+      ]).then(async ([info, adminUsers]) => {
+        if (!info || !adminUsers.length) return;
+        console.log(`[bookings] Sending declined alert to ${adminUsers.length} admin(s)`);
+        for (const admin of adminUsers) {
           await sendBookingDeclinedAdminAlert({
-            adminEmail,
+            adminEmail: admin.email,
             bookingId: id,
             clientName: info.client_name ?? 'Client necunoscut',
             clientEmail: info.client_email,
@@ -464,7 +469,7 @@ router.patch('/:id/status', requireAuth, async (req: Request, res: Response) => 
             totalPrice: Number(prevBooking.total_price),
             providerName: info.provider_name ?? 'Furnizor necunoscut',
             providerEmail: info.provider_email ?? 'N/A',
-          }).catch(err => console.error('[Admin declined alert]', err));
+          }).catch(err => console.error(`[Admin declined alert → ${admin.email}]`, err));
         }
       }).catch(err => console.error('[Admin declined alert query]', err));
     }
