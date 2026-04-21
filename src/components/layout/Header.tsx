@@ -265,22 +265,41 @@ export function Header() {
                 {t('nav.partners')}
               </Link>
 
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <Shield className="h-4 w-4" />
-                  {t('nav.admin')}
-                </Link>
-              )}
-
               {user && (
                 <>
                   <div className="px-4 pt-2 pb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {t('nav.myAccount')}
                   </div>
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Shield className="h-4 w-4" />
+                      Dashboard Admin
+                    </Link>
+                  )}
+                  {isProvider && (
+                    <Link
+                      to="/provider"
+                      className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Truck className="h-4 w-4" />
+                      Dashboard Furnizor
+                    </Link>
+                  )}
+                  {isAmbassador && (
+                    <Link
+                      to="/ambassador"
+                      className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Award className="h-4 w-4" />
+                      Dashboard Ambasador
+                    </Link>
+                  )}
                   <Link
                     to="/dashboard"
                     className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
