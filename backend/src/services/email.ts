@@ -1,47 +1,82 @@
 import nodemailer from 'nodemailer';
 
+// Helper to mask credentials for logging
+function maskStr(s?: string): string {
+  if (!s) return '(empty)';
+  if (s.length <= 6) return s[0] + '***';
+  return s.slice(0, 4) + '***' + s.slice(-3);
+}
+
+const smtpHost = process.env.SMTP_HOST ?? 'smtp.zoho.eu';
+const smtpPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
+const smtpSecure = process.env.SMTP_SECURE === 'true';
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+
 console.log('[SMTP] Init with:', {
-  host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
-  port: parseInt(process.env.SMTP_PORT ?? '587', 10),
-  secure: process.env.SMTP_SECURE === 'true',
-  hasUser: !!process.env.SMTP_USER,
-  hasPass: !!process.env.SMTP_PASS,
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
+  user: maskStr(smtpUser),
+  passSet: !!smtpPass,
+  passLen: smtpPass?.length ?? 0,
 });
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
-  port: parseInt(process.env.SMTP_PORT ?? '587', 10),
-  secure: process.env.SMTP_SECURE === 'true',
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: smtpUser,
+    pass: smtpPass,
   },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 20000,
+  logger: false,      // set to true for wire-level SMTP debug logs
+  debug: false,       // set to true for full SMTP protocol output
 });
 
 const FROM = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
 
-// Check if SMTP is using default/dummy config
-const isDummyEmail = !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com';
+// Dynamic check — evaluated at every call so late-loaded env vars are caught
+function isDummyEmail(): boolean {
+  return !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com';
+}
 
-// Wrapper: fails fast if email takes > 12 seconds
+// Verify SMTP connection on startup (non-blocking)
+transporter.verify()
+  .then(() => console.log('[SMTP] ✅ SMTP connection verified successfully'))
+  .catch((err) => console.error('[SMTP] ❌ SMTP connection verification FAILED:', err.message, err.code || ''));
+
+// Wrapper: fails fast if email takes > 15 seconds
 async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMail>[0]) {
-  if (isDummyEmail) {
-    console.log('\n📧 [DEV EMAIL] -----------------------------------------');
+  const dummy = isDummyEmail();
+  console.log(`[SMTP] sendWithTimeout called — to: ${mailOptions.to}, subject: "${mailOptions.subject}", isDummy: ${dummy}, SMTP_USER: ${maskStr(process.env.SMTP_USER)}`);
+
+  if (dummy) {
+    console.log('\n📧 [DEV EMAIL — NOT SENT] -----------------------------------------');
     console.log(`To: ${mailOptions.to}`);
     console.log(`Subject: ${mailOptions.subject}`);
     // Extract OTP for easy copying in dev
     const match = String(mailOptions.html).match(/letter-spacing[^>]+>\s*(\d{4,8})\s*</);
     if (match) console.log(`[OTP CODE]: ${match[1]}`);
+    console.log('⚠️  SMTP_USER is missing or dummy — email was NOT sent to inbox!');
     console.log('------------------------------------------------------\n');
     return;
   }
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Email timeout after 12s')), 12000)
-  );
-  return Promise.race([transporter.sendMail(mailOptions), timeout]);
+
+  try {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Email timeout after 15s')), 15000)
+    );
+    const result = await Promise.race([transporter.sendMail(mailOptions), timeout]);
+    console.log(`[SMTP] ✅ Email SENT to ${mailOptions.to} — messageId: ${(result as any)?.messageId}, response: ${(result as any)?.response}`);
+    return result;
+  } catch (err: any) {
+    console.error(`[SMTP] ❌ Email SEND FAILED to ${mailOptions.to}:`, err.message, err.code || '', err.responseCode || '');
+    throw err;
+  }
 }
 
 // ─── OTP Email ────────────────────────────────────────────────────────────────
