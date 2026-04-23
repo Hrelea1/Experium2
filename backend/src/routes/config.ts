@@ -53,14 +53,16 @@ router.get('/db-test-cols', async (req: Request, res: Response) => {
 router.get('/test-email', requireAdmin, async (req: Request, res: Response) => {
   const to = (req.query.to as string) || 'hrelea001@gmail.com';
 
+  const smtpPort = parseInt(process.env.SMTP_PORT ?? '465', 10);
   const smtpConfig = {
     host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
-    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
+    port: smtpPort,
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : smtpPort === 465,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    tls: { rejectUnauthorized: false },
   };
 
   const fromAddr = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
@@ -180,10 +182,11 @@ router.get('/quick-test-email', async (req: Request, res: Response) => {
   }
 
   try {
+    const testPort = parseInt(process.env.SMTP_PORT ?? '465', 10);
     const testTransporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
-      port: parseInt(process.env.SMTP_PORT ?? '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
+      port: testPort,
+      secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : testPort === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -191,6 +194,7 @@ router.get('/quick-test-email', async (req: Request, res: Response) => {
       connectionTimeout: 15000,
       greetingTimeout: 15000,
       socketTimeout: 20000,
+      tls: { rejectUnauthorized: false },
     });
 
     // Step 1: Verify connection

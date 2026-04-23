@@ -8,8 +8,8 @@ function maskStr(s?: string): string {
 }
 
 const smtpHost = process.env.SMTP_HOST ?? 'smtp.zoho.eu';
-const smtpPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
-const smtpSecure = process.env.SMTP_SECURE === 'true';
+const smtpPort = parseInt(process.env.SMTP_PORT ?? '465', 10);
+const smtpSecure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : smtpPort === 465;
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
 
@@ -33,6 +33,9 @@ const transporter = nodemailer.createTransport({
   connectionTimeout: 15000,
   greetingTimeout: 15000,
   socketTimeout: 20000,
+  tls: {
+    rejectUnauthorized: false,  // Railway/cloud environments may have TLS issues
+  },
   logger: false,      // set to true for wire-level SMTP debug logs
   debug: false,       // set to true for full SMTP protocol output
 });
