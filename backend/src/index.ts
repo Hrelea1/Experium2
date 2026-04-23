@@ -22,6 +22,7 @@ import reviewRoutes from './routes/reviews';
 import blogRoutes from './routes/blog';
 import partnerRoutes from './routes/partners';
 import newsletterRoutes from './routes/newsletter';
+import adminTestRoutes from './routes/admin-test';
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -65,6 +66,7 @@ app.use('/reviews', reviewRoutes);
 app.use('/blog', blogRoutes);
 app.use('/partners', partnerRoutes);
 app.use('/newsletter', newsletterRoutes);
+app.use('/admin/test', adminTestRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

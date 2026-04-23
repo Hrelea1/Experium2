@@ -7,28 +7,35 @@ function maskStr(s?: string): string {
   return s.slice(0, 4) + '***' + s.slice(-3);
 }
 
-const smtpHost = process.env.SMTP_HOST ?? 'smtp.zoho.eu';
-const smtpPort = parseInt(process.env.SMTP_PORT ?? '465', 10);
-const smtpSecure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : smtpPort === 465;
-const smtpUser = process.env.SMTP_USER;
-const smtpPass = process.env.SMTP_PASS;
+// SMTP Config derived from process.env (late evaluation helper)
+const getSmtpConfig = () => {
+  const host = process.env.SMTP_HOST ?? 'smtp.zoho.eu';
+  const port = parseInt(process.env.SMTP_PORT ?? '465', 10);
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  return { host, port, secure, user, pass };
+};
+
+const config = getSmtpConfig();
 
 console.log('[SMTP] Init with:', {
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
-  user: maskStr(smtpUser),
-  passSet: !!smtpPass,
-  passLen: smtpPass?.length ?? 0,
+  host: config.host,
+  port: config.port,
+  secure: config.secure,
+  user: maskStr(config.user),
+  passSet: !!config.pass,
+  passLen: config.pass?.length ?? 0,
 });
 
 const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpSecure,
+  host: config.host,
+  port: config.port,
+  secure: config.secure,
   auth: {
-    user: smtpUser,
-    pass: smtpPass,
+    user: config.user,
+    pass: config.pass,
   },
   connectionTimeout: 15000,
   greetingTimeout: 15000,
@@ -36,26 +43,37 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,  // Railway/cloud environments may have TLS issues
   },
-  logger: false,      // set to true for wire-level SMTP debug logs
-  debug: false,       // set to true for full SMTP protocol output
+  logger: process.env.SMTP_DEBUG === 'true',
+  debug: process.env.SMTP_DEBUG === 'true',
 });
 
 const FROM = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
 
 // Dynamic check — evaluated at every call so late-loaded env vars are caught
 function isDummyEmail(): boolean {
-  return !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com';
+  return !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com' || process.env.SMTP_USER === '';
 }
 
 // Verify SMTP connection on startup (non-blocking)
 transporter.verify()
   .then(() => console.log('[SMTP] ✅ SMTP connection verified successfully'))
-  .catch((err) => console.error('[SMTP] ❌ SMTP connection verification FAILED:', err.message, err.code || ''));
+  .catch((err) => {
+    console.error('[SMTP] ❌ SMTP connection verification FAILED:', err.message, err.code || '');
+    console.error('[SMTP] Context:', {
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      user: maskStr(config.user)
+    });
+  });
 
 // Wrapper: fails fast if email takes > 15 seconds
 async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMail>[0]) {
   const dummy = isDummyEmail();
-  console.log(`[SMTP] sendWithTimeout called — to: ${mailOptions.to}, subject: "${mailOptions.subject}", isDummy: ${dummy}, SMTP_USER: ${maskStr(process.env.SMTP_USER)}`);
+  const currentSmtpUser = process.env.SMTP_USER;
+  
+  console.log(`[SMTP] sendWithTimeout to: ${mailOptions.to}, subject: "${mailOptions.subject}"`);
+  console.log(`[SMTP] Status — isDummy: ${dummy}, user: ${maskStr(currentSmtpUser)}`);
 
   if (dummy) {
     console.log('\n📧 [DEV EMAIL — NOT SENT] -----------------------------------------');
@@ -66,18 +84,27 @@ async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMa
     if (match) console.log(`[OTP CODE]: ${match[1]}`);
     console.log('⚠️  SMTP_USER is missing or dummy — email was NOT sent to inbox!');
     console.log('------------------------------------------------------\n');
-    return;
+    return { messageId: 'dummy-id', response: 'dummy-response' };
   }
 
   try {
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Email timeout after 15s')), 15000)
+      setTimeout(() => reject(new Error(`Email timeout after 15s (Host: ${config.host}:${config.port})`)), 15000)
     );
     const result = await Promise.race([transporter.sendMail(mailOptions), timeout]);
-    console.log(`[SMTP] ✅ Email SENT to ${mailOptions.to} — messageId: ${(result as any)?.messageId}, response: ${(result as any)?.response}`);
+    console.log(`[SMTP] ✅ Email SENT to ${mailOptions.to} — messageId: ${(result as any)?.messageId}`);
     return result;
   } catch (err: any) {
     console.error(`[SMTP] ❌ Email SEND FAILED to ${mailOptions.to}:`, err.message, err.code || '', err.responseCode || '');
+    // If it's a common error like auth or connection, log more context
+    if (err.code === 'EAUTH' || err.code === 'ECONNREFUSED') {
+      console.error('[SMTP] Diagnostic Check:', {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        user: maskStr(config.user)
+      });
+    }
     throw err;
   }
 }

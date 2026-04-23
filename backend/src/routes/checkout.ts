@@ -208,6 +208,7 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
         try {
           const dateStr = new Date(bookingDate).toLocaleString('ro-RO');
 
+          console.log(`[checkout] Looking up client/experience info for user ${userId}, experience ${item.experienceId}...`);
           const clientInfo = await queryOne<{ email: string; full_name: string; phone: string | null; title: string }>(
             `SELECT u.email, p.full_name, p.phone, e.title
              FROM users u
@@ -218,9 +219,10 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
           );
 
           if (clientInfo) {
+            console.log(`[checkout] Client found: ${clientInfo.full_name} (${clientInfo.email}). Title: ${clientInfo.title}`);
             // Client Email
             try {
-              console.log(`[checkout] Sending confirmation email to ${clientInfo.email} for booking ${booking.id}...`);
+              console.log(`[checkout] Dispatching confirmation email to ${clientInfo.email}...`);
               await sendBookingConfirmation({
                 email: clientInfo.email,
                 name: clientInfo.full_name ?? 'Client',
@@ -254,6 +256,7 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
             }
 
             // Provider notification
+            console.log(`[checkout] Looking up provider info for experience ${item.experienceId}...`);
             const providerInfo = await queryOne<{ provider_email: string; provider_name: string; provider_user_id: string }>(
               `SELECT pu.email as provider_email, pp.full_name as provider_name, ep.provider_user_id
                FROM experience_providers ep
@@ -265,7 +268,9 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
             );
 
             if (providerInfo) {
+              console.log(`[checkout] Provider found: ${providerInfo.provider_name} (${providerInfo.provider_email})`);
               try {
+                console.log(`[checkout] Dispatching provider notification email to ${providerInfo.provider_email}...`);
                 await sendProviderBookingNotification({
                   providerEmail: providerInfo.provider_email,
                   providerName: providerInfo.provider_name ?? 'Furnizor',
@@ -279,7 +284,7 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
                 console.log(`[checkout] ✅ Provider email sent to ${providerInfo.provider_email}`);
                 emailResults.push(`provider_email:${providerInfo.provider_email}:OK`);
               } catch (provEmailErr: any) {
-                console.error(`[checkout] ❌ Provider email FAILED:`, provEmailErr.message);
+                console.error(`[checkout] ❌ Provider email FAILED for ${providerInfo.provider_email}:`, provEmailErr.message);
                 emailResults.push(`provider_email:${providerInfo.provider_email}:FAIL:${provEmailErr.message}`);
               }
 
@@ -289,16 +294,16 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
                 `Ai o rezervare nouă de la ${clientInfo.full_name ?? 'Client'} pentru data ${dateStr}.`,
                 'booking_confirmed',
                 booking.id
-              ).catch(err => console.error('[checkout] Provider notification error:', err));
+              ).catch(err => console.error('[checkout] Provider in-app notification error:', err));
             } else {
-              console.warn(`[checkout] No active provider for experience ${item.experienceId}, skipping provider notification`);
+              console.warn(`[checkout] No active provider found for experience ${item.experienceId}`);
             }
           } else {
-            console.error(`[checkout] ❌ Could not find client info for user ${userId}, experience ${item.experienceId}`);
+            console.error(`[checkout] ❌ Data mismatch: Could not find client or experience details for user ${userId}, experience ${item.experienceId}`);
             emailResults.push(`client_info:NOT_FOUND`);
           }
         } catch (notifErr: any) {
-          console.error('[checkout] ❌ Notification block error:', notifErr.message);
+          console.error('[checkout] ❌ Fatal error in notification block:', notifErr.stack);
           emailResults.push(`notification_error:${notifErr.message}`);
         }
       }
