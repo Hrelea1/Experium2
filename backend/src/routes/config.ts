@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { requireAdmin } from '../middleware/auth';
-import nodemailer from 'nodemailer';
 
 const router = Router();
 
@@ -47,81 +46,55 @@ router.get('/db-test-cols', async (req: Request, res: Response) => {
 
 /**
  * GET /config/test-email?to=email@example.com
- * Diagnostic endpoint — sends a test email and returns detailed SMTP result.
- * Admin-only.
+ * Diagnostic — sends a test email via Brevo HTTP API. Admin-only.
  */
 router.get('/test-email', requireAdmin, async (req: Request, res: Response) => {
   const to = (req.query.to as string) || 'hrelea001@gmail.com';
-
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
-  const smtpConfig = {
-    host: process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
-    port: smtpPort,
-    secure: process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : smtpPort === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    tls: { rejectUnauthorized: false },
-  };
-
-  const fromAddr = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
+  const fromEmail = process.env.EMAIL_FROM ?? 'contact@experium.ro';
+  const apiKey = process.env.BREVO_API_KEY;
 
   const diagnostics: Record<string, any> = {
-    smtp_host: smtpConfig.host,
-    smtp_port: smtpConfig.port,
-    smtp_secure: smtpConfig.secure,
-    smtp_user_set: !!smtpConfig.auth.user,
-    smtp_pass_set: !!smtpConfig.auth.pass,
-    email_from: fromAddr,
+    mode: 'Brevo HTTP API',
+    brevo_api_key_set: !!apiKey,
+    email_from: fromEmail,
     to,
-    isDummyEmail: !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com',
   };
 
+  if (!apiKey) {
+    diagnostics.result = 'SKIPPED';
+    diagnostics.reason = 'BREVO_API_KEY not set';
+    return res.json(diagnostics);
+  }
+
   try {
-    const transporter = nodemailer.createTransport(smtpConfig);
-
-    // Verify connection first
-    await transporter.verify();
-    diagnostics.smtp_verify = 'OK';
-
-    const info = await transporter.sendMail({
-      from: fromAddr,
-      to,
-      subject: `[Experium Diagnostic] Test email — ${new Date().toISOString()}`,
-      html: `<div style="font-family:Arial;padding:20px;">
-        <h2>✅ Email Diagnostic — SUCCESS</h2>
-        <p>This test email was sent from the Experium production backend.</p>
-        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-        <p><strong>SMTP Host:</strong> ${smtpConfig.host}</p>
-        <p><strong>From:</strong> ${fromAddr}</p>
-      </div>`,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        sender: { name: 'Experium', email: fromEmail },
+        to: [{ email: to }],
+        subject: `[Experium Diagnostic] Test — ${new Date().toISOString()}`,
+        htmlContent: `<div style="font-family:Arial;padding:20px;"><h2>✅ Brevo API Test — SUCCESS</h2><p>Timestamp: ${new Date().toISOString()}</p></div>`,
+      }),
     });
-
-    diagnostics.result = 'SUCCESS';
-    diagnostics.messageId = info.messageId;
-    diagnostics.response = info.response;
-    diagnostics.accepted = info.accepted;
-    diagnostics.rejected = info.rejected;
-
-    res.json(diagnostics);
+    const data = await response.json().catch(() => ({}));
+    diagnostics.result = response.ok ? 'SUCCESS' : 'ERROR';
+    diagnostics.http_status = response.status;
+    diagnostics.brevo_response = data;
+    res.status(response.ok ? 200 : 500).json(diagnostics);
   } catch (err: any) {
     diagnostics.result = 'ERROR';
     diagnostics.error = err.message;
-    diagnostics.errorCode = err.code;
-    diagnostics.errorCommand = err.command;
     res.status(500).json(diagnostics);
   }
 });
 
 /**
  * GET /config/smtp-status
- * Quick diagnostic — shows SMTP availability without exposing credentials.
- * Public — no auth required.
+ * Quick diagnostic — shows email config status.
  */
 router.get('/smtp-status', (req: Request, res: Response) => {
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS;
+  const apiKey = process.env.BREVO_API_KEY;
   const maskStr = (s?: string): string => {
     if (!s) return '(empty)';
     if (s.length <= 6) return s[0] + '***';
@@ -129,25 +102,20 @@ router.get('/smtp-status', (req: Request, res: Response) => {
   };
 
   res.json({
-    smtp_host: process.env.SMTP_HOST ?? '(default: smtp-relay.brevo.com)',
-    smtp_port: process.env.SMTP_PORT ?? '(default: 587)',
-    smtp_secure: process.env.SMTP_SECURE ?? '(default: false)',
-    smtp_user: maskStr(smtpUser),
-    smtp_pass_set: !!smtpPass,
-    smtp_pass_length: smtpPass?.length ?? 0,
-    email_from: process.env.EMAIL_FROM ?? '(default: noreply@experium.ro)',
-    isDummyEmail: !smtpUser || smtpUser === 'your@gmail.com',
-    recommendation: (!smtpUser || smtpUser === 'your@gmail.com')
-      ? '⚠️ SMTP_USER is missing or set to dummy value — emails are NOT being sent! Set SMTP_USER and SMTP_PASS in Railway environment variables.'
-      : '✅ SMTP credentials appear to be configured.',
+    mode: 'Brevo HTTP API (SMTP blocked on Railway)',
+    brevo_api_key_set: !!apiKey,
+    brevo_api_key: maskStr(apiKey),
+    email_from: process.env.EMAIL_FROM ?? '(default: contact@experium.ro)',
+    recommendation: !apiKey
+      ? '⚠️ BREVO_API_KEY is missing — emails are NOT being sent! Get your API key from Brevo dashboard → SMTP & API → API Keys.'
+      : '✅ Brevo API key is configured.',
     timestamp: new Date().toISOString(),
   });
 });
 
 /**
  * GET /config/quick-test-email?key=experium2026&to=email@example.com
- * Temporary diagnostic — sends a test email, protected by simple key.
- * REMOVE AFTER DEBUGGING.
+ * Sends a test email via Brevo HTTP API. Protected by simple key.
  */
 router.get('/quick-test-email', async (req: Request, res: Response) => {
   if (req.query.key !== 'experium2026') {
@@ -155,7 +123,8 @@ router.get('/quick-test-email', async (req: Request, res: Response) => {
   }
 
   const to = (req.query.to as string) || 'hrelea001@gmail.com';
-  const fromAddr = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
+  const fromEmail = process.env.EMAIL_FROM ?? 'contact@experium.ro';
+  const apiKey = process.env.BREVO_API_KEY;
 
   const maskStr = (s?: string): string => {
     if (!s) return '(empty)';
@@ -164,78 +133,57 @@ router.get('/quick-test-email', async (req: Request, res: Response) => {
   };
 
   const diagnostics: Record<string, any> = {
-    smtp_host: process.env.SMTP_HOST ?? '(default: smtp-relay.brevo.com)',
-    smtp_port: process.env.SMTP_PORT ?? '(default: 587)',
-    smtp_secure: process.env.SMTP_SECURE ?? '(default: false)',
-    smtp_user: maskStr(process.env.SMTP_USER),
-    smtp_pass_set: !!process.env.SMTP_PASS,
-    smtp_pass_length: process.env.SMTP_PASS?.length ?? 0,
-    email_from: fromAddr,
+    mode: 'Brevo HTTP API',
+    brevo_api_key_set: !!apiKey,
+    brevo_api_key: maskStr(apiKey),
+    email_from: fromEmail,
     to,
-    isDummyEmail: !process.env.SMTP_USER || process.env.SMTP_USER === 'your@gmail.com',
   };
 
-  if (diagnostics.isDummyEmail) {
+  if (!apiKey) {
     diagnostics.result = 'SKIPPED';
-    diagnostics.reason = 'SMTP_USER is missing or dummy — would only log to console';
+    diagnostics.reason = 'BREVO_API_KEY is missing — set it in Railway env vars';
     return res.json(diagnostics);
   }
 
   try {
-    const testPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
-    const testTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
-      port: testPort,
-      secure: process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : testPort === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey,
+        'content-type': 'application/json',
       },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 20000,
-      tls: { rejectUnauthorized: false },
+      body: JSON.stringify({
+        sender: { name: 'Experium', email: fromEmail },
+        to: [{ email: to }],
+        subject: `[Experium] Test email — ${new Date().toISOString()}`,
+        htmlContent: `<div style="font-family:Arial;padding:20px;">
+          <h2>✅ Email Diagnostic — SUCCESS</h2>
+          <p>This test email was sent via Brevo HTTP API from the Experium backend.</p>
+          <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+          <p><strong>From:</strong> ${fromEmail}</p>
+          <p><strong>To:</strong> ${to}</p>
+        </div>`,
+      }),
     });
 
-    // Step 1: Verify connection
-    try {
-      await testTransporter.verify();
-      diagnostics.smtp_verify = 'OK';
-    } catch (verifyErr: any) {
-      diagnostics.smtp_verify = 'FAILED';
-      diagnostics.smtp_verify_error = verifyErr.message;
-      diagnostics.smtp_verify_code = verifyErr.code;
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      diagnostics.result = 'ERROR';
+      diagnostics.http_status = response.status;
+      diagnostics.brevo_error = data;
       return res.status(500).json(diagnostics);
     }
 
-    // Step 2: Send test email
-    const info = await testTransporter.sendMail({
-      from: fromAddr,
-      to,
-      subject: `[Experium] Test email — ${new Date().toISOString()}`,
-      html: `<div style="font-family:Arial;padding:20px;">
-        <h2>✅ Email Diagnostic — SUCCESS</h2>
-        <p>This test email was sent from the Experium backend.</p>
-        <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
-        <p><strong>SMTP Host:</strong> ${process.env.SMTP_HOST}</p>
-        <p><strong>From:</strong> ${fromAddr}</p>
-        <p><strong>To:</strong> ${to}</p>
-      </div>`,
-    });
-
     diagnostics.result = 'SUCCESS';
-    diagnostics.messageId = info.messageId;
-    diagnostics.response = info.response;
-    diagnostics.accepted = info.accepted;
-    diagnostics.rejected = info.rejected;
-
+    diagnostics.messageId = (data as any)?.messageId;
+    diagnostics.brevo_response = data;
     res.json(diagnostics);
   } catch (err: any) {
     diagnostics.result = 'ERROR';
     diagnostics.error = err.message;
-    diagnostics.errorCode = err.code;
-    diagnostics.errorCommand = err.command;
-    diagnostics.errorResponseCode = err.responseCode;
     res.status(500).json(diagnostics);
   }
 });
