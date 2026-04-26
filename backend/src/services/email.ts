@@ -7,45 +7,53 @@ function maskStr(s?: string): string {
   return s.slice(0, 4) + '***' + s.slice(-3);
 }
 
-// SMTP Config derived from process.env (late evaluation helper)
-const getSmtpConfig = () => {
-  const host = process.env.SMTP_HOST ?? 'smtp.zoho.eu';
-  const port = parseInt(process.env.SMTP_PORT ?? '465', 10);
-  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465;
+// SMTP Config derived from process.env — evaluated fresh each call
+// Default: port 587 + STARTTLS (Railway/cloud providers typically block port 465)
+function getSmtpConfig() {
+  const host = process.env.SMTP_HOST ?? 'smtp-relay.brevo.com';
+  const port = parseInt(process.env.SMTP_PORT ?? '587', 10);
+  // Port 465 = implicit SSL (secure: true). Port 587/2525 = STARTTLS (secure: false).
+  const secure = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === 'true'
+    : port === 465;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
   return { host, port, secure, user, pass };
-};
+}
 
-const config = getSmtpConfig();
-
+// Log SMTP config on startup for diagnostics
+const initConfig = getSmtpConfig();
 console.log('[SMTP] Init with:', {
-  host: config.host,
-  port: config.port,
-  secure: config.secure,
-  user: maskStr(config.user),
-  passSet: !!config.pass,
-  passLen: config.pass?.length ?? 0,
+  host: initConfig.host,
+  port: initConfig.port,
+  secure: initConfig.secure,
+  user: maskStr(initConfig.user),
+  passSet: !!initConfig.pass,
+  passLen: initConfig.pass?.length ?? 0,
 });
 
-const transporter = nodemailer.createTransport({
-  host: config.host,
-  port: config.port,
-  secure: config.secure,
-  auth: {
-    user: config.user,
-    pass: config.pass,
-  },
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 20000,
-  tls: {
-    rejectUnauthorized: false,  // Railway/cloud environments may have TLS issues
-  },
-  logger: process.env.SMTP_DEBUG === 'true',
-  debug: process.env.SMTP_DEBUG === 'true',
-});
+// Create a fresh transporter each time to avoid stale connections on long-running processes
+function createTransporter() {
+  const cfg = getSmtpConfig();
+  return nodemailer.createTransport({
+    host: cfg.host,
+    port: cfg.port,
+    secure: cfg.secure,
+    auth: {
+      user: cfg.user,
+      pass: cfg.pass,
+    },
+    connectionTimeout: 20000,
+    greetingTimeout: 15000,
+    socketTimeout: 25000,
+    tls: {
+      rejectUnauthorized: false,  // Railway/cloud environments may have TLS issues
+    },
+    logger: process.env.SMTP_DEBUG === 'true',
+    debug: process.env.SMTP_DEBUG === 'true',
+  });
+}
 
 const FROM = process.env.EMAIL_FROM ?? 'noreply@experium.ro';
 
@@ -55,20 +63,26 @@ function isDummyEmail(): boolean {
 }
 
 // Verify SMTP connection on startup (non-blocking)
-transporter.verify()
-  .then(() => console.log('[SMTP] ✅ SMTP connection verified successfully'))
-  .catch((err) => {
+(async () => {
+  try {
+    const verifier = createTransporter();
+    await verifier.verify();
+    console.log('[SMTP] ✅ SMTP connection verified successfully');
+    verifier.close();
+  } catch (err: any) {
+    const cfg = getSmtpConfig();
     console.error('[SMTP] ❌ SMTP connection verification FAILED:', err.message, err.code || '');
     console.error('[SMTP] Context:', {
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      user: maskStr(config.user)
+      host: cfg.host,
+      port: cfg.port,
+      secure: cfg.secure,
+      user: maskStr(cfg.user)
     });
-  });
+  }
+})();
 
-// Wrapper: fails fast if email takes > 15 seconds
-async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMail>[0]) {
+// Wrapper: creates a fresh connection per send, fails fast if email takes > 20 seconds
+async function sendWithTimeout(mailOptions: nodemailer.SendMailOptions) {
   const dummy = isDummyEmail();
   const currentSmtpUser = process.env.SMTP_USER;
   
@@ -87,25 +101,30 @@ async function sendWithTimeout(mailOptions: Parameters<typeof transporter.sendMa
     return { messageId: 'dummy-id', response: 'dummy-response' };
   }
 
+  const cfg = getSmtpConfig();
+  const transporter = createTransporter();
+
   try {
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Email timeout after 15s (Host: ${config.host}:${config.port})`)), 15000)
+      setTimeout(() => reject(new Error(`Email timeout after 20s (Host: ${cfg.host}:${cfg.port})`)), 20000)
     );
     const result = await Promise.race([transporter.sendMail(mailOptions), timeout]);
     console.log(`[SMTP] ✅ Email SENT to ${mailOptions.to} — messageId: ${(result as any)?.messageId}`);
     return result;
   } catch (err: any) {
     console.error(`[SMTP] ❌ Email SEND FAILED to ${mailOptions.to}:`, err.message, err.code || '', err.responseCode || '');
-    // If it's a common error like auth or connection, log more context
-    if (err.code === 'EAUTH' || err.code === 'ECONNREFUSED') {
+    // Log more context for common errors
+    if (err.code === 'EAUTH' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
       console.error('[SMTP] Diagnostic Check:', {
-        host: config.host,
-        port: config.port,
-        secure: config.secure,
-        user: maskStr(config.user)
+        host: cfg.host,
+        port: cfg.port,
+        secure: cfg.secure,
+        user: maskStr(cfg.user)
       });
     }
     throw err;
+  } finally {
+    transporter.close();
   }
 }
 

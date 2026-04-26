@@ -53,11 +53,11 @@ router.get('/db-test-cols', async (req: Request, res: Response) => {
 router.get('/test-email', requireAdmin, async (req: Request, res: Response) => {
   const to = (req.query.to as string) || 'hrelea001@gmail.com';
 
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? '465', 10);
+  const smtpPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
   const smtpConfig = {
-    host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
+    host: process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
     port: smtpPort,
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : smtpPort === 465,
+    secure: process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : smtpPort === 465,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -129,7 +129,7 @@ router.get('/smtp-status', (req: Request, res: Response) => {
   };
 
   res.json({
-    smtp_host: process.env.SMTP_HOST ?? '(default: smtp.zoho.eu)',
+    smtp_host: process.env.SMTP_HOST ?? '(default: smtp-relay.brevo.com)',
     smtp_port: process.env.SMTP_PORT ?? '(default: 587)',
     smtp_secure: process.env.SMTP_SECURE ?? '(default: false)',
     smtp_user: maskStr(smtpUser),
@@ -164,7 +164,7 @@ router.get('/quick-test-email', async (req: Request, res: Response) => {
   };
 
   const diagnostics: Record<string, any> = {
-    smtp_host: process.env.SMTP_HOST ?? '(default: smtp.zoho.eu)',
+    smtp_host: process.env.SMTP_HOST ?? '(default: smtp-relay.brevo.com)',
     smtp_port: process.env.SMTP_PORT ?? '(default: 587)',
     smtp_secure: process.env.SMTP_SECURE ?? '(default: false)',
     smtp_user: maskStr(process.env.SMTP_USER),
@@ -182,11 +182,11 @@ router.get('/quick-test-email', async (req: Request, res: Response) => {
   }
 
   try {
-    const testPort = parseInt(process.env.SMTP_PORT ?? '465', 10);
+    const testPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
     const testTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',
+      host: process.env.SMTP_HOST ?? 'smtp-relay.brevo.com',
       port: testPort,
-      secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : testPort === 465,
+      secure: process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : testPort === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
