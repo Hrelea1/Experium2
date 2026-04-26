@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Previews</title>
+  <style>
+    body {
+      background-color: #f4f4f5;
+      padding: 40px;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .preview-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .label {
+      font-weight: bold;
+      color: #64748b;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="grid">
+    <!-- 1. Booking Confirmation -->
+    <div class="preview-container">
+      <div class="label">1. Booking Confirmation</div>
+      <div style="width: 100%;">
+        <!-- ACTUAL EMAIL HTML START -->
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: linear-gradient(135deg, #F06236 0%, #F59E0B 100%); padding: 32px; text-align: center;">
+            <h1 style="color: #fff; margin: 0; font-size: 24px;"> Rezervare Confirmată!</h1>
+            <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 15px;">Experium</p>
+          </div>
+          <div style="padding: 32px;">
+            <p style="color: #333; font-size: 16px; margin-top: 0;">Bună <strong>Alexandru</strong>,</p>
+            <p style="color: #555; line-height: 1.6;">Îți mulțumim că ai ales Experium! Rezervarea ta a fost înregistrată cu succes în sistemul nostru. Mai jos găsești toate detaliile aventurii tale:</p>
+            <h3 style="color: #1a1a2e; margin: 16px 0 8px; font-size: 18px; border-left: 4px solid #F06236; padding-left: 12px;">Zbor cu Balonul peste Transilvania</h3>
+            <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #eaeaea;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Dată:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">15 Mai 2026</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Participanți:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">2</td></tr>
+                <tr><td style="padding: 12px 0 4px; color: #666; font-size: 14px;"> Total plătit:</td><td style="padding: 12px 0 4px; text-align: right; color: #F06236; font-weight: bold; font-size: 16px;">1200 RON</td></tr>
+              </table>
+            </div>
+            <p style="color: #555; line-height: 1.6; margin: 24px 0;">Îți recomandăm să ajungi la locație cu 10-15 minute înainte de ora stabilită.</p>
+
+            <div style="margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
+              <p style="color: #888; font-size: 12px; margin: 0;">ID Rezervare: <span style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">BK-847293</span></p>
+            </div>
+          </div>
+        </div>
+        <!-- ACTUAL EMAIL HTML END -->
+      </div>
+    </div>
+
+    <!-- 2. OTP Code -->
+    <div class="preview-container">
+      <div class="label">2. Verification/OTP Code</div>
+      <div style="width: 100%; background: #fff; padding: 40px; border-radius: 16px; border: 1px solid #eee; max-width: 480px;">
+        <!-- ACTUAL EMAIL HTML START -->
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+          <h2 style="color: #1a1a2e;"> Bună, Alexandru!</h2>
+          <p style="color: #555; line-height: 1.6;">Pentru a continua procesul pe platforma noastră, te rugăm să folosești codul de securitate de mai jos. Acest cod confirmă că tu ești cel care a inițiat acțiunea.</p>
+          <div style="background: #fff5f2; border: 2px dashed #F06236; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 40px; font-weight: bold; letter-spacing: 8px; color: #F06236;">492816</span>
+          </div>
+          <p style="color: #666;">Codul expiră în <strong>10 minute</strong>.</p>
+          <p style="color: #666; font-size: 12px;">Dacă nu ai solicitat acest cod, ignoră acest email.</p>
+        </div>
+        <!-- ACTUAL EMAIL HTML END -->
+      </div>
+    </div>
+
+    <!-- 3. Provider Notification -->
+    <div class="preview-container">
+      <div class="label">3. Provider Booking Alert</div>
+      <div style="width: 100%;">
+        <!-- ACTUAL EMAIL HTML START -->
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; border: 1px solid #eee; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+          <div style="background: linear-gradient(135deg, #263241 0%, #1a1a2e 100%); padding: 32px; text-align: center;">
+            <h1 style="color: #fff; margin: 0; font-size: 24px;"> Rezervare Nouă!</h1>
+            <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 15px;">Experium Provider</p>
+          </div>
+          <div style="padding: 32px;">
+            <p style="color: #333; font-size: 16px; margin-top: 0;">Bună <strong>Transylvania Balloons</strong>,</p>
+            <p style="color: #555; line-height: 1.6;">O nouă rezervare a fost confirmată și plătită pe platformă. Un client abia așteaptă să participe la experiența oferită de tine:</p>
+            <h3 style="color: #1a1a2e; margin: 16px 0 8px; font-size: 18px; border-left: 4px solid #F59E0B; padding-left: 12px;">Zbor cu Balonul peste Transilvania</h3>
+            <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #eaeaea;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Client:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">Alexandru Popescu</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Dată:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">15 Mai 2026</td></tr>
+                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Participanți:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">2</td></tr>
+                <tr><td style="padding: 12px 0 4px; color: #666; font-size: 14px;"> Câștig total:</td><td style="padding: 12px 0 4px; text-align: right; color: #F59E0B; font-weight: bold; font-size: 16px;">1200 RON</td></tr>
+              </table>
+            </div>
+
+
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="#" style="background: #263241; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; display: inline-block;"> Accesează Dashboard-ul</a>
+            </div>
+            <div style="margin-top: 32px; border-top: 1px solid #eee; padding-top: 16px;">
+              <p style="color: #888; font-size: 12px; margin: 0;">ID Rezervare: <span style="font-family: monospace; background: #f0f0f0; padding: 2px 6px; border-radius: 4px;">BK-847293</span></p>
+            </div>
+          </div>
+        </div>
+        <!-- ACTUAL EMAIL HTML END -->
+      </div>
+    </div>
+
+    <!-- 4. Provider Availability -->
+    <div class="preview-container">
+      <div class="label">4. Provider Availability Request</div>
+      <div style="width: 100%; background: #fff; padding: 40px; border-radius: 16px; border: 1px solid #eee; max-width: 480px;">
+        <!-- ACTUAL EMAIL HTML START -->
+        <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto;">
+          <h2 style="color: #1a1a2e;"> Cerere nouă de disponibilitate</h2>
+          <p>Bună Transylvania Balloons,</p>
+          <p>Ai primit o rezervare nouă pentru <strong>Zbor cu Balonul</strong> pe data <strong>15 Mai 2026</strong>.</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="#" style="background:#F06236; color:white; padding:14px 32px; border-radius:8px; text-decoration:none; margin-right:16px; font-weight:bold;"> Confirmă</a>
+            <a href="#" style="background:#1a1a2e; color:white; padding:14px 32px; border-radius:8px; text-decoration:none; font-weight:bold;"> Refuză</a>
+          </div>
+          <p style="color:#666; font-size:12px;">Dacă nu poți accesa butoanele, răspunde la acest email.</p>
+        </div>
+        <!-- ACTUAL EMAIL HTML END -->
+      </div>
+    </div>
+  </div>
+</body>
+</html>
