@@ -1,43 +1,53 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { useHomepageContent } from "@/hooks/useHomepageContent";
+import { useLatestReviews } from "@/hooks/useReviews";
 
-const testimonials = [
+const fallbackTestimonials = [
   {
-    name: "Maria Popescu",
+    id: "fallback-1",
+    user_name: "Maria Popescu",
     location: "Craiova",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
+    user_avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    text: "Am oferit soțului meu zborul cu balonul de ziua lui și a fost cea mai frumoasă surpriză! Recomand cu încredere.",
-    experience: "Zbor cu Balonul",
+    comment: "Am oferit soțului meu zborul cu balonul de ziua lui și a fost cea mai frumoasă surpriză! Recomand cu încredere.",
+    experience_title: "Zbor cu Balonul",
   },
   {
-    name: "Andrei Ionescu",
+    id: "fallback-2",
+    user_name: "Andrei Ionescu",
     location: "Cluj-Napoca",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
+    user_avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    text: "Experiența de rafting a fost incredibilă! Organizare impecabilă și ghizi profesioniști. Cu siguranță vom reveni.",
-    experience: "Rafting pe Olt",
+    comment: "Experiența de rafting a fost incredibilă! Organizare impecabilă și ghizi profesioniști. Cu siguranță vom reveni.",
+    experience_title: "Rafting pe Olt",
   },
   {
-    name: "Elena Dumitrescu",
+    id: "fallback-3",
+    user_name: "Elena Dumitrescu",
     location: "Timișoara",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
+    user_avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
     rating: 5,
-    text: "Retreat-ul spa a fost exact ce aveam nevoie. Un cadou perfect de la prietena mea. Servicii excelente!",
-    experience: "Spa & Wellness",
+    comment: "Retreat-ul spa a fost exact ce aveam nevoie. Un cadou perfect de la prietena mea. Servicii excelente!",
+    experience_title: "Spa & Wellness",
   },
 ];
 
 export function Testimonials() {
   const { t } = useTranslation();
   const { data: content } = useHomepageContent("testimonials");
+  const { data: latestReviews, isLoading } = useLatestReviews(3);
   
   const sectionContent = content?.content || {
     badge: "Recenzii",
     title: t('testimonials.title'),
     subtitle: t('testimonials.subtitle')
   };
+
+  // Folosim recenziile reale dacă există, altfel afișăm fallback-ul pentru design
+  const displayReviews = latestReviews && latestReviews.length > 0 
+    ? latestReviews 
+    : fallbackTestimonials;
 
   return (
     <section className="py-12 lg:py-16 bg-cream">
@@ -61,9 +71,9 @@ export function Testimonials() {
         </motion.div>
 
         <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
-          {testimonials.map((testimonial, index) => (
+          {displayReviews.map((testimonial, index) => (
             <motion.div
-              key={testimonial.name}
+              key={testimonial.id || index}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -72,31 +82,37 @@ export function Testimonials() {
             >
               {/* Stars as text */}
               <div className="flex gap-1 mb-4 text-accent text-lg">
-                {[...Array(testimonial.rating)].map((_, i) => (
+                {[...Array(testimonial.rating || 5)].map((_, i) => (
                   <span key={i}>★</span>
                 ))}
               </div>
 
               {/* Text */}
               <p className="text-foreground mb-6 leading-relaxed">
-                "{testimonial.text}"
+                "{testimonial.comment}"
               </p>
 
               {/* Experience Tag */}
               <span className="inline-block px-3 py-1 rounded-full bg-muted text-muted-foreground text-sm mb-6">
-                {testimonial.experience}
+                {testimonial.experience_title}
               </span>
 
               {/* Author */}
               <div className="flex items-center gap-3">
-                <img
-                  src={testimonial.avatar}
-                  alt={testimonial.name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
+                {testimonial.user_avatar ? (
+                  <img
+                    src={testimonial.user_avatar}
+                    alt={testimonial.user_name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                    {testimonial.user_name ? testimonial.user_name.charAt(0).toUpperCase() : 'C'}
+                  </div>
+                )}
                 <div>
-                  <div className="font-semibold text-foreground">{testimonial.name}</div>
-                  <div className="text-muted-foreground text-sm">{testimonial.location}</div>
+                  <div className="font-semibold text-foreground">{testimonial.user_name || "Client anonim"}</div>
+                  <div className="text-muted-foreground text-sm">{(testimonial as any).location || "România"}</div>
                 </div>
               </div>
             </motion.div>

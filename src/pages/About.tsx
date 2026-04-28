@@ -23,7 +23,7 @@ export default function About() {
       { value: "100+", label: "Experiențe unice" },
       { value: "15+", label: "Județe acoperite" },
       { value: "50+", label: "Parteneri autorizați" },
-      { value: "98%", label: "Clienți mulțumiți" },
+      { value: "100%", label: "Clienți mulțumiți" },
     ],
     teamTitle: "Echipa Experium",
     teamDescription: "Suntem o echipă de entuziaști, iubitori de natură, adrenalină și experiențe unice. Lucrăm zilnic pentru a descoperi și a aduce pe platformă cele mai captivante activități, asigurându-ne că fiecare detaliu este perfect.",

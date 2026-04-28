@@ -4,6 +4,29 @@ import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
+// ─── GET /reviews/latest ──────────────────────────────────────────────────────
+router.get('/latest', async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 3;
+    const reviews = await query(
+      `SELECT r.id, r.user_id, r.rating, r.comment, r.created_at, 
+              p.full_name as user_name, p.avatar_url as user_avatar,
+              e.title as experience_title
+       FROM reviews r
+       JOIN profiles p ON p.id = r.user_id
+       JOIN experiences e ON e.id = r.experience_id
+       WHERE r.status = 'approved' AND r.comment IS NOT NULL AND trim(r.comment) != ''
+       ORDER BY r.created_at DESC
+       LIMIT $1`,
+      [Math.min(limit, 10)]
+    );
+    res.json(reviews);
+  } catch (err) {
+    console.error('[reviews GET /latest]', err);
+    res.status(500).json({ error: 'Eroare la preluarea recenziilor' });
+  }
+});
+
 // ─── GET /reviews/experience/:id ──────────────────────────────────────────────
 router.get('/experience/:id', async (req: Request, res: Response) => {
   try {

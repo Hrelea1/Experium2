@@ -37,6 +37,15 @@ export function useExperienceReviews(experienceId: string) {
   });
 }
 
+export type LatestReview = Review & { experience_title: string };
+
+export function useLatestReviews(limit: number = 3) {
+  return useQuery({
+    queryKey: ["reviews", "latest", limit],
+    queryFn: () => apiReq(`/reviews/latest?limit=${limit}`) as Promise<LatestReview[]>,
+  });
+}
+
 export function useAddReview() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
