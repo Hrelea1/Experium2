@@ -10,14 +10,14 @@ export default function About() {
   const aboutContent = content?.content || {
     title: "Despre Experium",
     subtitle: "Transformăm momentele în amintiri de neuitat",
-    description: "Suntem o platformă românească născută din pasiunea pentru aventură, relaxare și descoperire. La Experium, credem că cele mai valoroase cadouri nu sunt obiectele, ci trăirile. De la zboruri cu balonul și salturi cu parașuta, până la degustări fine de vin și escapade spa, aducem laolaltă cele mai fascinante experiențe din România, perfecte pentru a fi dăruite sau trăite din plin.",
-    mission: "Misiunea noastră este să conectăm oamenii prin experiențe autentice. Ne dorim să înlocuim cadourile clasice cu amintiri care durează o viață, oferind acces rapid și simplu la activități premium, atent selecționate.",
-    vision: "Să devenim prima alegere a românilor atunci când doresc să dăruiască sau să încerce o activitate unică, susținând în același timp afacerile locale și turismul de experiență.",
+    description: "Suntem o platformă românească născută din pasiunea pentru aventură, relaxare și descoperire. La Experium, credem că cele mai valoroase cadouri nu sunt obiectele, ci amintirile. De la zboruri cu balonul și salturi cu parașuta, până la degustări fine de vin și escapade spa, aducem laolaltă cele mai fascinante experiențe din România, perfecte pentru a fi dăruite sau trăite din plin.",
+    mission: "Misiunea noastră este să conectăm oamenii prin experiențe autentice. Ne dorim să înlocuim momentele simple cu amintiri care durează o viață, oferind acces rapid și simplu la activități premium, atent selecționate.",
+    vision: "Să devenim prima alegere a românilor atunci când doresc să dăruiască sau să încerce o activitate unică, susținând în același timp afacerile locale.",
     values: [
       { title: "Calitate Premium", description: "Testăm și selectăm riguros fiecare experiență și partener." },
       { title: "Siguranță & Încredere", description: "Colaborăm exclusiv cu furnizori autorizați, profesioniști." },
       { title: "Bucuria de a dărui", description: "Oferim experiențe care provoacă emoții puternice și zâmbete." },
-      { title: "Susținere Locală", description: "Promovăm cu mândrie turismul și antreprenorii din România." },
+      { title: "Susținere Locală", description: "Promovăm cu mândrie agrementul românesc și antreprenorii din România." },
     ],
     stats: [
       { value: "100+", label: "Experiențe unice" },
@@ -26,13 +26,13 @@ export default function About() {
       { value: "98%", label: "Clienți mulțumiți" },
     ],
     teamTitle: "Echipa Experium",
-    teamDescription: "Suntem o echipă de entuziaști, iubitori de natură, adrenalină și frumos. Lucrăm zilnic pentru a descoperi și a aduce pe platformă cele mai captivante activități, asigurându-ne că fiecare detaliu este perfect.",
+    teamDescription: "Suntem o echipă de entuziaști, iubitori de natură, adrenalină și experiențe unice. Lucrăm zilnic pentru a descoperi și a aduce pe platformă cele mai captivante activități, asigurându-ne că fiecare detaliu este perfect.",
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="pt-24 pb-16">
         {/* Hero Section */}
         <section className="container mb-16">
