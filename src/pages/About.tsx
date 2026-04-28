@@ -9,24 +9,24 @@ export default function About() {
 
   const aboutContent = content?.content || {
     title: "Despre Experium",
-    subtitle: "Povestea noastră",
-    description: "Experium este platforma de experiențe cadou din România care conectează oamenii cu aventuri, relaxare și momente memorabile din întreaga țară.",
-    mission: "Misiunea noastră este să facem din fiecare cadou o experiență de neuitat.",
-    vision: "Viziunea noastră este de a deveni cea mai mare platformă de experiențe din Europa de Est.",
+    subtitle: "Transformăm momentele în amintiri de neuitat",
+    description: "Suntem o platformă românească născută din pasiunea pentru aventură, relaxare și descoperire. La Experium, credem că cele mai valoroase cadouri nu sunt obiectele, ci trăirile. De la zboruri cu balonul și salturi cu parașuta, până la degustări fine de vin și escapade spa, aducem laolaltă cele mai fascinante experiențe din România, perfecte pentru a fi dăruite sau trăite din plin.",
+    mission: "Misiunea noastră este să conectăm oamenii prin experiențe autentice. Ne dorim să înlocuim cadourile clasice cu amintiri care durează o viață, oferind acces rapid și simplu la activități premium, atent selecționate.",
+    vision: "Să devenim prima alegere a românilor atunci când doresc să dăruiască sau să încerce o activitate unică, susținând în același timp afacerile locale și turismul de experiență.",
     values: [
-      { title: "Pasiune", description: "Suntem pasionați de experiențe autentice" },
-      { title: "Calitate", description: "Selectăm cu grijă fiecare partener" },
-      { title: "Inovație", description: "Căutăm mereu experiențe noi" },
-      { title: "Comunitate", description: "Susținem turismul local" },
+      { title: "Calitate Premium", description: "Testăm și selectăm riguros fiecare experiență și partener." },
+      { title: "Siguranță & Încredere", description: "Colaborăm exclusiv cu furnizori autorizați, profesioniști." },
+      { title: "Bucuria de a dărui", description: "Oferim experiențe care provoacă emoții puternice și zâmbete." },
+      { title: "Susținere Locală", description: "Promovăm cu mândrie turismul și antreprenorii din România." },
     ],
     stats: [
-      { value: "500+", label: "Experiențe" },
-      { value: "42", label: "Județe" },
-      { value: "10,000+", label: "Clienți fericiți" },
-      { value: "200+", label: "Parteneri" },
+      { value: "100+", label: "Experiențe unice" },
+      { value: "15+", label: "Județe acoperite" },
+      { value: "50+", label: "Parteneri autorizați" },
+      { value: "98%", label: "Clienți mulțumiți" },
     ],
-    teamTitle: "Echipa noastră",
-    teamDescription: "O echipă dedicată care lucrează pentru a-ți oferi cele mai bune experiențe.",
+    teamTitle: "Echipa Experium",
+    teamDescription: "Suntem o echipă de entuziaști, iubitori de natură, adrenalină și frumos. Lucrăm zilnic pentru a descoperi și a aduce pe platformă cele mai captivante activități, asigurându-ne că fiecare detaliu este perfect.",
   };
 
   return (
