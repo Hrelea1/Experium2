@@ -102,14 +102,8 @@ export function BookingForm({ experience }: BookingFormProps) {
   }, []);
 
   const handleInitiateCheck = async (phone: string) => {
-    if (!user) {
-      toast({ title: "Autentificare necesară", description: "Trebuie să fii autentificat.", variant: "destructive" });
-      navigate("/auth");
-      return;
-    }
-    
-    // Update user profile with phone before proceeding
-    if (phone && phone !== user.phone) {
+    // Update user profile with phone before proceeding (only for logged-in users)
+    if (user && phone && phone !== user.phone) {
       try {
         await api.auth.updateProfile({ phone });
       } catch (err: any) {
@@ -179,11 +173,6 @@ export function BookingForm({ experience }: BookingFormProps) {
   };
 
   const handleAddToCart = async () => {
-    if (!user) {
-      toast({ title: "Autentificare necesară", description: "Trebuie să fii autentificat.", variant: "destructive" });
-      navigate("/auth");
-      return;
-    }
     if (!selectedSlot) {
       toast({ title: "Selectează un slot", description: "Alege o dată și un interval orar.", variant: "destructive" });
       return;

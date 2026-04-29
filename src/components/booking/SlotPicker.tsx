@@ -7,7 +7,6 @@ import { Clock, Users, Lock, Loader2, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useAvailabilitySlots, AvailabilitySlot } from "@/hooks/useAvailabilitySlots";
 import { api } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ro } from "date-fns/locale";
@@ -19,7 +18,6 @@ interface SlotPickerProps {
 }
 
 export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotPickerProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const { loading, availableDates, selectedDate, setSelectedDate, slotsForDate } =
     useAvailabilitySlots(experienceId);
@@ -32,22 +30,13 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
   // Unlock previous slot when selecting a new one or unmounting
   useEffect(() => {
     return () => {
-      if (selectedSlot && user) {
+      if (selectedSlot) {
         api.availability.unlockSlot(selectedSlot.id).catch(() => {});
       }
     };
-  }, [selectedSlot, user]);
+  }, [selectedSlot]);
 
   const handleSlotClick = async (slot: AvailabilitySlot) => {
-    if (!user) {
-      toast({
-        title: "Autentificare necesară",
-        description: "Trebuie să fii autentificat pentru a rezerva.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const remaining = slot.max_participants - slot.booked_participants;
     if (participants > remaining) {
       toast({
@@ -172,7 +161,6 @@ export function SlotPicker({ experienceId, participants, onSlotSelected }: SlotP
               const isSelected = selectedSlot?.id === slot.id;
               const isLockedByOther =
                 slot.is_locked &&
-                slot.locked_by !== user?.id &&
                 slot.locked_until &&
                 new Date(slot.locked_until) > new Date();
 
