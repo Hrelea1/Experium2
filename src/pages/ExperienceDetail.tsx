@@ -425,7 +425,7 @@ export default function ExperienceDetail() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
-                    Max {experience.maxParticipants} persoane
+                    Min {experience.minParticipants} persoane
                   </span>
                 </div>
 

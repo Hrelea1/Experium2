@@ -145,6 +145,7 @@ export async function sendBookingConfirmation(params: {
 // ─── Provider Booking Notification ──────────────────────────────────────────────
 export async function sendProviderBookingNotification(params: {
   providerEmail: string; providerName: string; experienceTitle: string; clientName: string;
+  clientEmail: string; clientPhone?: string | null;
   bookingDate: string; participants: number; totalPrice: number; bookingId: string;
 }): Promise<void> {
   await sendEmail(params.providerEmail, `Rezervare nouă — ${params.experienceTitle}`, `
@@ -160,6 +161,8 @@ export async function sendProviderBookingNotification(params: {
         <div style="background: #f8f8f8; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #eaeaea;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Client:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.clientName}</td></tr>
+            <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Email client:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;"><a href="mailto:${params.clientEmail}" style="color:#F59E0B;text-decoration:none;">${params.clientEmail}</a></td></tr>
+            ${params.clientPhone ? `<tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Telefon client:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;"><a href="tel:${params.clientPhone}" style="color:#F59E0B;text-decoration:none;">${params.clientPhone}</a></td></tr>` : ''}
             <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Dată:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.bookingDate}</td></tr>
             <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; font-size: 14px;"> Participanți:</td><td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right; color: #1a1a2e; font-weight: 600;">${params.participants}</td></tr>
             <tr><td style="padding: 12px 0 4px; color: #666; font-size: 14px;"> Câștig total:</td><td style="padding: 12px 0 4px; text-align: right; color: #F59E0B; font-weight: bold; font-size: 16px;">${params.totalPrice} RON</td></tr>
