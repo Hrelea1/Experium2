@@ -159,11 +159,11 @@ export default function CreateExperience() {
 
       // 2. Prepare services & tiers
       const validServices = services
-        .filter(s => s.name.trim() && s.price)
+        .filter(s => s.name.trim() && s.price !== '')
         .map((s, idx) => ({
           name: s.name.trim(),
           description: s.description.trim() || null,
-          price: parseFloat(s.price),
+          price: parseFloat(s.price) || 0,
           max_quantity: parseInt(s.maxQuantity) || 1,
           is_required: s.isRequired,
           display_order: idx

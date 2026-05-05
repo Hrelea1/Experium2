@@ -65,7 +65,7 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const rows = await query(
       `SELECT
         e.id, e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.pricing_tiers,
-        e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url, e.latitude, e.longitude,
+        e.location_name, e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url, e.latitude, e.longitude,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
         r.name AS region_name, r.slug AS region_slug,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
@@ -119,6 +119,7 @@ router.get('/assigned', requireRole('provider', 'admin'), async (req: Request, r
         ep.id,
         ep.experience_id,
         e.title, e.short_description, e.price, e.original_price, e.child_price, e.child_price_description, e.weekend_price, e.pricing_tiers,
+        e.location_name, e.duration_minutes, e.max_participants, e.min_participants,
         e.avg_rating, e.total_reviews, e.is_featured, e.is_active, e.created_at, e.google_maps_url, e.latitude, e.longitude,
         e.provider_type,
         cat.name AS category_name, cat.slug AS category_slug, cat.icon AS category_icon,
@@ -330,12 +331,12 @@ router.post('/', requireRole('admin', 'provider'), async (req: Request, res: Res
     if (Array.isArray(services) && services.length > 0) {
       for (let i = 0; i < services.length; i++) {
         const svc = services[i];
-        if (!svc.name || !svc.price) continue;
+        if (!svc.name) continue;  // only skip nameless services; price=0 is valid
         await client.query(
           `INSERT INTO experience_services
             (experience_id, name, description, price, max_quantity, is_required, display_order)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [experienceId, svc.name, svc.description || null, svc.price, svc.max_quantity || 1, svc.is_required || false, svc.display_order || i]
+          [experienceId, svc.name, svc.description || null, svc.price ?? 0, svc.max_quantity || 1, svc.is_required || false, svc.display_order || i]
         );
       }
     }
@@ -447,12 +448,12 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
         await client.query(`DELETE FROM experience_services WHERE experience_id = $1`, [id]);
         for (let i = 0; i < fields.services.length; i++) {
           const svc = fields.services[i];
-          if (!svc.name || !svc.price) continue;
+          if (!svc.name) continue;  // skip only unnamed services; price=0 is valid
           await client.query(
             `INSERT INTO experience_services
               (experience_id, name, description, price, max_quantity, is_required, display_order)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [id, svc.name, svc.description || null, svc.price, svc.max_quantity || 1, svc.is_required || false, svc.display_order || i]
+            [id, svc.name, svc.description || null, svc.price ?? 0, svc.max_quantity || 1, svc.is_required || false, svc.display_order || i]
           );
         }
       }

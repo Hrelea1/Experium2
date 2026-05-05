@@ -40,10 +40,10 @@ interface ScheduleConfig {
   workDays: number[];           // 0=Sun … 6=Sat
   workStart: string;            // "09:00"
   workEnd: string;              // "17:00"
-  durationMinutes: number;
-  breakMinutes: number;
-  capacity: number;
-  weeksAhead: number;
+  durationMinutes: number | '';
+  breakMinutes: number | '';
+  capacity: number | '';
+  weeksAhead: number | '';
 }
 
 interface Props {
@@ -72,10 +72,15 @@ function minutesToTime(m: number) {
 function computeSlots(cfg: ScheduleConfig): { start: string; end: string }[] {
   const startMin = timeToMinutes(cfg.workStart);
   const endMin   = timeToMinutes(cfg.workEnd);
-  const step     = cfg.durationMinutes + cfg.breakMinutes;
+  const dur      = Number(cfg.durationMinutes) || 0;
+  const brk      = Number(cfg.breakMinutes) || 0;
+  
+  if (dur <= 0) return [];
+
+  const step     = dur + brk;
   const slots: { start: string; end: string }[] = [];
-  for (let cur = startMin; cur + cfg.durationMinutes <= endMin; cur += step) {
-    slots.push({ start: minutesToTime(cur), end: minutesToTime(cur + cfg.durationMinutes) });
+  for (let cur = startMin; cur + dur <= endMin; cur += step) {
+    slots.push({ start: minutesToTime(cur), end: minutesToTime(cur + dur) });
   }
   return slots;
 }
@@ -171,7 +176,7 @@ function ScheduleWizard({
             type="number"
             min={15} step={15}
             value={cfg.durationMinutes}
-            onChange={e => setCfg(p => ({ ...p, durationMinutes: Math.max(15, parseInt(e.target.value) || 60) }))}
+            onChange={e => setCfg(p => ({ ...p, durationMinutes: e.target.value === '' ? '' : parseInt(e.target.value) }))}
             className="text-center font-mono text-lg"
           />
         </div>
@@ -183,7 +188,7 @@ function ScheduleWizard({
             type="number"
             min={0} step={5}
             value={cfg.breakMinutes}
-            onChange={e => setCfg(p => ({ ...p, breakMinutes: Math.max(0, parseInt(e.target.value) || 0) }))}
+            onChange={e => setCfg(p => ({ ...p, breakMinutes: e.target.value === '' ? '' : parseInt(e.target.value) }))}
             className="text-center font-mono text-lg"
           />
         </div>
@@ -199,7 +204,7 @@ function ScheduleWizard({
             type="number"
             min={1} max={500}
             value={cfg.capacity}
-            onChange={e => setCfg(p => ({ ...p, capacity: Math.max(1, parseInt(e.target.value) || 10) }))}
+            onChange={e => setCfg(p => ({ ...p, capacity: e.target.value === '' ? '' : parseInt(e.target.value) }))}
             className="text-center font-mono text-lg"
           />
         </div>
@@ -211,7 +216,7 @@ function ScheduleWizard({
             type="number"
             min={1} max={12}
             value={cfg.weeksAhead}
-            onChange={e => setCfg(p => ({ ...p, weeksAhead: Math.max(1, Math.min(12, parseInt(e.target.value) || 4)) }))}
+            onChange={e => setCfg(p => ({ ...p, weeksAhead: e.target.value === '' ? '' : parseInt(e.target.value) }))}
             className="text-center font-mono text-lg"
           />
         </div>
@@ -244,7 +249,7 @@ function ScheduleWizard({
 
       <Button
         className="w-full h-12 text-base"
-        disabled={preview.length === 0 || cfg.workDays.length === 0}
+        disabled={preview.length === 0 || cfg.workDays.length === 0 || !cfg.durationMinutes || Number(cfg.durationMinutes) < 15 || !cfg.capacity || Number(cfg.capacity) < 1}
         onClick={() => onGenerate(cfg)}
       >
         <Zap className="h-5 w-5 mr-2" />
@@ -523,7 +528,8 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
     try {
       const slotTimes = computeSlots(cfg);
       const today     = new Date();
-      const end       = addDays(today, cfg.weeksAhead * 7);
+      const weeks = Number(cfg.weeksAhead) || 4;
+      const end       = addDays(today, weeks * 7);
       const allDays   = eachDayOfInterval({ start: today, end });
 
       const slotsToCreate = allDays.flatMap(day => {
@@ -533,7 +539,7 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
           slot_date:  format(day, 'yyyy-MM-dd'),
           start_time: t.start,
           end_time:   t.end,
-          capacity:   cfg.capacity,
+          capacity:   Number(cfg.capacity) || 10,
         }));
       });
 

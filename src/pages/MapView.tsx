@@ -2,59 +2,55 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import Map from '@/components/Map';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
+import MapWithGeocoding from '@/components/MapWithGeocoding';
 
 interface MapExperience {
   id: string;
   title: string;
   location: string;
   price: number;
-  coordinates: [number, number];
+  image?: string;
+  coordinates?: [number, number]; // [lng, lat]
 }
 
 export default function MapView() {
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [userLocation, setUserLocation] = useState<[number, number] | undefined>();
   const [experiences, setExperiences] = useState<MapExperience[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch experiences with coordinates from DB
     const fetchExperiences = async () => {
       try {
         const result = await api.experiences.list({ limit: 1000 } as any);
         const data = result.data || [];
-        setExperiences(
-          data
-            .filter((e: any) => e.latitude && e.longitude)
-            .map((e: any) => ({
-              id: e.id,
-              title: e.title,
-              location: e.location_name,
-              price: Number(e.price),
-              coordinates: [Number(e.longitude), Number(e.latitude)] as [number, number],
-            }))
-        );
+        const mapped: MapExperience[] = data.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          location: e.location_name || '',
+          price: Number(e.price),
+          image: e.primary_image || undefined,
+          // Only include coordinates if both lat and lng exist
+          coordinates: (e.latitude && e.longitude)
+            ? [Number(e.longitude), Number(e.latitude)] as [number, number]
+            : undefined,
+        }));
+        setExperiences(mapped);
       } catch (err) {
-        console.error("Failed to fetch experiences for map", err);
+        console.error('Failed to fetch experiences for map', err);
       }
       setIsLoading(false);
     };
 
     fetchExperiences();
 
-    // Get user geolocation
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.longitude, position.coords.latitude]);
-        },
-        () => {} // silently fail
+        (pos) => setUserLocation([pos.coords.longitude, pos.coords.latitude]),
+        () => {}
       );
     }
   }, []);
@@ -63,10 +59,13 @@ export default function MapView() {
     navigate(`/experience/${experienceId}`);
   };
 
+  const withCoords = experiences.filter(e => e.coordinates).length;
+  const withoutCoords = experiences.filter(e => !e.coordinates).length;
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      
+
       <main className="flex-1 pt-20">
         <div className="container py-8">
           <div className="flex items-center justify-between mb-6">
@@ -77,21 +76,21 @@ export default function MapView() {
               <div>
                 <h1 className="text-3xl font-bold flex items-center gap-2">
                   <MapPin className="h-8 w-8 text-primary" />
-                  {t('hero.showOnMap')}
+                  Experiențe pe hartă
                 </h1>
                 <p className="text-muted-foreground mt-1">
                   {isLoading
                     ? 'Se încarcă experiențele...'
                     : experiences.length === 0
-                    ? 'Nu există experiențe cu coordonate'
-                    : `${experiences.length} experiențe pe hartă`}
+                    ? 'Nu există experiențe disponibile'
+                    : `${experiences.length} experiențe${withoutCoords > 0 ? ` (${withoutCoords} se geocodează...)` : ''}`}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="h-[calc(100vh-200px)] rounded-lg overflow-hidden">
-            <Map
+            <MapWithGeocoding
               experiences={experiences}
               userLocation={userLocation}
               onExperienceClick={handleExperienceClick}
