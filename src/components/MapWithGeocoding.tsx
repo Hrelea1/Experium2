@@ -145,15 +145,22 @@ const MapWithGeocoding = ({ experiences, userLocation, onExperienceClick }: MapP
 
       const el = document.createElement('div');
       el.style.cssText = `
-        width: 36px; height: 36px; border-radius: 50%;
-        background: hsl(16, 85%, 55%); border: 3px solid white;
-        cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        width: 36px; height: 36px;
+        cursor: pointer;
         display: flex; align-items: center; justify-content: center;
+      `;
+      
+      const innerEl = document.createElement('div');
+      innerEl.style.cssText = `
+        width: 100%; height: 100%; border-radius: 50%;
+        background: hsl(16, 85%, 55%); border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
         transition: transform 0.2s; transform-origin: center;
       `;
-      el.innerHTML = ``;
-      el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.15)'; });
-      el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+      el.appendChild(innerEl);
+
+      el.addEventListener('mouseenter', () => { innerEl.style.transform = 'scale(1.15)'; });
+      el.addEventListener('mouseleave', () => { innerEl.style.transform = 'scale(1)'; });
 
       // Popup with clickable link
       const popupHtml = `
