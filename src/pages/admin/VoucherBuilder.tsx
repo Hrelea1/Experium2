@@ -39,7 +39,7 @@ const VoucherBuilder = () => {
 
   const fetchExperiences = async () => {
     try {
-      const { data } = await api.experiences.list({ sort: 'created_at', order: 'DESC' });
+      const { data } = await api.experiences.list({ sort: 'created_at', order: 'DESC', limit: 1000 });
       setExperiences(data || []);
     } catch (error) {
       console.error('Error fetching experiences:', error);

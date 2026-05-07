@@ -28,7 +28,7 @@ const ManageExperiences = () => {
 
   const fetchExperiences = async () => {
     try {
-      const response = await api.experiences.list({ include_inactive: true } as any);
+      const response = await api.experiences.list({ include_inactive: true, limit: 1000 } as any);
       setExperiences(response.data || []);
     } catch (error: any) {
       toast({
