@@ -70,8 +70,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
         r.name AS region_name, r.slug AS region_slug,
         (SELECT image_url FROM experience_images WHERE experience_id = e.id AND is_primary = true LIMIT 1) AS primary_image
        FROM experiences e
-       JOIN categories cat ON cat.id = e.category_id
-       JOIN regions r ON r.id = e.region_id
+       LEFT JOIN categories cat ON cat.id = e.category_id
+       LEFT JOIN regions r ON r.id = e.region_id
        ${whereClause}
        ORDER BY ${sortColumn} ${sortOrder}
        LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
@@ -82,8 +82,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     const countParams = params.slice(0, -2);
     const countResult = await queryOne<{ count: string }>(
       `SELECT COUNT(*) AS count FROM experiences e
-       JOIN categories cat ON cat.id = e.category_id
-       JOIN regions r ON r.id = e.region_id
+       LEFT JOIN categories cat ON cat.id = e.category_id
+       LEFT JOIN regions r ON r.id = e.region_id
        ${whereClause}`,
       countParams
     );
@@ -214,7 +214,8 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
     let images: any[] = [];
     try {
       images = await query(
-        `SELECT id, image_url, is_primary, display_order
+        `SELECT id, image_url, is_primary, display_order,
+                COALESCE(focal_x, 50) AS focal_x, COALESCE(focal_y, 50) AS focal_y
          FROM experience_images WHERE experience_id = $1 ORDER BY display_order ASC`,
         [id]
       );
@@ -435,11 +436,22 @@ router.put('/:id', requireRole('admin', 'provider'), async (req: Request, res: R
         for (let i = 0; i < fields.images.length; i++) {
           const img = fields.images[i];
           if (!img.image_url) continue;
-          await client.query(
-            `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order)
-             VALUES ($1, $2, $3, $4)`,
-            [id, img.image_url, img.is_primary || i === 0, img.display_order || i]
-          );
+          // Try with focal columns; fall back gracefully if columns don't exist yet
+          try {
+            await client.query(
+              `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order, focal_x, focal_y)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [id, img.image_url, img.is_primary || i === 0, img.display_order ?? i,
+               img.focal_x ?? 50, img.focal_y ?? 50]
+            );
+          } catch {
+            // Columns may not exist yet — insert without focal
+            await client.query(
+              `INSERT INTO experience_images (experience_id, image_url, is_primary, display_order)
+               VALUES ($1, $2, $3, $4)`,
+              [id, img.image_url, img.is_primary || i === 0, img.display_order ?? i]
+            );
+          }
         }
       }
 

@@ -211,8 +211,8 @@ export default function ExperienceDetail() {
             ?.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0))
             .map((img: any) => ({
               url: img.image_url,
-              focal_x: 50,
-              focal_y: 50,
+              focal_x: img.focal_x ?? 50,
+              focal_y: img.focal_y ?? 50,
             })) || [];
 
           setExperience({

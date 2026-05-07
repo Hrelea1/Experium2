@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -17,9 +16,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { uploadExperienceImageFile } from "@/lib/experienceImages";
 import { api } from "@/lib/api";
-import { ExperienceImage } from "@/components/ExperienceImage";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { FocalPointPicker } from "@/components/ui/FocalPointPicker";
 import {
   ArrowDown,
   ArrowUp,
@@ -61,6 +59,8 @@ type ExperienceImageRow = {
   image_url: string;
   is_primary: boolean | null;
   display_order: number | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 type ExperienceServiceRow = {
@@ -79,6 +79,8 @@ type ImageDraft = {
   clientId: string;
   image_url: string;
   is_primary: boolean;
+  focal_x: number;
+  focal_y: number;
 };
 
 type ServiceDraft = {
@@ -161,19 +163,6 @@ export default function EditExperience() {
 
   const [includes, setIncludes] = useState<string[]>([]);
 
-  const [thumbPreset, setThumbPreset] = useState<"square" | "wide" | "classic">("wide");
-
-  const thumbRatio = useMemo(() => {
-    switch (thumbPreset) {
-      case "square":
-        return 1;
-      case "classic":
-        return 4 / 3;
-      case "wide":
-      default:
-        return 16 / 9;
-    }
-  }, [thumbPreset]);
 
   const [images, setImages] = useState<ImageDraft[]>([]);
   const [services, setServices] = useState<ServiceDraft[]>([]);
@@ -267,6 +256,8 @@ export default function EditExperience() {
           clientId: i.id,
           image_url: i.image_url,
           is_primary: Boolean(i.is_primary),
+          focal_x: i.focal_x ?? 50,
+          focal_y: i.focal_y ?? 50,
         }));
         if (draftImages.length > 0 && !draftImages.some((x) => x.is_primary)) {
           draftImages[0].is_primary = true;
@@ -319,6 +310,8 @@ export default function EditExperience() {
           clientId: newClientId(),
           image_url: "",
           is_primary: prev.length === 0,
+          focal_x: 50,
+          focal_y: 50,
         },
       ];
       return next;
@@ -474,7 +467,9 @@ export default function EditExperience() {
       patch.images = cleanImages.map((img, idx) => ({
         image_url: img.image_url,
         is_primary: img.is_primary,
-        display_order: idx
+        display_order: idx,
+        focal_x: img.focal_x ?? 50,
+        focal_y: img.focal_y ?? 50,
       }));
 
       patch.services = cleanServices.map((s, idx) => ({
@@ -720,11 +715,9 @@ export default function EditExperience() {
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Descriere *</Label>
-                  <Textarea
-                    id="description"
+                  <RichTextEditor
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={7}
+                    onChange={setDescription}
                   />
                 </div>
 
@@ -820,71 +813,16 @@ export default function EditExperience() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="rounded-md border bg-card p-4 space-y-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="text-sm font-medium">Preview thumbnails (încadrare)</div>
-                      <p className="text-xs text-muted-foreground">
-                        Verifică rapid cum arată punctul de focus pe diverse formate.
-                      </p>
-                    </div>
-
-                    <ToggleGroup
-                      type="single"
-                      value={thumbPreset}
-                      onValueChange={(v) => {
-                        if (v === "square" || v === "wide" || v === "classic") setThumbPreset(v);
-                      }}
-                      className="justify-start sm:justify-end"
-                    >
-                      <ToggleGroupItem value="square" aria-label="Pătrat">
-                        1:1
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="wide" aria-label="Wide">
-                        16:9
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value="classic" aria-label="Clasic">
-                        4:3
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
-
-                  {images.filter((i) => i.image_url.trim().length > 0).length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      Adaugă un URL / încarcă o imagine ca să vezi thumbnails.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                      {images
-                        .filter((i) => i.image_url.trim().length > 0)
-                        .map((img, idx) => (
-                          <div key={`thumb-${img.clientId}`} className="space-y-2">
-                            <AspectRatio ratio={thumbRatio} className="overflow-hidden rounded-md border bg-muted">
-                              <ExperienceImage
-                                src={img.image_url}
-                                alt={`Thumbnail ${idx + 1}`}
-                                className="h-full w-full"
-                              />
-
-                              <div className="pointer-events-none absolute left-2 top-2 rounded bg-background/70 px-2 py-0.5 text-[11px] text-foreground backdrop-blur-sm">
-                                #{idx + 1}{img.is_primary ? " • principală" : ""}
-                              </div>
-                            </AspectRatio>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
                 {images.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nu există imagini.</p>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {images.map((img, idx) => (
                       <div
                         key={img.clientId}
-                        className="rounded-md border bg-card p-4 space-y-3"
+                        className="rounded-md border bg-card p-4 space-y-4"
                       >
+                        {/* Header row */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-sm font-medium">
                             Imagine {idx + 1}{" "}
@@ -919,6 +857,7 @@ export default function EditExperience() {
                           </div>
                         </div>
 
+                        {/* URL + upload row */}
                         <div className="grid gap-4 md:grid-cols-4">
                           <div className="md:col-span-3 space-y-2">
                             <Label>URL imagine</Label>
@@ -957,8 +896,6 @@ export default function EditExperience() {
                                 Acceptă PNG/JPEG/WebP etc.
                               </span>
                             </div>
-
-
                           </div>
                           <div className="flex items-end">
                             <Button
@@ -971,6 +908,26 @@ export default function EditExperience() {
                             </Button>
                           </div>
                         </div>
+
+                        {/* Focal point picker — shown only when image URL is set */}
+                        {img.image_url.trim().length > 0 && (
+                          <div className="border-t pt-4">
+                            <FocalPointPicker
+                              imageUrl={img.image_url}
+                              focalX={img.focal_x}
+                              focalY={img.focal_y}
+                              onChange={(x, y) =>
+                                setImages((prev) =>
+                                  prev.map((draft) =>
+                                    draft.clientId === img.clientId
+                                      ? { ...draft, focal_x: x, focal_y: y }
+                                      : draft
+                                  )
+                                )
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

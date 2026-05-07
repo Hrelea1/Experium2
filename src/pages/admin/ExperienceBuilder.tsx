@@ -6,12 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Wand2, Plus, X, Package, Upload } from 'lucide-react';
 import { uploadExperienceImageFile } from '@/lib/experienceImages';
 import { api } from '@/lib/api';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { FocalPointPicker } from '@/components/ui/FocalPointPicker';
 import {
   Select,
   SelectContent,
@@ -54,9 +55,9 @@ const ExperienceBuilder = () => {
   const [duration, setDuration] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('10');
   const [minAge, setMinAge] = useState('');
-  const [images, setImages] = useState<Array<{ url: string; file?: File | null; isPrimary?: boolean; displayOrder?: number }>>([
-    { url: '', isPrimary: true, displayOrder: 0 },
-  ]);
+  const [images, setImages] = useState<Array<{ url: string; file?: File | null; isPrimary?: boolean; displayOrder?: number; focalX?: number; focalY?: number }>>(
+    [{ url: '', isPrimary: true, displayOrder: 0, focalX: 50, focalY: 50 }],
+  );
   const [services, setServices] = useState<ServiceInput[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
   const [providerId, setProviderId] = useState('none');
@@ -99,7 +100,7 @@ const ExperienceBuilder = () => {
   };
 
   const addImageField = () => {
-    setImages([...images, { url: '' }]);
+    setImages([...images, { url: '', focalX: 50, focalY: 50 }]);
   };
 
   const removeImageField = (index: number) => {
@@ -157,7 +158,9 @@ const ExperienceBuilder = () => {
           finalImagesData.push({
             url: urlObj,
             is_primary: i === 0,
-            display_order: i
+            display_order: i,
+            focal_x: img.focalX ?? 50,
+            focal_y: img.focalY ?? 50,
           });
         }
       }
@@ -281,12 +284,10 @@ const ExperienceBuilder = () => {
             {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Descriere Completă *</Label>
-              <Textarea
-                id="description"
+              <RichTextEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
                 placeholder="Descrie experiența în detaliu..."
-                rows={6}
               />
             </div>
 
@@ -402,51 +403,70 @@ const ExperienceBuilder = () => {
                 </Button>
               </div>
               {images.map((img, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    value={img.file ? img.file.name : img.url}
-                    onChange={(e) => updateImageUrl(index, e.target.value)}
-                    placeholder="URL imagine (ex: https://...)"
-                    readOnly={!!img.file}
-                  />
+                <div key={index} className="rounded-md border p-3 space-y-3">
+                  {/* URL / file row */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={img.file ? img.file.name : img.url}
+                      onChange={(e) => updateImageUrl(index, e.target.value)}
+                      placeholder="URL imagine (ex: https://...)"
+                      readOnly={!!img.file}
+                    />
 
-                  <div className="flex items-center gap-2">
-                    {img.file && (
+                    <div className="flex items-center gap-2">
+                      {img.file && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="px-2"
+                          onClick={() => updateImageFile(index, null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Label
+                        className="inline-flex items-center gap-2 cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-accent"
+                        htmlFor={`img-file-${index}`}
+                      >
+                        <Upload className="h-4 w-4" />
+                        {img.file ? 'Schimbă' : 'Încarcă'}
+                      </Label>
+                      <input
+                        id={`img-file-${index}`}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => updateImageFile(index, e.target.files?.[0] ?? null)}
+                      />
+                    </div>
+
+                    {images.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="px-2"
-                        onClick={() => updateImageFile(index, null)}
+                        size="icon"
+                        onClick={() => removeImageField(index)}
                       >
                         <X className="h-4 w-4" />
                       </Button>
                     )}
-                    <Label
-                      className="inline-flex items-center gap-2 cursor-pointer rounded-md border px-3 py-2 text-sm hover:bg-accent"
-                      htmlFor={`img-file-${index}`}
-                    >
-                      <Upload className="h-4 w-4" />
-                      {img.file ? 'Schimbă' : 'Încarcă'}
-                    </Label>
-                    <input
-                      id={`img-file-${index}`}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => updateImageFile(index, e.target.files?.[0] ?? null)}
-                    />
                   </div>
 
-                  {images.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeImageField(index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                  {/* Focal point picker */}
+                  {(img.url.trim() || img.file) && (
+                    <FocalPointPicker
+                      imageUrl={img.file ? URL.createObjectURL(img.file) : img.url}
+                      focalX={img.focalX ?? 50}
+                      focalY={img.focalY ?? 50}
+                      onChange={(x, y) =>
+                        setImages((prev) =>
+                          prev.map((item, i) =>
+                            i === index ? { ...item, focalX: x, focalY: y } : item
+                          )
+                        )
+                      }
+                    />
                   )}
                 </div>
               ))}

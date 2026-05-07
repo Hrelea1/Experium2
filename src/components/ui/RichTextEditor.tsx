@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Bold, Italic, Strikethrough, List, ListOrdered, Heading2, Heading3, Undo, Redo } from 'lucide-react';
@@ -31,9 +32,19 @@ export function RichTextEditor({ value, onChange, placeholder }: RichTextEditorP
     },
   });
 
+  // Sync external value changes (e.g. async data load) into the editor
+  useEffect(() => {
+    if (!editor) return;
+    const currentHTML = editor.getHTML();
+    if (value !== currentHTML) {
+      editor.commands.setContent(value || '', false);
+    }
+  }, [value, editor]);
+
   if (!editor) {
     return null;
   }
+
 
   return (
     <div className="flex flex-col border rounded-md shadow-sm">
