@@ -149,9 +149,9 @@ const MapWithGeocoding = ({ experiences, userLocation, onExperienceClick }: MapP
         background: hsl(16, 85%, 55%); border: 3px solid white;
         cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
         display: flex; align-items: center; justify-content: center;
-        transition: transform 0.2s;
+        transition: transform 0.2s; transform-origin: center;
       `;
-      el.innerHTML = `<span style="color:white;font-size:11px;font-weight:700">lei</span>`;
+      el.innerHTML = ``;
       el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.15)'; });
       el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
 
