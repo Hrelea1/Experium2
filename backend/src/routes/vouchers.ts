@@ -178,6 +178,7 @@ router.post('/:id/redeem', requireAuth, async (req: Request, res: Response) => {
                 providerName: provider.full_name ?? 'Furnizor',
                 experienceTitle: info.title,
                 clientName: info.full_name ?? 'Client',
+                clientEmail: info.email,
                 bookingDate: new Date(booking_date).toLocaleString('ro-RO'),
                 participants: Number(participants),
                 totalPrice: Number(voucher.purchase_price),

@@ -276,6 +276,7 @@ router.post('/verify-session', optionalAuth, async (req: Request, res: Response)
                   providerName: providerInfo.provider_name ?? 'Furnizor',
                   experienceTitle: clientInfo.title,
                   clientName: clientInfo.full_name ?? 'Client',
+                  clientEmail: clientInfo.email,
                   bookingDate: dateStr,
                   participants: Number(item.participants),
                   totalPrice: Number(item.totalPrice),
