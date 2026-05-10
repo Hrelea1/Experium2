@@ -28,6 +28,7 @@ interface Slot {
   slot_date: string;
   start_time: string;
   end_time: string;
+  slot_type: 'hourly' | 'daily';
   capacity: number;
   max_participants: number;
   booked_count: number;
@@ -37,11 +38,12 @@ interface Slot {
 }
 
 interface ScheduleConfig {
-  workDays: number[];           // 0=Sun … 6=Sat
-  workStart: string;            // "09:00"
-  workEnd: string;              // "17:00"
-  durationMinutes: number | '';
-  breakMinutes: number | '';
+  slotMode: 'hourly' | 'daily';  // new: hourly slots vs whole-day
+  workDays: number[];            // 0=Sun … 6=Sat
+  workStart: string;             // "09:00"
+  workEnd: string;               // "17:00"
+  durationMinutes: number | '';  // used only in hourly mode
+  breakMinutes: number | '';     // used only in hourly mode
   capacity: number | '';
   weeksAhead: number | '';
 }
@@ -96,6 +98,7 @@ function ScheduleWizard({
   onGenerate: (cfg: ScheduleConfig) => void;
 }) {
   const [cfg, setCfg] = useState<ScheduleConfig>({
+    slotMode: 'hourly',
     workDays: [1, 2, 3, 4, 5],
     workStart: '09:00',
     workEnd: '17:00',
@@ -105,7 +108,7 @@ function ScheduleWizard({
     weeksAhead: 4,
   });
 
-  const preview = useMemo(() => computeSlots(cfg), [cfg]);
+  const preview = useMemo(() => cfg.slotMode === 'hourly' ? computeSlots(cfg) : [], [cfg]);
 
   const toggleDay = (d: number) =>
     setCfg(p => ({
@@ -113,8 +116,44 @@ function ScheduleWizard({
       workDays: p.workDays.includes(d) ? p.workDays.filter(x => x !== d) : [...p.workDays, d].sort(),
     }));
 
+  const totalDailySlots = Number(cfg.weeksAhead || 4) * 7;
+  const estimatedDailyDays = cfg.workDays.length * Number(cfg.weeksAhead || 4);
+
+  const canGenerate = cfg.slotMode === 'daily'
+    ? cfg.workDays.length > 0 && Number(cfg.capacity) >= 1 && Number(cfg.weeksAhead) >= 1
+    : preview.length > 0 && cfg.workDays.length > 0 && Number(cfg.durationMinutes) >= 15 && Number(cfg.capacity) >= 1;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
+      {/* Mode selector */}
+      <div className="space-y-2">
+        <Label className="text-base font-semibold flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" /> Tipul de disponibilitate
+        </Label>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { mode: 'hourly', label: 'Sloturi orare', desc: 'Ex: 09:00–10:00, 10:00–11:00…', icon: <Clock className="h-5 w-5" /> },
+            { mode: 'daily',  label: 'Ziua întreagă', desc: 'Un slot per zi disponibilă', icon: <Calendar className="h-5 w-5" /> },
+          ] as const).map(({ mode, label, desc, icon }) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setCfg(p => ({ ...p, slotMode: mode }))}
+              className={cn(
+                'flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 text-sm font-medium transition-all duration-200',
+                cfg.slotMode === mode
+                  ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                  : 'bg-background border-border text-muted-foreground hover:border-primary/40'
+              )}
+            >
+              {icon}
+              <span className="font-semibold">{label}</span>
+              <span className="text-xs font-normal opacity-70 text-center leading-tight">{desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Work days */}
       <div className="space-y-3">
         <Label className="text-base font-semibold flex items-center gap-2">
@@ -142,8 +181,14 @@ function ScheduleWizard({
       {/* Working hours */}
       <div className="space-y-3">
         <Label className="text-base font-semibold flex items-center gap-2">
-          <Clock className="h-4 w-4 text-primary" /> Orele de funcționare
+          <Clock className="h-4 w-4 text-primary" />
+          {cfg.slotMode === 'daily' ? 'Interval orar al zilei (informativ)' : 'Orele de funcționare'}
         </Label>
+        {cfg.slotMode === 'daily' && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            Clientul vede această perioadă ca interval disponibil al zilei, dar rezervă o zi întreagă.
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Deschidere</Label>
@@ -166,39 +211,41 @@ function ScheduleWizard({
         </div>
       </div>
 
-      {/* Duration & break */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-base font-semibold flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" /> Durata experienței (min)
-          </Label>
-          <Input
-            type="number"
-            min={15} step={15}
-            value={cfg.durationMinutes}
-            onChange={e => setCfg(p => ({ ...p, durationMinutes: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-            className="text-center font-mono text-lg"
-          />
+      {/* Hourly-only: Duration & break */}
+      {cfg.slotMode === 'hourly' && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" /> Durata experienței (min)
+            </Label>
+            <Input
+              type="number"
+              min={15} step={15}
+              value={cfg.durationMinutes}
+              onChange={e => setCfg(p => ({ ...p, durationMinutes: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+              className="text-center font-mono text-lg"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-primary" /> Pauză între sloturi (min)
+            </Label>
+            <Input
+              type="number"
+              min={0} step={5}
+              value={cfg.breakMinutes}
+              onChange={e => setCfg(p => ({ ...p, breakMinutes: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+              className="text-center font-mono text-lg"
+            />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-base font-semibold flex items-center gap-2">
-            <RotateCcw className="h-4 w-4 text-primary" /> Pauză între sloturi (min)
-          </Label>
-          <Input
-            type="number"
-            min={0} step={5}
-            value={cfg.breakMinutes}
-            onChange={e => setCfg(p => ({ ...p, breakMinutes: e.target.value === '' ? '' : parseInt(e.target.value) }))}
-            className="text-center font-mono text-lg"
-          />
-        </div>
-      </div>
+      )}
 
       {/* Capacity & weeks */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-base font-semibold flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" /> Participanți / slot
+            <Users className="h-4 w-4 text-primary" /> Participanți / {cfg.slotMode === 'daily' ? 'zi' : 'slot'}
           </Label>
           <Input
             type="number"
@@ -222,34 +269,50 @@ function ScheduleWizard({
         </div>
       </div>
 
-      {/* Live preview */}
-      {preview.length > 0 ? (
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-          <p className="text-sm font-semibold text-primary mb-3 flex items-center gap-1.5">
-            <Check className="h-4 w-4" />
-            {preview.length} sloturi / zi activă — previzualizare:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {preview.map((s, i) => (
-              <Badge key={i} variant="secondary" className="font-mono text-xs">
-                {s.start} – {s.end}
-              </Badge>
-            ))}
+      {/* Preview */}
+      {cfg.slotMode === 'hourly' ? (
+        preview.length > 0 ? (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+            <p className="text-sm font-semibold text-primary mb-3 flex items-center gap-1.5">
+              <Check className="h-4 w-4" />
+              {preview.length} sloturi / zi activă — previzualizare:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {preview.map((s, i) => (
+                <Badge key={i} variant="secondary" className="font-mono text-xs">
+                  {s.start} – {s.end}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              Total estimat: <strong>{preview.length * cfg.workDays.length * Number(cfg.weeksAhead || 4)}</strong> sloturi pe {cfg.weeksAhead} săptămâni
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Total estimat: <strong>{preview.length * cfg.workDays.length * cfg.weeksAhead}</strong> sloturi pe {cfg.weeksAhead} săptămâni
-          </p>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-3">
+            <AlertCircle className="h-4 w-4" />
+            Verifică orele de funcționare — nu există timp suficient pentru niciun slot.
+          </div>
+        )
       ) : (
-        <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg p-3">
-          <AlertCircle className="h-4 w-4" />
-          Verifică orele de funcționare — nu există timp suficient pentru niciun slot.
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+          <p className="text-sm font-semibold text-primary mb-2 flex items-center gap-1.5">
+            <Check className="h-4 w-4" />
+            Rezumat disponibilitate zilnică
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Se vor crea <strong>{estimatedDailyDays}</strong> zile disponibile pe {cfg.weeksAhead} săptămâni
+            ({cfg.workStart} – {cfg.workEnd}), cu <strong>{cfg.capacity}</strong> locuri/zi.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Clientul va alege o zi disponibilă, nu un slot orar.
+          </p>
         </div>
       )}
 
       <Button
         className="w-full h-12 text-base"
-        disabled={preview.length === 0 || cfg.workDays.length === 0 || !cfg.durationMinutes || Number(cfg.durationMinutes) < 15 || !cfg.capacity || Number(cfg.capacity) < 1}
+        disabled={!canGenerate}
         onClick={() => onGenerate(cfg)}
       >
         <Zap className="h-5 w-5 mr-2" />
@@ -440,6 +503,8 @@ function CalendarView({
           const past      = isPast(day) && !isToday(day);
           const todayMark = isToday(day);
 
+          // Check if all slots on this day are daily type
+          const hasDailySlot = daySlots.some(s => s.slot_type === 'daily');
           const available = daySlots.filter(s => !s.is_locked && s.is_available).length;
           const locked    = daySlots.filter(s => s.is_locked || !s.is_available).length;
           const booked    = daySlots.filter(s => s.booked_participants > 0).length;
@@ -461,20 +526,57 @@ function CalendarView({
                 {format(day, 'd')}
               </div>
 
-              {/* Slot pills */}
+              {/* Slot display */}
               <div className="flex flex-col gap-0.5 flex-1 max-h-[250px] overflow-y-auto pr-0.5">
                 {daySlots.length === 0 && !past && isOwn && (
                   <span className="text-[9px] text-muted-foreground/50 text-center mt-1">—</span>
                 )}
-                {daySlots.map(s => (
-                  <SlotPill
-                    key={s.id}
-                    slot={s}
-                    pending={pendingIds.has(s.id)}
-                    onToggle={() => onToggleSlot(s)}
-                    onEditCapacity={onEditCapacity}
-                  />
-                ))}
+                {hasDailySlot ? (
+                  // Daily mode: render one full-day block per slot
+                  daySlots.map(s => {
+                    const isLocked = s.is_locked || !s.is_available;
+                    const isBooked = s.booked_participants > 0;
+                    const cap = s.capacity ?? s.max_participants;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={isBooked || pendingIds.has(s.id)}
+                        onClick={() => onToggleSlot(s)}
+                        title={isBooked ? `Rezervat (${s.booked_participants}/${cap})` : isLocked ? 'Indisponibil — apasă pentru a reactiva' : 'Disponibil — apasă pentru a bloca'}
+                        className={cn(
+                          'w-full text-left px-1.5 py-1 rounded-md border text-[9px] font-medium transition-all duration-200',
+                          pendingIds.has(s.id) && 'opacity-50 cursor-wait',
+                          isBooked
+                            ? 'bg-orange-100 border-orange-300 text-orange-800 cursor-not-allowed'
+                            : isLocked
+                            ? 'bg-muted/70 border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/40'
+                            : 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-destructive/10 hover:border-destructive/40'
+                        )}
+                      >
+                        <span className="flex items-center justify-between gap-1">
+                          <span>Toată ziua</span>
+                          <span className="flex items-center gap-0.5 opacity-70">
+                            <Users className="h-2 w-2" />
+                            <span>{s.booked_participants}/{cap}</span>
+                          </span>
+                        </span>
+                        <span className="font-mono opacity-60">{s.start_time.slice(0,5)}–{s.end_time.slice(0,5)}</span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  // Hourly mode: render slot pills
+                  daySlots.map(s => (
+                    <SlotPill
+                      key={s.id}
+                      slot={s}
+                      pending={pendingIds.has(s.id)}
+                      onToggle={() => onToggleSlot(s)}
+                      onEditCapacity={onEditCapacity}
+                    />
+                  ))
+                )}
               </div>
 
               {/* Day summary badges */}
@@ -489,6 +591,7 @@ function CalendarView({
           );
         })}
       </div>
+
     </div>
   );
 }
@@ -526,22 +629,41 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
   const handleGenerate = async (cfg: ScheduleConfig) => {
     setGenerating(true);
     try {
-      const slotTimes = computeSlots(cfg);
-      const today     = new Date();
+      const today = new Date();
       const weeks = Number(cfg.weeksAhead) || 4;
-      const end       = addDays(today, weeks * 7);
-      const allDays   = eachDayOfInterval({ start: today, end });
+      const end   = addDays(today, weeks * 7);
+      const allDays = eachDayOfInterval({ start: today, end });
 
-      const slotsToCreate = allDays.flatMap(day => {
-        const dow = day.getDay(); // 0=Sun
-        if (!cfg.workDays.includes(dow)) return [];
-        return slotTimes.map(t => ({
-          slot_date:  format(day, 'yyyy-MM-dd'),
-          start_time: t.start,
-          end_time:   t.end,
-          capacity:   Number(cfg.capacity) || 10,
-        }));
-      });
+      let slotsToCreate: { slot_date: string; start_time: string; end_time: string; capacity: number; slot_type: string }[];
+
+      if (cfg.slotMode === 'daily') {
+        // One slot per active day — the whole day
+        slotsToCreate = allDays.flatMap(day => {
+          const dow = day.getDay();
+          if (!cfg.workDays.includes(dow)) return [];
+          return [{
+            slot_date:  format(day, 'yyyy-MM-dd'),
+            start_time: cfg.workStart,
+            end_time:   cfg.workEnd,
+            capacity:   Number(cfg.capacity) || 10,
+            slot_type:  'daily',
+          }];
+        });
+      } else {
+        // Hourly: compute time slots
+        const slotTimes = computeSlots(cfg);
+        slotsToCreate = allDays.flatMap(day => {
+          const dow = day.getDay();
+          if (!cfg.workDays.includes(dow)) return [];
+          return slotTimes.map(t => ({
+            slot_date:  format(day, 'yyyy-MM-dd'),
+            start_time: t.start,
+            end_time:   t.end,
+            capacity:   Number(cfg.capacity) || 10,
+            slot_type:  'hourly',
+          }));
+        });
+      }
 
       if (slotsToCreate.length === 0) {
         toast({ title: 'Nimic de generat', description: 'Nicio zi activă găsită', variant: 'destructive' });
@@ -549,7 +671,8 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
       }
 
       const res = await api.provider.bulkAddSlots({ experience_id: experienceId, slots: slotsToCreate });
-      toast({ title: '🎉 Calendar generat!', description: `${res.inserted || slotsToCreate.length} sloturi create.` });
+      const label = cfg.slotMode === 'daily' ? 'zile disponibile' : 'sloturi';
+      toast({ title: '🎉 Calendar generat!', description: `${res.inserted || slotsToCreate.length} ${label} create.` });
       setView('calendar');
       await fetchSlots();
       onSlotsUpdated?.();
@@ -559,6 +682,7 @@ export function AvailabilityManager({ experienceId, experienceTitle, durationMin
       setGenerating(false);
     }
   };
+
 
   const handleToggleSlot = async (slot: Slot) => {
     if (pendingIds.has(slot.id)) return;

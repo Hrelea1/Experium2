@@ -351,7 +351,7 @@ export default function CategorySearch() {
           filters.category_slug = categoryKey;
         }
 
-        const { data } = await api.experiences.list(filters);
+        const { data } = await api.experiences.list({ ...filters, limit: 1000 } as any);
 
         setExperiences(data as any[]);
       } catch (error: any) {

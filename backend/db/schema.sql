@@ -632,3 +632,20 @@ SELECT
   'approved'
 WHERE (SELECT id FROM experiences WHERE title ILIKE '%Roata Panoramic%' LIMIT 1) IS NOT NULL
 ON CONFLICT (experience_id, user_id) DO NOTHING;
+
+-- =============================================================================
+-- MIGRATION: slot_type column for availability_slots
+-- Adds support for 'daily' slots (full-day availability) vs 'hourly' slots
+-- =============================================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'availability_slots' AND column_name = 'slot_type'
+  ) THEN
+    ALTER TABLE availability_slots
+      ADD COLUMN slot_type TEXT NOT NULL DEFAULT 'hourly';
+    ALTER TABLE availability_slots
+      ADD CONSTRAINT chk_slot_type CHECK (slot_type IN ('hourly', 'daily'));
+  END IF;
+END $$;

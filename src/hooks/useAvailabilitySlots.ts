@@ -50,7 +50,7 @@ export function useAvailabilitySlots(experienceId: string) {
         is_available: !s.is_locked && s.available_spots > 0,
         locked_by: null,
         locked_until: null,
-        slot_type: "regular",
+        slot_type: s.slot_type || 'hourly',  // preserve from API
       }));
 
 

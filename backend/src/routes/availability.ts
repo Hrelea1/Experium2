@@ -24,7 +24,8 @@ router.get('/:experience_id', async (req: Request, res: Response) => {
         COALESCE(s.end_time, s.start_time + interval '1 hour') AS end_time,
         s.capacity, s.booked_count,
         (s.capacity - s.booked_count) AS available_spots,
-        COALESCE(s.is_locked, false) AS is_locked
+        COALESCE(s.is_locked, false) AS is_locked,
+        COALESCE(s.slot_type, 'hourly') AS slot_type
        FROM availability_slots s
        WHERE s.experience_id = $1
          AND (COALESCE(s.is_locked, false) = false OR s.capacity > 1)
@@ -49,11 +50,12 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
     const userId = req.user!.userId;
     const { from } = req.query as { from?: string };
 
-    const rows = await query(
+  const rows = await query(
       `SELECT id, experience_id, TO_CHAR(slot_date, 'YYYY-MM-DD') AS slot_date, start_time,
               COALESCE(end_time, start_time + interval '1 hour') AS end_time,
               capacity, booked_count,
-              COALESCE(is_locked, false) AS is_locked, locked_by, locked_until
+              COALESCE(is_locked, false) AS is_locked, locked_by, locked_until,
+              COALESCE(slot_type, 'hourly') AS slot_type
        FROM availability_slots
        WHERE provider_user_id = $1
        ${from ? `AND slot_date >= $2` : ''}
@@ -78,14 +80,14 @@ router.get('/', requireRole('admin', 'provider'), async (req: Request, res: Resp
 // ─── POST /availability/slots (Provider/Admin) ────────────────────────────────
 router.post('/slots', requireRole('admin', 'provider', 'moderator'), async (req: Request, res: Response) => {
   try {
-    const { experience_id, slot_date, start_time, end_time, capacity } = req.body;
+    const { experience_id, slot_date, start_time, end_time, capacity, slot_type } = req.body;
     const userId = req.user!.userId;
 
     const slot = await queryOne<{ id: string }>(
-      `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity, booked_count, is_locked)
-       VALUES ($1, $2, $3, $4, $5, $6, 0, false)
+      `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity, booked_count, is_locked, slot_type)
+       VALUES ($1, $2, $3, $4, $5, $6, 0, false, $7)
        RETURNING id`,
-      [experience_id, userId, slot_date, start_time, end_time || null, capacity || 10]
+      [experience_id, userId, slot_date, start_time, end_time || null, capacity || 10, slot_type || 'hourly']
     );
 
     res.status(201).json({ id: slot!.id });
@@ -108,11 +110,11 @@ router.post('/bulk-slots', requireRole('admin', 'provider', 'moderator'), async 
     const inserted: string[] = [];
     for (const s of slots) {
       const row = await queryOne<{ id: string }>(
-        `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity, booked_count, is_locked)
-         VALUES ($1, $2, $3, $4, $5, $6, 0, false)
+        `INSERT INTO availability_slots (experience_id, provider_user_id, slot_date, start_time, end_time, capacity, booked_count, is_locked, slot_type)
+         VALUES ($1, $2, $3, $4, $5, $6, 0, false, $7)
          ON CONFLICT DO NOTHING
          RETURNING id`,
-        [experience_id, userId, s.slot_date, s.start_time, s.end_time, s.capacity || 10]
+        [experience_id, userId, s.slot_date, s.start_time, s.end_time, s.capacity || 10, s.slot_type || 'hourly']
       );
       if (row) inserted.push(row.id);
     }
