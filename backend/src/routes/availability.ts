@@ -204,11 +204,13 @@ router.patch('/slots/:id/capacity', requireRole('admin', 'provider'), async (req
   }
 });
 
-// ─── POST /availability/slots/:id/lock ────────────────────────────────────────
-router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) => {
+// ─── POST /availability/slots/:id/hold + /lock ───────────────────────────────
+// /hold is the primary URL (avoids ad-blocker false positives on 'lock')
+// /lock kept as alias for backwards compatibility
+async function handleSlotHold(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const userId = req.user!.userId;
+    const userId = (req as any).user?.userId || req.body?.session_id || (req.headers['x-session-id'] as string) || 'anon';
 
     const slot = await queryOne<{
       id: string; is_locked: boolean; locked_by: string | null;
@@ -228,7 +230,6 @@ router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) 
         return res.json([{ success: false, error_message: 'Slotul este blocat de alt utilizator.' }]);
       }
     }
-
     if (slot.capacity === 1) {
       const lockedUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
       await query(
@@ -236,19 +237,17 @@ router.post('/slots/:id/lock', requireAuth, async (req: Request, res: Response) 
         [userId, lockedUntil, id]
       );
     }
-
     res.json([{ success: true }]);
   } catch (err) {
-    console.error('[availability POST /slots/:id/lock]', err);
-    res.status(500).json({ error: 'Failed to lock slot' });
+    console.error('[availability POST /slots/:id/hold]', err);
+    res.status(500).json({ error: 'Failed to hold slot' });
   }
-});
+}
 
-// ─── POST /availability/slots/:id/unlock ──────────────────────────────────────
-router.post('/slots/:id/unlock', requireAuth, async (req: Request, res: Response) => {
+async function handleSlotRelease(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const userId = req.user!.userId;
+    const userId = (req as any).user?.userId || req.body?.session_id || (req.headers['x-session-id'] as string) || 'anon';
     await query(
       `UPDATE availability_slots SET is_locked = false, locked_by = NULL, locked_until = NULL
        WHERE id = $1 AND locked_by = $2`,
@@ -256,10 +255,15 @@ router.post('/slots/:id/unlock', requireAuth, async (req: Request, res: Response
     );
     res.json({ success: true });
   } catch (err) {
-    console.error('[availability POST /slots/:id/unlock]', err);
-    res.status(500).json({ error: 'Failed to unlock slot' });
+    console.error('[availability POST /slots/:id/release]', err);
+    res.status(500).json({ error: 'Failed to release slot' });
   }
-});
+}
+
+router.post('/slots/:id/hold',    handleSlotHold);
+router.post('/slots/:id/lock',    handleSlotHold);    // alias (backwards compat)
+router.post('/slots/:id/release', handleSlotRelease);
+router.post('/slots/:id/unlock',  handleSlotRelease); // alias (backwards compat)
 
 // ─── POST /availability/check ─────────────────────────────────────────────────
 router.post('/check', requireAuth, async (req: Request, res: Response) => {

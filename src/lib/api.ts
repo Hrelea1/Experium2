@@ -379,11 +379,11 @@ export const availability = {
   },
 
   async lockSlot(slotId: string): Promise<[{ success: boolean; error_message?: string }]> {
-    return request(`/availability/slots/${slotId}/lock`, { method: 'POST' });
+    return request(`/availability/slots/${slotId}/hold`, { method: 'POST' });
   },
 
   async unlockSlot(slotId: string): Promise<{ success: boolean }> {
-    return request(`/availability/slots/${slotId}/unlock`, { method: 'POST' });
+    return request(`/availability/slots/${slotId}/release`, { method: 'POST' });
   },
 };
 
@@ -533,11 +533,11 @@ export const provider = {
   },
 
   async lockSlot(slotId: string) {
-    return request(`/availability/slots/${slotId}/lock`, { method: 'POST' });
+    return request(`/availability/slots/${slotId}/hold`, { method: 'POST' });
   },
 
   async unlockSlot(slotId: string) {
-    return request(`/availability/slots/${slotId}/unlock`, { method: 'POST' });
+    return request(`/availability/slots/${slotId}/release`, { method: 'POST' });
   },
 
   async bulkAddSlots(data: {
