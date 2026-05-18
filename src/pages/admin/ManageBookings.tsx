@@ -104,68 +104,70 @@ const ManageBookings = () => {
   };
 
   const BookingsTable = ({ bookings }: { bookings: Booking[] }) => (
-    <Table className="min-w-[800px]">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Client</TableHead>
-          <TableHead>Experiență</TableHead>
-          <TableHead>Dată</TableHead>
-          <TableHead>Participanți</TableHead>
-          <TableHead>Valoare</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Acțiuni</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {bookings.map((booking) => (
-          <TableRow key={booking.id}>
-          <TableCell>
-              <div>
-                <div className="font-medium">{userProfiles[booking.user_id]?.full_name || 'N/A'}</div>
-                <div className="text-sm text-muted-foreground">{userProfiles[booking.user_id]?.email || 'N/A'}</div>
-              </div>
-            </TableCell>
-            <TableCell className="font-medium">
-              {booking.experiences?.title || 'N/A'}
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                {format(new Date(booking.booking_date), 'dd MMM yyyy')}
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                {booking.participants}
-              </div>
-            </TableCell>
-            <TableCell className="font-medium">{booking.total_price} RON</TableCell>
-            <TableCell>{getStatusBadge(booking.status)}</TableCell>
-            <TableCell className="text-right">
-              {booking.status === 'confirmed' && (
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => updateBookingStatus(booking.id, 'completed')}
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => updateBookingStatus(booking.id, 'cancelled')}
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </TableCell>
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <Table className="min-w-[800px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Client</TableHead>
+            <TableHead>Experiență</TableHead>
+            <TableHead>Dată</TableHead>
+            <TableHead>Participanți</TableHead>
+            <TableHead>Valoare</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Acțiuni</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {bookings.map((booking) => (
+            <TableRow key={booking.id}>
+            <TableCell>
+                <div>
+                  <div className="font-medium">{userProfiles[booking.user_id]?.full_name || 'N/A'}</div>
+                  <div className="text-sm text-muted-foreground">{userProfiles[booking.user_id]?.email || 'N/A'}</div>
+                </div>
+              </TableCell>
+              <TableCell className="font-medium">
+                {booking.experiences?.title || 'N/A'}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  {format(new Date(booking.booking_date), 'dd MMM yyyy')}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  {booking.participants}
+                </div>
+              </TableCell>
+              <TableCell className="font-medium">{booking.total_price} RON</TableCell>
+              <TableCell>{getStatusBadge(booking.status)}</TableCell>
+              <TableCell className="text-right">
+                {booking.status === 'confirmed' && (
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => updateBookingStatus(booking.id, 'completed')}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 
   return (
@@ -182,22 +184,22 @@ const ManageBookings = () => {
           <CardHeader>
             <CardTitle>Lista Rezervări ({bookings.length})</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6">
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               </div>
             ) : (
               <Tabs defaultValue="all">
-                <TabsList>
-                  <TabsTrigger value="all">Toate ({bookings.length})</TabsTrigger>
-                  <TabsTrigger value="confirmed">
+                <TabsList className="w-full overflow-x-auto flex h-auto flex-wrap gap-1 p-1">
+                  <TabsTrigger value="all" className="text-xs flex-1">Toate ({bookings.length})</TabsTrigger>
+                  <TabsTrigger value="confirmed" className="text-xs flex-1">
                     Confirmate ({filterByStatus('confirmed').length})
                   </TabsTrigger>
-                  <TabsTrigger value="pending">
-                    În așteptare ({filterByStatus('pending').length})
+                  <TabsTrigger value="pending" className="text-xs flex-1">
+                    Așteptare ({filterByStatus('pending').length})
                   </TabsTrigger>
-                  <TabsTrigger value="completed">
+                  <TabsTrigger value="completed" className="text-xs flex-1">
                     Finalizate ({filterByStatus('completed').length})
                   </TabsTrigger>
                 </TabsList>

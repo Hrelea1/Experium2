@@ -55,12 +55,13 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar className={open ? "w-60" : "w-14"}>
+    <Sidebar collapsible="offcanvas" className="border-r">
       <SidebarContent>
-        <div className="px-4 py-4 border-b">
-          <h2 className={`font-bold text-lg ${!open && 'text-center text-xs'}`}>
-            {open ? 'Admin Panel' : 'AP'}
-          </h2>
+        <div className="px-4 py-4 border-b flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center shrink-0">
+            <span className="text-primary-foreground font-bold text-xs">A</span>
+          </div>
+          {open && <h2 className="font-bold text-base truncate">Admin Panel</h2>}
         </div>
 
         <SidebarGroup>
@@ -69,15 +70,19 @@ export function AdminSidebar() {
             <SidebarMenu>
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.url)}
+                    tooltip={item.title}
+                  >
                     <NavLink
                       to={item.url}
                       end={item.url === "/admin"}
                       className="hover:bg-muted/50"
                       activeClassName="bg-muted text-primary font-medium"
                     >
-                      <item.icon className="h-4 w-4" />
-                      {open && <span>{item.title}</span>}
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -92,26 +97,26 @@ export function AdminSidebar() {
             <SidebarMenu>
               {otherItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.title}>
                     <NavLink
                       to={item.url}
                       className="hover:bg-muted/50"
                       activeClassName="bg-muted text-primary font-medium"
                     >
-                      <item.icon className="h-4 w-4" />
-                      {open && <span>{item.title}</span>}
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild tooltip="Înapoi la Site">
                   <NavLink
                     to="/"
                     className="hover:bg-muted/50"
                   >
-                    <Home className="h-4 w-4" />
-                    {open && <span>Înapoi la Site</span>}
+                    <Home className="h-4 w-4 shrink-0" />
+                    <span>Înapoi la Site</span>
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>

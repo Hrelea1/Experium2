@@ -84,45 +84,47 @@ const ManageOrders = () => {
     .reduce((sum, b) => sum + b.total_price, 0);
 
   const BookingsTable = ({ bookings }: { bookings: Booking[] }) => (
-    <Table className="min-w-[800px]">
-      <TableHeader>
-        <TableRow>
-          <TableHead>Client</TableHead>
-          <TableHead>Experiență</TableHead>
-          <TableHead>Valoare</TableHead>
-          <TableHead>Data Achiziției</TableHead>
-          <TableHead>Data Rezervării</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {bookings.map((b) => (
-          <TableRow key={b.id}>
-            <TableCell>
-              <div>
-                <div className="font-medium">{userProfiles[b.user_id]?.full_name || 'N/A'}</div>
-                <div className="text-sm text-muted-foreground">{userProfiles[b.user_id]?.email || 'N/A'}</div>
-              </div>
-            </TableCell>
-            <TableCell className="font-medium">{b.experiences?.title || 'N/A'}</TableCell>
-            <TableCell className="font-medium">{b.total_price} RON</TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                {format(new Date(b.created_at), 'dd MMM yyyy')}
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1 text-sm">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                {format(new Date(b.booking_date), 'dd MMM yyyy')}
-              </div>
-            </TableCell>
-            <TableCell>{getStatusBadge(b.status)}</TableCell>
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <Table className="min-w-[800px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Client</TableHead>
+            <TableHead>Experiență</TableHead>
+            <TableHead>Valoare</TableHead>
+            <TableHead>Data Achiziției</TableHead>
+            <TableHead>Data Rezervării</TableHead>
+            <TableHead>Status</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {bookings.map((b) => (
+            <TableRow key={b.id}>
+              <TableCell>
+                <div>
+                  <div className="font-medium">{userProfiles[b.user_id]?.full_name || 'N/A'}</div>
+                  <div className="text-sm text-muted-foreground">{userProfiles[b.user_id]?.email || 'N/A'}</div>
+                </div>
+              </TableCell>
+              <TableCell className="font-medium">{b.experiences?.title || 'N/A'}</TableCell>
+              <TableCell className="font-medium">{b.total_price} RON</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  {format(new Date(b.created_at), 'dd MMM yyyy')}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  {format(new Date(b.booking_date), 'dd MMM yyyy')}
+                </div>
+              </TableCell>
+              <TableCell>{getStatusBadge(b.status)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 
   return (
@@ -168,18 +170,18 @@ const ManageOrders = () => {
           <CardHeader>
             <CardTitle>Lista Comenzi ({bookings.length})</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 md:px-6">
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
               </div>
             ) : (
               <Tabs defaultValue="all">
-                <TabsList>
-                  <TabsTrigger value="all">Toate ({bookings.length})</TabsTrigger>
-                  <TabsTrigger value="confirmed">Confirmate ({filterByStatus('confirmed').length})</TabsTrigger>
-                  <TabsTrigger value="completed">Finalizate ({filterByStatus('completed').length})</TabsTrigger>
-                  <TabsTrigger value="cancelled">Anulate ({filterByStatus('cancelled').length})</TabsTrigger>
+                <TabsList className="w-full overflow-x-auto flex h-auto flex-wrap gap-1 p-1">
+                  <TabsTrigger value="all" className="text-xs flex-1">Toate ({bookings.length})</TabsTrigger>
+                  <TabsTrigger value="confirmed" className="text-xs flex-1">Confirmate ({filterByStatus('confirmed').length})</TabsTrigger>
+                  <TabsTrigger value="completed" className="text-xs flex-1">Finalizate ({filterByStatus('completed').length})</TabsTrigger>
+                  <TabsTrigger value="cancelled" className="text-xs flex-1">Anulate ({filterByStatus('cancelled').length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="all"><BookingsTable bookings={bookings} /></TabsContent>
                 <TabsContent value="confirmed"><BookingsTable bookings={filterByStatus('confirmed')} /></TabsContent>

@@ -237,7 +237,8 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
       users,
       bookings,
       vouchers,
-      revenue,
+      voucherRevenue,
+      bookingRevenue,
       experiences,
       recentBookings,
       recentVouchers
@@ -257,9 +258,13 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
           COUNT(*) AS count,
           COUNT(*) FILTER (WHERE status = 'active') AS active
         FROM vouchers`),
-      // Revenue (from vouchers purchase_price to match frontend, or from bookings)
-      // The frontend used voucher purchase_price for revenue total. So we will sum vouchers.
+      // Revenue from vouchers
       queryOne<{ total: string }>('SELECT COALESCE(SUM(purchase_price), 0) AS total FROM vouchers'),
+      // Revenue from bookings (confirmed + completed)
+      queryOne<{ total: string }>(`
+        SELECT COALESCE(SUM(total_price), 0) AS total 
+        FROM bookings 
+        WHERE status IN ('confirmed', 'completed')`),
       // Experiences
       queryOne<{ count: string; active: string }>(`
         SELECT 
@@ -273,7 +278,7 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
           e.title AS experience_title, e.location_name
         FROM bookings b
         LEFT JOIN experiences e ON e.id = b.experience_id
-        ORDER BY b.booking_date DESC
+        ORDER BY b.created_at DESC
         LIMIT 10`),
       // Recent vouchers
       query(`
@@ -286,6 +291,9 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
         LIMIT 10`)
     ]);
 
+    const vRev = parseFloat(voucherRevenue?.total ?? '0');
+    const bRev = parseFloat(bookingRevenue?.total ?? '0');
+
     res.json({
       total_users: parseInt(users?.count ?? '0'),
       total_bookings: parseInt(bookings?.count ?? '0'),
@@ -295,7 +303,9 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response) => {
       active_vouchers: parseInt(vouchers?.active ?? '0'),
       total_experiences: parseInt(experiences?.count ?? '0'),
       active_experiences: parseInt(experiences?.active ?? '0'),
-      total_revenue: parseFloat(revenue?.total ?? '0'),
+      voucher_revenue: vRev,
+      booking_revenue: bRev,
+      total_revenue: vRev + bRev,
       recent_bookings: recentBookings.map((b: any) => ({
         id: b.id,
         booking_date: b.booking_date,
