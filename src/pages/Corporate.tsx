@@ -268,25 +268,6 @@ const Corporate = () => {
           </div>
         </section>
 
-        {/* ── Social Proof Strip ───────────────────────────────── */}
-        <section className="py-12 bg-gradient-to-r from-primary/10 via-violet-500/5 to-primary/10">
-          <div className="container max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              {[
-                { value: "50+", label: "Companii partenere" },
-                { value: "2.000+", label: "Angajați fericiți" },
-                { value: "3", label: "Tipuri de pachete" },
-                { value: "24h", label: "Timp de răspuns" },
-              ].map((s, i) => (
-                <motion.div key={s.label} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                  <div className="text-3xl font-extrabold text-primary mb-1">{s.value}</div>
-                  <div className="text-sm text-muted-foreground">{s.label}</div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* ── Formular cerere ──────────────────────────────────── */}
         <section id="corporate-form" className="py-16 lg:py-24 bg-muted/30">
           <div className="container max-w-2xl">
