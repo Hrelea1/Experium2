@@ -93,9 +93,8 @@ export function Header() {
             </Link>
             <Link
               to="/corporate"
-              className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-200 relative group flex items-center gap-1.5"
+              className="text-muted-foreground hover:text-foreground font-medium transition-colors duration-200 relative group"
             >
-              <Building2 className="h-4 w-4" />
               Corporate
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
             </Link>
@@ -274,10 +273,9 @@ export function Header() {
               </Link>
               <Link
                 to="/corporate"
-                className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 py-3 text-foreground font-medium hover:bg-muted rounded-lg transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
-                <Building2 className="h-4 w-4" />
                 Corporate
               </Link>
 
