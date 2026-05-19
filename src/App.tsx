@@ -47,6 +47,7 @@ import ProviderDashboard from "./pages/provider/ProviderDashboard";
 import CreateExperience from "./pages/provider/CreateExperience";
 import ProviderEditExperience from "./pages/provider/EditExperience";
 import AmbassadorDashboard from "./pages/ambassador/AmbassadorDashboard";
+import Corporate from "./pages/Corporate";
 import NotFound from "./pages/NotFound";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import { ScrollToTop } from "./components/ScrollToTop";
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/payment-success" element={<PaymentSuccess />} />
               <Route path="/gift-ideas" element={<GiftIdeas />} />
               <Route path="/partners" element={<Partners />} />
+              <Route path="/corporate" element={<Corporate />} />
               <Route path="/about" element={<About />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/contact" element={<Contact />} />
