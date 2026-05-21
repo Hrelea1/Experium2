@@ -1,0 +1,36 @@
+{
+  "recommendations": [
+    // ── Core: Language & Formatting ──────────────────────────────────────────
+    "esbenp.prettier-vscode",           // Prettier formatter
+    "dbaeumer.vscode-eslint",           // ESLint integration
+    "bradlc.vscode-tailwindcss",        // Tailwind CSS IntelliSense
+    "christian-kohler.path-intellisense", // @/ path alias completion
+
+    // ── TypeScript / React ───────────────────────────────────────────────────
+    "dsznajder.es7-react-js-snippets",  // React/TSX snippets
+    "burkeholland.simple-react-snippets", // Extra React snippets
+
+    // ── UI / Styling Helpers ─────────────────────────────────────────────────
+    "naumovs.color-highlight",          // Inline CSS color previews
+    "antfu.iconify",                    // Lucide/icon previews inline
+
+    // ── Git & GitHub ─────────────────────────────────────────────────────────
+    "eamodio.gitlens",                  // Advanced git blame & history
+    "github.vscode-pull-request-github", // PR / issues integration
+
+    // ── File & Project Navigation ─────────────────────────────────────────────
+    "EditorConfig.EditorConfig",        // Respect .editorconfig if added
+    "aaron-bond.better-comments",       // Coloured comment annotations
+    "wayou.vscode-todo-highlight",      // Highlight TODO/FIXME/HACK
+
+    // ── Database / Supabase ───────────────────────────────────────────────────
+    "mtxr.sqltools",                    // SQL editor & query runner
+    "mtxr.sqltools-driver-pg",          // PostgreSQL driver for Supabase
+
+    // ── Quality of Life ───────────────────────────────────────────────────────
+    "usernamehw.errorlens",             // Inline error messages
+    "streetsidesoftware.code-spell-checker", // Spell check in code/comments
+    "wix.vscode-import-cost",           // Show import bundle sizes
+    "formulahendry.auto-rename-tag"     // Auto-rename paired JSX tags
+  ]
+}
