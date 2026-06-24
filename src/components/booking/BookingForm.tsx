@@ -72,6 +72,9 @@ export function BookingForm({ experience }: BookingFormProps) {
     ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
     : isFreeMixFlow ? adults + children : participants;
 
+  // Use the slot's max_participants when a slot is selected; fall back to experience max
+  const maxAllowed = selectedSlot?.max_participants || experience.maxParticipants;
+
   const childPriceToUse = experience.child_price ?? experience.price;
 
   const isWeekend = selectedSlot ? [0, 6].includes(new Date(selectedSlot.slot_date).getDay()) : false;
@@ -305,7 +308,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                     </span>
                     <button
                       type="button"
-                      disabled={totalParticipants >= experience.maxParticipants}
+                      disabled={totalParticipants >= maxAllowed}
                       onClick={() => setTierQty(idx, getTierQty(idx) + 1)}
                       className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
                     >
@@ -315,7 +318,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                 </div>
               ))}
               <div className="text-xs text-muted-foreground text-right mr-1">
-                Total: {totalParticipants} / {experience.maxParticipants} pers.
+                Total: {totalParticipants} / {maxAllowed} pers.
               </div>
             </div>
           ) : isFreeMixFlow ? (
@@ -340,7 +343,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                   </span>
                   <button
                     type="button"
-                    disabled={totalParticipants >= experience.maxParticipants}
+                    disabled={totalParticipants >= maxAllowed}
                     onClick={() => setAdults(adults + 1)}
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
                   >
@@ -373,7 +376,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                   </span>
                   <button
                     type="button"
-                    disabled={totalParticipants >= experience.maxParticipants}
+                    disabled={totalParticipants >= maxAllowed}
                     onClick={() => setChildren(children + 1)}
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
                   >
@@ -393,7 +396,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                     : `Mai adaugă ${min - totalParticipants} participant${min - totalParticipants === 1 ? '' : 'i'} (min. ${min})`
                   }
                 </span>
-                <span className="font-semibold">{totalParticipants} / {experience.maxParticipants} pers.</span>
+                <span className="font-semibold">{totalParticipants} / {maxAllowed} pers.</span>
               </div>
             </div>
           ) : (
@@ -411,13 +414,13 @@ export function BookingForm({ experience }: BookingFormProps) {
               </span>
               <button
                 type="button"
-                onClick={() => setParticipants(Math.min(experience.maxParticipants, participants + 1))}
+                onClick={() => setParticipants(Math.min(maxAllowed, participants + 1))}                
                 className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 transition-colors text-xl font-medium"
               >
                 +
               </button>
               <span className="text-sm text-muted-foreground ml-2">
-                ({t('booking.max')} {experience.maxParticipants})
+                ({t('booking.max')} {maxAllowed})
               </span>
             </div>
           )}
