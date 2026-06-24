@@ -72,8 +72,8 @@ export function BookingForm({ experience }: BookingFormProps) {
     ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
     : isFreeMixFlow ? adults + children : participants;
 
-  // Use the slot's max_participants when a slot is selected; fall back to experience max
-  const maxAllowed = selectedSlot?.max_participants || experience.maxParticipants;
+  // Use the slot's available_spots (remaining after bookings) as the hard cap; fall back to experience max
+  const maxAllowed = selectedSlot?.available_spots ?? experience.maxParticipants;
 
   const childPriceToUse = experience.child_price ?? experience.price;
 
