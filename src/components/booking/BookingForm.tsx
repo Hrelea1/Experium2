@@ -42,8 +42,8 @@ export function BookingForm({ experience }: BookingFormProps) {
   const isAssisted = experience.isAssisted || false;
   const hasTiers = experience.pricingTiers && experience.pricingTiers.length > 0;
   const hasDistinctChildPrice = experience.child_price != null && experience.child_price !== experience.price;
-  // For the free-mix flow: when hasDistinctChildPrice && min > 1, user freely picks adults/children
-  const isFreeMixFlow = hasDistinctChildPrice && min > 1;
+  // Free-mix flow: any experience with min > 1 lets users freely pick adults/children
+  const isFreeMixFlow = !hasTiers && min > 1;
 
   // For free-mix flow: start at 0 so user freely picks the mix; otherwise start at min
   const [adults, setAdults] = useState(isFreeMixFlow ? 0 : min);
@@ -70,7 +70,7 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const totalParticipants = hasTiers
     ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
-    : hasDistinctChildPrice ? adults + children : participants;
+    : isFreeMixFlow ? adults + children : participants;
 
   const childPriceToUse = experience.child_price ?? experience.price;
 
@@ -81,7 +81,7 @@ export function BookingForm({ experience }: BookingFormProps) {
     ? Object.entries(tierQuantities).reduce((sum, [idx, qty]) => {
         return sum + (experience.pricingTiers![Number(idx)].price * qty);
       }, 0)
-    : hasDistinctChildPrice 
+    : isFreeMixFlow
       ? (experience.price * adults) + (childPriceToUse * children)
       : (experience.price * participants);
 
@@ -124,14 +124,14 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : (hasDistinctChildPrice
+        : isFreeMixFlow
             ? [
-                { name: "Adulți", price: experience.price, quantity: adults },
+                ...(adults > 0 ? [{ name: "Adulți", price: experience.price, quantity: adults }] : []),
                 ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
               ]
             : [
                 { name: "Participanți", price: experience.price, quantity: participants }
-              ]);
+              ];
         
       // Combine tiers, services and potential weekend surcharge
       const participantDetailsPayload = [
@@ -198,14 +198,14 @@ export function BookingForm({ experience }: BookingFormProps) {
               price: experience.pricingTiers![Number(idx)].price,
               quantity: qty
             }))
-        : (hasDistinctChildPrice
+        : isFreeMixFlow
             ? [
-                { name: "Adulți", price: experience.price, quantity: adults },
+                ...(adults > 0 ? [{ name: "Adulți", price: experience.price, quantity: adults }] : []),
                 ...(children > 0 ? [{ name: "Copii", price: childPriceToUse, quantity: children }] : [])
               ]
             : [
                 { name: "Participanți", price: experience.price, quantity: participants }
-              ]),
+              ],
       slotId: selectedSlot.id,
       slotDate: selectedSlot.slot_date,
       startTime: selectedSlot.start_time,
@@ -318,7 +318,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                 Total: {totalParticipants} / {experience.maxParticipants} pers.
               </div>
             </div>
-          ) : hasDistinctChildPrice ? (
+          ) : isFreeMixFlow ? (
             <div className="space-y-3">
               {/* Adults row */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
@@ -382,26 +382,19 @@ export function BookingForm({ experience }: BookingFormProps) {
                 </div>
               </div>
               {/* Min participants progress */}
-              {isFreeMixFlow && (
-                <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${
-                  totalParticipants >= min
-                    ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400'
-                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                }`}>
-                  <span>
-                    {totalParticipants >= min
-                      ? `✓ Minim atins (${min} pers.)`
-                      : `Mai adaugă ${min - totalParticipants} participant${min - totalParticipants === 1 ? '' : 'i'} (min. ${min})`
-                    }
-                  </span>
-                  <span className="font-semibold">{totalParticipants} / {experience.maxParticipants} pers.</span>
-                </div>
-              )}
-              {!isFreeMixFlow && (
-                <div className="text-xs text-muted-foreground text-right mr-1">
-                  Total: {totalParticipants} / {experience.maxParticipants} pers.
-                </div>
-              )}
+              <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${
+                totalParticipants >= min
+                  ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+              }`}>
+                <span>
+                  {totalParticipants >= min
+                    ? `✓ Minim atins (${min} pers.)`
+                    : `Mai adaugă ${min - totalParticipants} participant${min - totalParticipants === 1 ? '' : 'i'} (min. ${min})`
+                  }
+                </span>
+                <span className="font-semibold">{totalParticipants} / {experience.maxParticipants} pers.</span>
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-3 pl-2">
