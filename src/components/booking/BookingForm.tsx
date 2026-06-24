@@ -39,7 +39,14 @@ export function BookingForm({ experience }: BookingFormProps) {
   const { addItem, items } = useCart();
   const { t } = useTranslation();
   const min = experience.minParticipants || 1;
-  const [adults, setAdults] = useState(min);
+  const isAssisted = experience.isAssisted || false;
+  const hasTiers = experience.pricingTiers && experience.pricingTiers.length > 0;
+  const hasDistinctChildPrice = experience.child_price != null && experience.child_price !== experience.price;
+  // For the free-mix flow: when hasDistinctChildPrice && min > 1, user freely picks adults/children
+  const isFreeMixFlow = hasDistinctChildPrice && min > 1;
+
+  // For free-mix flow: start at 0 so user freely picks the mix; otherwise start at min
+  const [adults, setAdults] = useState(isFreeMixFlow ? 0 : min);
   const [children, setChildren] = useState(0);
   const [participants, setParticipants] = useState(min);
   const selectedServicesRef = useRef<SelectedService[]>([]);
@@ -48,10 +55,6 @@ export function BookingForm({ experience }: BookingFormProps) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-
-  const isAssisted = experience.isAssisted || false;
-  const hasTiers = experience.pricingTiers && experience.pricingTiers.length > 0;
-  const hasDistinctChildPrice = experience.child_price != null && experience.child_price !== experience.price;
 
   const [tierQuantities, setTierQuantities] = useState<Record<number, number>>(() => {
     if (hasTiers) {
@@ -317,6 +320,7 @@ export function BookingForm({ experience }: BookingFormProps) {
             </div>
           ) : hasDistinctChildPrice ? (
             <div className="space-y-3">
+              {/* Adults row */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
                 <div className="pr-2">
                   <h4 className="font-semibold text-sm break-words">Adulți</h4>
@@ -325,8 +329,8 @@ export function BookingForm({ experience }: BookingFormProps) {
                 <div className="flex items-center gap-3 self-end sm:self-auto">
                   <button
                     type="button"
-                    disabled={adults <= min && children === 0}
-                    onClick={() => setAdults(Math.max(min, adults - 1))}
+                    disabled={adults <= 0}
+                    onClick={() => setAdults(Math.max(0, adults - 1))}
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
                   >
                     −
@@ -344,6 +348,7 @@ export function BookingForm({ experience }: BookingFormProps) {
                   </button>
                 </div>
               </div>
+              {/* Children row */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
                 <div className="pr-2">
                   <h4 className="font-semibold text-sm break-words">Copii</h4>
@@ -376,9 +381,27 @@ export function BookingForm({ experience }: BookingFormProps) {
                   </button>
                 </div>
               </div>
-              <div className="text-xs text-muted-foreground text-right mr-1">
-                Total: {totalParticipants} / {experience.maxParticipants} pers.
-              </div>
+              {/* Min participants progress */}
+              {isFreeMixFlow && (
+                <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${
+                  totalParticipants >= min
+                    ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                }`}>
+                  <span>
+                    {totalParticipants >= min
+                      ? `✓ Minim atins (${min} pers.)`
+                      : `Mai adaugă ${min - totalParticipants} participant${min - totalParticipants === 1 ? '' : 'i'} (min. ${min})`
+                    }
+                  </span>
+                  <span className="font-semibold">{totalParticipants} / {experience.maxParticipants} pers.</span>
+                </div>
+              )}
+              {!isFreeMixFlow && (
+                <div className="text-xs text-muted-foreground text-right mr-1">
+                  Total: {totalParticipants} / {experience.maxParticipants} pers.
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3 pl-2">
@@ -453,36 +476,55 @@ export function BookingForm({ experience }: BookingFormProps) {
             </p>
           </div>
         ) : isAssisted ? (
-          <Button
-            type="button"
-            size="xl"
-            className="w-full bg-amber-600 hover:bg-amber-700"
-            onClick={() => setShowAvailabilityModal(true)}
-            disabled={!selectedSlot || checkingAvailability}
-          >
-            <CalendarCheck className="w-5 h-5 mr-2" />
-            {checkingAvailability ? "Se procesează..." : "Verifică Disponibilitate"}
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            size="xl"
-            className="w-full"
-            onClick={handleAddToCart}
-            disabled={!selectedSlot}
-          >
-            {selectedSlot ? (
-              <>
-                <ShoppingBag className="w-5 h-5 mr-2" />
-                Adaugă în coș
-              </>
-            ) : (
-              <>
-                <CalendarCheck className="w-5 h-5 mr-2" />
-                Selectează data pentru a continua
-              </>
+          <>
+            {isFreeMixFlow && totalParticipants < min && (
+              <p className="text-center text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">
+                Adaugă minim {min} participanți pentru a continua
+              </p>
             )}
-          </Button>
+            <Button
+              type="button"
+              size="xl"
+              className="w-full bg-amber-600 hover:bg-amber-700"
+              onClick={() => setShowAvailabilityModal(true)}
+              disabled={!selectedSlot || checkingAvailability || (isFreeMixFlow && totalParticipants < min)}
+            >
+              <CalendarCheck className="w-5 h-5 mr-2" />
+              {checkingAvailability ? "Se procesează..." : "Verifică Disponibilitate"}
+            </Button>
+          </>
+        ) : (
+          <>
+            {isFreeMixFlow && totalParticipants < min && (
+              <p className="text-center text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">
+                Adaugă minim {min} participanți pentru a continua
+              </p>
+            )}
+            <Button
+              type="button"
+              size="xl"
+              className="w-full"
+              onClick={handleAddToCart}
+              disabled={!selectedSlot || (isFreeMixFlow && totalParticipants < min)}
+            >
+              {!selectedSlot ? (
+                <>
+                  <CalendarCheck className="w-5 h-5 mr-2" />
+                  Selectează data pentru a continua
+                </>
+              ) : isFreeMixFlow && totalParticipants < min ? (
+                <>
+                  <Users className="w-5 h-5 mr-2" />
+                  Adaugă minim {min} participanți
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-5 h-5 mr-2" />
+                  Adaugă în coș
+                </>
+              )}
+            </Button>
+          </>
         )}
 
         <AvailabilityInfoModal 
