@@ -355,39 +355,41 @@ export function BookingForm({ experience }: BookingFormProps) {
                   </button>
                 </div>
               </div>
-              {/* Children row */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
-                <div className="pr-2">
-                  <h4 className="font-semibold text-sm break-words">Copii</h4>
-                  <p className="text-muted-foreground text-xs font-medium">{childPriceToUse} {t('common.lei')}</p>
-                  {experience.child_price_description && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight opacity-80 break-words">
-                      {experience.child_price_description}
-                    </p>
-                  )}
+              {/* Children row — only when a specific child price is set */}
+              {experience.child_price != null && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
+                  <div className="pr-2">
+                    <h4 className="font-semibold text-sm break-words">Copii</h4>
+                    <p className="text-muted-foreground text-xs font-medium">{childPriceToUse} {t('common.lei')}</p>
+                    {experience.child_price_description && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight opacity-80 break-words">
+                        {experience.child_price_description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      disabled={children <= 0}
+                      onClick={() => setChildren(Math.max(0, children - 1))}
+                      className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center text-base font-semibold text-foreground">
+                      {children}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={totalParticipants >= maxAllowed}
+                      onClick={() => setChildren(children + 1)}
+                      className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 self-end sm:self-auto">
-                  <button
-                    type="button"
-                    disabled={children <= 0}
-                    onClick={() => setChildren(Math.max(0, children - 1))}
-                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center text-base font-semibold text-foreground">
-                    {children}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={totalParticipants >= maxAllowed}
-                    onClick={() => setChildren(children + 1)}
-                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
+              )}
               {/* Min participants progress */}
               <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${
                 totalParticipants >= min
