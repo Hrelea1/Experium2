@@ -42,13 +42,15 @@ export function BookingForm({ experience }: BookingFormProps) {
   const isAssisted = experience.isAssisted || false;
   const hasTiers = experience.pricingTiers && experience.pricingTiers.length > 0;
   const hasDistinctChildPrice = experience.child_price != null && experience.child_price !== experience.price;
-  // Free-mix flow: any experience with min > 1 lets users freely pick adults/children
-  const isFreeMixFlow = !hasTiers && min > 1;
+  // Free-mix flow: min > 1 AND a distinct child price → show adults + children rows
+  const isFreeMixFlow = !hasTiers && min > 1 && hasDistinctChildPrice;
+  // Adults-only flow: min > 1 but NO distinct child price → single counter starting at 0, enforcing min
+  const isAdultsOnlyFlow = !hasTiers && min > 1 && !hasDistinctChildPrice;
 
-  // For free-mix flow: start at 0 so user freely picks the mix; otherwise start at min
+  // For free-mix / adults-only flows: start at 0 so user freely picks the amount; otherwise start at min
   const [adults, setAdults] = useState(isFreeMixFlow ? 0 : min);
   const [children, setChildren] = useState(0);
-  const [participants, setParticipants] = useState(min);
+  const [participants, setParticipants] = useState((isFreeMixFlow || isAdultsOnlyFlow) ? 0 : min);
   const selectedServicesRef = useRef<SelectedService[]>([]);
   const [servicesTotal, setServicesTotal] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
@@ -70,7 +72,9 @@ export function BookingForm({ experience }: BookingFormProps) {
 
   const totalParticipants = hasTiers
     ? Object.values(tierQuantities).reduce((a, b) => a + b, 0)
-    : isFreeMixFlow ? adults + children : participants;
+    : isFreeMixFlow ? adults + children
+    : isAdultsOnlyFlow ? participants
+    : participants;
 
   // Use the slot's available_spots (remaining after bookings) as the hard cap; fall back to experience max
   const maxAllowed = selectedSlot?.available_spots ?? experience.maxParticipants;
@@ -399,6 +403,51 @@ export function BookingForm({ experience }: BookingFormProps) {
                 <span className="font-semibold">{totalParticipants} / {maxAllowed} pers.</span>
               </div>
             </div>
+          ) : isAdultsOnlyFlow ? (
+            <div className="space-y-3">
+              {/* Single participants counter, starts at 0, enforces min */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-xl bg-card gap-3">
+                <div className="pr-2">
+                  <h4 className="font-semibold text-sm break-words">Participanți</h4>
+                  <p className="text-muted-foreground text-xs">{experience.price} {t('common.lei')} / pers.</p>
+                </div>
+                <div className="flex items-center gap-3 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    disabled={participants <= 0}
+                    onClick={() => setParticipants(Math.max(0, participants - 1))}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center text-base font-semibold text-foreground">
+                    {participants}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={participants >= maxAllowed}
+                    onClick={() => setParticipants(Math.min(maxAllowed, participants + 1))}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/80 disabled:opacity-50 transition-colors text-lg font-medium"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              {/* Min participants progress */}
+              <div className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 ${
+                participants >= min
+                  ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-400'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+              }`}>
+                <span>
+                  {participants >= min
+                    ? `✓ Minim atins (${min} pers.)`
+                    : `Mai adaugă ${min - participants} participant${min - participants === 1 ? '' : 'i'} (min. ${min})`
+                  }
+                </span>
+                <span className="font-semibold">{participants} / {maxAllowed} pers.</span>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center gap-3 pl-2">
               <button
@@ -473,7 +522,7 @@ export function BookingForm({ experience }: BookingFormProps) {
           </div>
         ) : isAssisted ? (
           <>
-            {isFreeMixFlow && totalParticipants < min && (
+            {((isFreeMixFlow && totalParticipants < min) || (isAdultsOnlyFlow && participants < min)) && (
               <p className="text-center text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">
                 Adaugă minim {min} participanți pentru a continua
               </p>
@@ -483,7 +532,7 @@ export function BookingForm({ experience }: BookingFormProps) {
               size="xl"
               className="w-full bg-amber-600 hover:bg-amber-700"
               onClick={() => setShowAvailabilityModal(true)}
-              disabled={!selectedSlot || checkingAvailability || (isFreeMixFlow && totalParticipants < min)}
+              disabled={!selectedSlot || checkingAvailability || (isFreeMixFlow && totalParticipants < min) || (isAdultsOnlyFlow && participants < min)}
             >
               <CalendarCheck className="w-5 h-5 mr-2" />
               {checkingAvailability ? "Se procesează..." : "Verifică Disponibilitate"}
@@ -491,7 +540,7 @@ export function BookingForm({ experience }: BookingFormProps) {
           </>
         ) : (
           <>
-            {isFreeMixFlow && totalParticipants < min && (
+            {((isFreeMixFlow && totalParticipants < min) || (isAdultsOnlyFlow && participants < min)) && (
               <p className="text-center text-xs text-amber-600 dark:text-amber-400 font-medium mb-1">
                 Adaugă minim {min} participanți pentru a continua
               </p>
@@ -501,14 +550,14 @@ export function BookingForm({ experience }: BookingFormProps) {
               size="xl"
               className="w-full"
               onClick={handleAddToCart}
-              disabled={!selectedSlot || (isFreeMixFlow && totalParticipants < min)}
+              disabled={!selectedSlot || (isFreeMixFlow && totalParticipants < min) || (isAdultsOnlyFlow && participants < min)}
             >
               {!selectedSlot ? (
                 <>
                   <CalendarCheck className="w-5 h-5 mr-2" />
                   Selectează data pentru a continua
                 </>
-              ) : isFreeMixFlow && totalParticipants < min ? (
+              ) : (isFreeMixFlow && totalParticipants < min) || (isAdultsOnlyFlow && participants < min) ? (
                 <>
                   <Users className="w-5 h-5 mr-2" />
                   Adaugă minim {min} participanți
